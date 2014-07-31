@@ -1,0 +1,4 @@
+*.swp
+.clang_complete
+test
+apidoc
