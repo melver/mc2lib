@@ -104,6 +104,7 @@ class ElementSet {
 
     ElementSet& operator+=(const ElementSet& rhs)
     {
+        if (this == &rhs) return *this;
         set_.insert(rhs.set_.begin(), rhs.set_.end());
         return *this;
     }
@@ -131,9 +132,14 @@ class ElementSet {
 
     ElementSet& operator-=(const ElementSet& rhs)
     {
-        for (const auto& e : rhs.get()) {
-            set_.erase(e);
+        if (this == &rhs) {
+            clear();
+        } else {
+            for (const auto& e : rhs.get()) {
+                set_.erase(e);
+            }
         }
+
         return *this;
     }
 
@@ -162,6 +168,9 @@ class ElementSet {
         *this = rhs & *this;
         return *this;
     }
+
+    void clear()
+    { set_.clear(); }
 
     bool contains(const Element& e) const
     {
@@ -395,6 +404,16 @@ class ElementRel {
     {
         *this = rhs & *this;
         return *this;
+    }
+
+    void clear()
+    { rel_.clear(); }
+
+    bool empty() const
+    {
+        // Upon erasure, we ensure that an element is not related to an empty
+        // set, i.e. in that case it is deleted.
+        return rel_.empty();
     }
 
     bool contains(const Element& e) const
