@@ -35,22 +35,9 @@
 #define MC2LIB_ELEMENTSETTHY_HPP_
 
 #include <cassert>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#ifndef MC2LIB_ElementRel_UNORDERED
-#   define MC2LIB_ElementRel_UNORDERED 1
-#endif
-
-#ifndef MC2LIB_ElementRel_R_impl
-#   define MC2LIB_ElementRel_R_impl R_default
-#endif
-
-#if MC2LIB_ElementRel_UNORDERED
-#   include <unordered_map>
-#else
-#   include <map>
-#endif
 
 namespace mc2lib {
 namespace elementsetthy {
@@ -217,12 +204,8 @@ class ElementSet {
 template <class Element>
 class ElementRel {
   public:
-#if MC2LIB_ElementRel_UNORDERED
     typedef std::unordered_map<Element, ElementSet<Element>,
                                typename Element::Hash> Relation;
-#else
-    typedef std::map<Element, ElementSet<Element>> Relation;
-#endif
 
     typedef std::pair<Element, Element> Tuple;
 
@@ -256,20 +239,20 @@ class ElementRel {
     { return rel_; }
 
     /*
-     * Provide eval() for actual view of the relation (with properties
+     * Provide eval() for evaluated view of the relation (with properties
      * evaluated).
      */
-    std::vector<Tuple> eval() const
+    ElementRel eval() const
     {
-        std::vector<Tuple> vec;
+        ElementRel result;
         const auto dom = domain();
         for (const auto& e1 : dom.get()) {
             const auto reach = reachable(e1);
             for (const auto& e2 : reach.get()) {
-                vec.emplace_back(e1, e2);
+                result.insert(e1, e2);
             }
         }
-        return vec;
+        return result;
     }
 
     Properties props() const
@@ -416,6 +399,13 @@ class ElementRel {
         return rel_.empty();
     }
 
+    bool operator==(const ElementRel& rhs) const
+    {
+        const auto& l = props() ? eval() : *this;
+        const auto& r = rhs.props() ? rhs.eval() : rhs;
+        return l.rel_ == r.rel_;
+    }
+
     bool contains(const Element& e) const
     {
         return rel_.find(e) != rel_.end();
@@ -433,7 +423,7 @@ class ElementRel {
         }
 
         ElementSet<Element> visited;
-        return MC2LIB_ElementRel_R_impl(e1, &e2, visited);
+        return R_impl(e1, &e2, &visited);
     }
 
     /*
@@ -458,7 +448,7 @@ class ElementRel {
             return visited;
         }
 
-        if (!MC2LIB_ElementRel_R_impl(e, &e, visited, None, true)) {
+        if (!R_impl(e, &e, &visited, nullptr, None, true)) {
             if (!all_props(ReflexiveClosure)) {
                 visited -= e;
             }
@@ -641,6 +631,8 @@ class ElementRel {
     }
 
   protected:
+    typedef std::unordered_map<Element, bool,
+                               typename Element::Hash> FlagSet;
 
     bool irreflexive(Properties local_props, Element *which) const
     {
@@ -650,10 +642,11 @@ class ElementRel {
             return false;
         }
 
+        ElementSet<Element> visited;
+        FlagSet onstack;
+
         for (const auto& tuples : rel_) {
-            ElementSet<Element> visited;
-            if (MC2LIB_ElementRel_R_impl(tuples.first, nullptr,
-                                         visited, local_props)) {
+            if (R_impl(tuples.first, nullptr, &visited, &onstack, local_props)) {
                 if (which != nullptr) {
                     *which = tuples.first;
                 }
@@ -664,7 +657,7 @@ class ElementRel {
         return true;
     }
 
-    /*** SEARCH IMPLEMENTATIONS OF DIRECTED GRAPHS **
+    /*** SEARCH IMPLEMENTATION OF DIRECTED GRAPHS **
      *
      * Returns true if the two elements are ordered. If visit_all is set, all
      * reachable nodes are visisted; these are stored in visisted (including
@@ -678,22 +671,48 @@ class ElementRel {
      */
 
     /*
-     * Default implementation wrapper.
+     * Common setup.
      */
-    virtual bool R_default(const Element& e1, const Element *e2,
-                           ElementSet<Element>& visited,
-                           Properties local_props = None,
-                           bool visit_all = false) const
+    bool R_impl(const Element& e1, const Element *e2,
+                ElementSet<Element>* visited,
+                FlagSet* onstack = nullptr,
+                Properties local_props = None,
+                bool visit_all = false) const
     {
+        // We always require visited to be set.
+        assert(visited != nullptr);
+
+        // onstack should only be provided if we are looking for cycles;
+        // visit_all has no effect if onstack is provided, and as a sanity
+        // check, check it's false in all calls.
+        assert(onstack == nullptr || (e2 == nullptr && visit_all == false));
+
+        // Merge call-specific props with global props.
         local_props |= props_;
-        return R_dfs_rec(e1, e2, visited, local_props, visit_all);
+
+        if (e2 == nullptr) {
+            // For the purpose of cycle detection, we are looking for e1->*e1.
+            // In addition, if the transitive property is set, we require that
+            // onstack is provided, as we cannot make assuptions on if visited
+            // is reset before every call -- and for performance reaons, this
+            // usage is discouraged.
+
+            if (all_bitmask(local_props, TransitiveClosure)) {
+                assert(onstack != nullptr);
+            }
+
+            e2 = &e1;
+        }
+
+        return R_dfs_rec(e1, e2, visited, onstack, local_props, visit_all);
     }
 
     /*
      * Recursive DFS
      */
     bool R_dfs_rec(const Element& e1, const Element *e2,
-                   ElementSet<Element>& visited,
+                   ElementSet<Element>* visited,
+                   FlagSet* onstack,
                    Properties local_props,
                    bool visit_all) const
     {
@@ -703,14 +722,12 @@ class ElementRel {
             return false;
         }
 
-        // Currently a cycle does imply that e1 can reach itself, and this is
-        // applied in the most outer call only.
-        if (e2 == nullptr) {
-            e2 = &e1;
+        if (onstack != nullptr) {
+            (*onstack)[e1] = true;
         }
 
         bool result = false;
-        visited += e1;
+        (*visited) += e1;
 
         for (const auto& e : tuples->second.get()) {
             if (e2 != nullptr && e == *e2) {
@@ -722,17 +739,33 @@ class ElementRel {
             }
 
             if (all_bitmask(local_props, TransitiveClosure)) {
-                if (!visited.contains(e)) {
-                    if (R_dfs_rec(e, e2, visited, local_props, visit_all)) {
+                if (!visited->contains(e)) {
+                    if (R_dfs_rec(e, e2, visited, onstack,
+                                  local_props, visit_all)) {
                         if (visit_all) {
                             result = true;
                         } else {
                             return true;
                         }
                     }
-                    visited += e;
+
+                    // There might not be an edge e -> e2, but we must update
+                    // the visited set regardless -- this is only relevant, as
+                    // the caller should only expect the complete set of
+                    // visited nodes is visit_all == true.
+                    (*visited) += e;
+                } else if(onstack != nullptr) {
+                    const auto se = onstack->find(e);
+                    if (se != onstack->end() && se->second) {
+                        // Found a backedge --> cycle!
+                        return true;
+                    }
                 }
             }
+        }
+
+        if (onstack != nullptr) {
+            (*onstack)[e1] = false;
         }
 
         return result;

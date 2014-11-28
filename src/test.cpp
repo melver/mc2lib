@@ -123,6 +123,32 @@ BOOST_AUTO_TEST_CASE(CycleDetectionYes)
     BOOST_CHECK_EQUAL(er.size(), 43);
 }
 
+BOOST_AUTO_TEST_CASE(CycleDetectionYes2)
+{
+    Event e1 = resetevt();
+    Event e2;
+    Event e3;
+
+    EventRel er;
+    er.insert(e1, e2 = nextevt());
+    er.insert(e3=e2, e1 = nextevt());
+    er.insert(e1, e2 = nextevt());
+    er.insert(e2, e1 = nextevt());
+    er.insert(e1, e3);
+
+    for (int i=0; i<30; ++i) {
+        // Catch out buggy cycle detection implementations, where they do not
+        // consider a visisted node after being visited once before.
+        //
+        // As unordered maps are used as backing store, by adding more edges
+        // that do not contribute to the cycle, we are likely to traverse these
+        // first.
+        er.insert(nextevt(), e3);
+    }
+
+    BOOST_CHECK(!er.acyclic());
+}
+
 BOOST_AUTO_TEST_CASE(EventRelDiff)
 {
     Event e1 = resetevt();
@@ -142,7 +168,9 @@ BOOST_AUTO_TEST_CASE(EventRelDiff)
     BOOST_CHECK_EQUAL(er.size(), 4);
 
     d.set_props(EventRel::ReflexiveTransitiveClosure);
-    BOOST_CHECK_EQUAL(d.size(), d.eval().size());
+    auto evald = d.eval();
+    BOOST_CHECK(d == evald);
+    BOOST_CHECK(d.raw() != evald.raw());
     BOOST_CHECK_EQUAL(d.size(), 5);
 }
 
