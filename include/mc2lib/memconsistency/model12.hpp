@@ -42,7 +42,7 @@
 #ifndef MC2LIB_MEMCONSISTENCY_MODEL12_HPP_
 #define MC2LIB_MEMCONSISTENCY_MODEL12_HPP_
 
-#include <mc2lib/memconsistency/eventsets.hpp>
+#include "eventsets.hpp"
 
 namespace mc2lib {
 namespace memconsistency {

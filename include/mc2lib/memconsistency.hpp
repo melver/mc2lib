@@ -34,9 +34,9 @@
 #ifndef MC2LIB_MEMCONSISTENCY_HPP_
 #define MC2LIB_MEMCONSISTENCY_HPP_
 
-#include <mc2lib/memconsistency/eventsets.hpp>
-#include <mc2lib/memconsistency/model12.hpp>
-#include <mc2lib/memconsistency/model14.hpp>
+#include "memconsistency/eventsets.hpp"
+#include "memconsistency/model12.hpp"
+#include "memconsistency/model14.hpp"
 
 #endif /* MEMCONSISTENCY_HPP_ */
 

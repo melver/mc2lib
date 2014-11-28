@@ -34,7 +34,7 @@
 #ifndef MC2LIB_MEMCONSISTENCY_EVENTSETS_HPP_
 #define MC2LIB_MEMCONSISTENCY_EVENTSETS_HPP_
 
-#include <mc2lib/elementsetthy.hpp>
+#include "../elementsetthy.hpp"
 
 #include <string>
 #include <sstream>

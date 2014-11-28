@@ -36,8 +36,13 @@
 #include <boost/test/unit_test.hpp>
 #include <iostream>
 
+#if 1
 #include <mc2lib/memconsistency.hpp>
 #include <mc2lib/simplega.hpp>
+#else
+#include "../include/mc2lib/memconsistency.hpp"
+#include "../include/mc2lib/simplega.hpp"
+#endif
 
 using namespace mc2lib::memconsistency;
 using namespace mc2lib::simplega;
