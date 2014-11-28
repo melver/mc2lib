@@ -146,7 +146,10 @@ BOOST_AUTO_TEST_CASE(CycleDetectionYes2)
         er.insert(nextevt(), e3);
     }
 
-    BOOST_CHECK(!er.acyclic());
+    EventRel::Path p;
+    BOOST_CHECK(!er.acyclic(&p));
+    BOOST_CHECK(p[1] == p.back());
+    BOOST_CHECK_EQUAL(p.size(), 6);
 }
 
 BOOST_AUTO_TEST_CASE(EventRelDiff)

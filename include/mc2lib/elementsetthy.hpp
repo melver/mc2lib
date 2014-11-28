@@ -209,6 +209,8 @@ class ElementRel {
 
     typedef std::pair<Element, Element> Tuple;
 
+    typedef std::vector<Element> Path;
+
     /*
      * Lazy operators as properties.
      */
@@ -457,18 +459,14 @@ class ElementRel {
         return visited;
     }
 
-    /*
-     * If 'which' is set, the Element which is part of the cycle or from which
-     * the cycle can be reached will be copied.
-     */
-    bool irreflexive(Element *which = nullptr) const
+    bool irreflexive(Path *cyclic = nullptr) const
     {
-        return irreflexive(None, which);
+        return irreflexive(None, cyclic);
     }
 
-    bool acyclic(Element *which = nullptr) const
+    bool acyclic(Path *cyclic = nullptr) const
     {
-        return irreflexive(TransitiveClosure, which);
+        return irreflexive(TransitiveClosure, cyclic);
     }
 
     /*
@@ -634,7 +632,39 @@ class ElementRel {
     typedef std::unordered_map<Element, bool,
                                typename Element::Hash> FlagSet;
 
-    bool irreflexive(Properties local_props, Element *which) const
+    void get_cyclic_path(const Element* start, FlagSet *onstack, Path* cyclic) const
+    {
+        assert(start != nullptr && onstack != nullptr && cyclic != nullptr);
+
+        cyclic->push_back(*start);
+        (*onstack)[*start] = false;
+
+        while (start != nullptr) {
+            const ElementSet<Element>& next = rel_.find(*start)->second;
+            start = nullptr;
+
+            for (const auto& e : next.get()) {
+                const auto se = onstack->find(e);
+                if (se != onstack->end() && se->second) {
+                    cyclic->push_back(e);
+                    se->second = false;
+                    start = &e;
+                    break;
+                }
+            }
+        }
+
+        const ElementSet<Element>& next = rel_.find(cyclic->back())->second;
+        for (const auto& e : *cyclic) {
+            if (next.contains(e)) {
+                // Final edge
+                cyclic->push_back(e);
+                break;
+            }
+        }
+    }
+
+    bool irreflexive(Properties local_props, Path *cyclic) const
     {
         local_props |= props_;
 
@@ -647,9 +677,10 @@ class ElementRel {
 
         for (const auto& tuples : rel_) {
             if (R_impl(tuples.first, nullptr, &visited, &onstack, local_props)) {
-                if (which != nullptr) {
-                    *which = tuples.first;
+                if (cyclic != nullptr) {
+                    get_cyclic_path(&tuples.first, &onstack, cyclic);
                 }
+
                 return false;
             }
         }
