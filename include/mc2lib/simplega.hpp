@@ -36,11 +36,13 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <list>
 #include <random>
 #include <sstream>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace mc2lib {
@@ -127,15 +129,15 @@ void crossover_mutate(URNG& urng, const GenomeT& mate1, const GenomeT& mate2,
     assert(!mate1.get().empty());
     assert(!mate2.get().empty());
 
-    std::uniform_int_distribution<size_t> dist1(0, mate1.get().size() - 1);
-    std::uniform_int_distribution<size_t> dist2(0, mate2.get().size() - 1);
+    std::uniform_int_distribution<std::size_t> dist1(0, mate1.get().size() - 1);
+    std::uniform_int_distribution<std::size_t> dist2(0, mate2.get().size() - 1);
 
-    const size_t cut1 = dist1(urng);
-    const size_t cut2 = dist2(urng);
+    const std::size_t cut1 = dist1(urng);
+    const std::size_t cut2 = dist2(urng);
 
     // a[0:cut_a] + b[cut_b:]
     auto cut_and_splice = [](const GenomeT& a, const GenomeT& b,
-                             size_t cut_a, size_t cut_b) {
+                             std::size_t cut_a, std::size_t cut_b) {
         auto result = a.get();
         auto ita = result.begin();
         std::advance(ita, cut_a);
@@ -150,14 +152,14 @@ void crossover_mutate(URNG& urng, const GenomeT& mate1, const GenomeT& mate2,
     GenomeT child1 = cut_and_splice(mate1, mate2, cut1, cut2);
     if (child1.get().size()) {
         child1.mutate(mutation_rate);
-        container->push_back(child1);
+        container->push_back(std::move(child1));
     }
 
     // child2 = mate2[0:cut2] + mate1[cut1:]
     GenomeT child2 = cut_and_splice(mate2, mate1, cut2, cut1);
     if (child2.get().size()) {
         child2.mutate(mutation_rate);
-        container->push_back(child2);
+        container->push_back(std::move(child2));
     }
 }
 
@@ -177,7 +179,7 @@ class GenePool {
     typedef std::list<GenomeT> Population;
     typedef std::vector<GenomeT*> Selection;
 
-    explicit GenePool(size_t target_population_size = 80, float mutation_rate = 0.02f)
+    explicit GenePool(std::size_t target_population_size = 80, float mutation_rate = 0.02f)
         : target_population_size_(target_population_size), mutation_rate_(mutation_rate),
           generation_(0)
     {
@@ -231,13 +233,13 @@ class GenePool {
         mutation_rate_ = mutation_rate;
     }
 
-    size_t target_population_size() const
+    std::size_t target_population_size() const
     { return target_population_size_; }
 
-    size_t population_size() const
+    std::size_t population_size() const
     { return population_.size(); }
 
-    size_t generation() const
+    std::size_t generation() const
     { return generation_; }
 
     float avg_fitness() const
@@ -269,7 +271,7 @@ class GenePool {
         population_.sort();
     }
 
-    GenomeT select_best() const
+    const GenomeT& select_best() const
     {
         return *std::min_element(population_.begin(), population_.end());
     }
@@ -291,16 +293,16 @@ class GenePool {
      * Return random subset of population, using distribution dist to select.
      */
     template <class URNG, class DIST>
-    Selection select_dist(URNG& urng, DIST& dist, size_t count)
+    Selection select_dist(URNG& urng, DIST& dist, std::size_t count)
     {
         assert(population_.size() >= count);
 
-        std::unordered_set<size_t> used;
+        std::unordered_set<std::size_t> used;
         Selection result;
         result.reserve(count);
 
         while (result.size() < count) {
-            size_t idx = dist(urng);
+            std::size_t idx = dist(urng);
             if (used.find(idx) != used.end())
                 continue;
 
@@ -318,9 +320,9 @@ class GenePool {
      * individual is more likely to be selected.
      */
     template <class URNG>
-    Selection select_roulette(URNG& urng, size_t count)
+    Selection select_roulette(URNG& urng, std::size_t count)
     {
-        std::discrete_distribution<size_t> dist(population_.begin(), population_.end());
+        std::discrete_distribution<std::size_t> dist(population_.begin(), population_.end());
         return select_dist(urng, dist, count);
     }
 
@@ -329,9 +331,9 @@ class GenePool {
      * same probability of being selected.
      */
     template <class URNG>
-    Selection select_uniform(URNG& urng, size_t count)
+    Selection select_uniform(URNG& urng, std::size_t count)
     {
-        std::uniform_int_distribution<size_t> dist(0, population_.size() - 1);
+        std::uniform_int_distribution<std::size_t> dist(0, population_.size() - 1);
         return select_dist(urng, dist, count);
     }
 
@@ -354,8 +356,8 @@ class GenePool {
      * population.
      */
     template <class URNG>
-    void nextgen(URNG& urng, Selection *selection, size_t mates,
-                 size_t elite = 0, bool sort_selection = true)
+    void nextgen(URNG& urng, Selection *selection, std::size_t mates,
+                 std::size_t elite = 0, bool sort_selection = true)
     {
         assert(selection->size() >= mates);
         assert(selection->size() >= elite);
@@ -364,17 +366,17 @@ class GenePool {
             selection_sort(selection);
         }
 
-        size_t replace = selection->size() - elite;
+        std::size_t replace = selection->size() - elite;
         assert(replace > 0);
 
-        const size_t target_population_size = target_population_size_ + replace;
+        const std::size_t target_population_size = target_population_size_ + replace;
 
         // Add offspring
-        for (size_t i = 0; i < mates; ++i) {
+        for (std::size_t i = 0; i < mates; ++i) {
             const auto mate1 = (*selection)[i];
 
             // j = i: avoid mating 2 individuals twice
-            for (size_t j = i; j < mates; ++j) {
+            for (std::size_t j = i; j < mates; ++j) {
                 if (i == j) continue;
                 const auto mate2 = (*selection)[j];
 
@@ -390,10 +392,10 @@ class GenePool {
 target_reached:
 
         // Remove non-elite
-        size_t selection_start_idx = elite;
+        std::size_t selection_start_idx = elite;
         population_.remove_if([&](const GenomeT& val) {
             if (!replace) return false;
-            for (size_t i = selection_start_idx; i < selection->size(); ++i) {
+            for (std::size_t i = selection_start_idx; i < selection->size(); ++i) {
                 if (&val == (*selection)[i]) {
                     --replace;
                     return true;
@@ -410,9 +412,9 @@ target_reached:
     }
 
   protected:
-    size_t target_population_size_;
+    std::size_t target_population_size_;
     float mutation_rate_;
-    size_t generation_;
+    std::size_t generation_;
     Population population_;
 };
 

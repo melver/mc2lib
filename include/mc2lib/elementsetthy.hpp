@@ -35,6 +35,7 @@
 #define MC2LIB_ELEMENTSETTHY_HPP_
 
 #include <cassert>
+#include <cstddef>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -164,7 +165,7 @@ class ElementSet {
         return set_.find(e) != set_.end();
     }
 
-    size_t size() const
+    std::size_t size() const
     { return set_.size(); }
 
     bool empty() const
@@ -229,9 +230,6 @@ class ElementRel {
 
     ElementRel(const Relation& r)
         : props_(None), rel_(r)
-    {}
-
-    virtual ~ElementRel()
     {}
 
     /*
@@ -538,9 +536,9 @@ class ElementRel {
         rel_[e1] += e2;
     }
 
-    size_t size() const
+    std::size_t size() const
     {
-        size_t total = 0;
+        std::size_t total = 0;
 
         if (props()) {
             const auto dom = domain();
@@ -835,9 +833,9 @@ class ElementRelOp {
     virtual ~ElementRelOp()
     {}
 
-    size_t size() const
+    std::size_t size() const
     {
-        size_t total = 0;
+        std::size_t total = 0;
         for (const auto& rel : rels_) {
             total += rel.size();
         }
@@ -912,7 +910,7 @@ class ElementRelSeq : public ElementRelOp<Element> {
         return er;
     }
 
-    bool R(const Element& e1, const Element& e2, size_t seq = 0) const
+    bool R(const Element& e1, const Element& e2, std::size_t seq = 0) const
     {
         if (!this->size()) return false;
         assert(seq < this->rels_.size());

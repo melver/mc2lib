@@ -51,7 +51,8 @@ typedef unsigned long long Poi;
 class Iiid {
   public:
     struct Hash {
-        size_t operator()(const Iiid& k) const
+        typedef std::hash<unsigned long long>::result_type result_type;
+        result_type operator()(const Iiid& k) const
         {
             return std::hash<unsigned long long>()(k.pid ^ k.poi);
         }
@@ -111,7 +112,7 @@ class Iiid {
 class Event {
   public:
     struct Hash {
-        size_t operator()(const Event& k) const
+        Iiid::Hash::result_type operator()(const Event& k) const
         {
             return Iiid::Hash()(k.iiid);
         }
