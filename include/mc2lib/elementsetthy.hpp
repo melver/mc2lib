@@ -414,7 +414,7 @@ class ElementRel {
     /*
      * Return true if two elements are ordered.
      */
-    bool R(const Element& e1, const Element& e2) const
+    bool R(const Element& e1, const Element& e2, Path *path = nullptr) const
     {
         if (e1 == e2 && all_props(ReflexiveClosure)) {
             if (in_on(e1)) {
@@ -423,6 +423,18 @@ class ElementRel {
         }
 
         ElementSet<Element> visited;
+
+        if (path != nullptr) {
+            FlagSet visiting;
+
+            bool result = R_impl(e1, &e2, &visited, &visiting);
+            if (result) {
+                get_path(path, &e1, &e2, &visiting);
+            }
+
+            return result;
+        }
+
         return R_impl(e1, &e2, &visited);
     }
 
@@ -448,7 +460,8 @@ class ElementRel {
             return visited;
         }
 
-        if (!R_impl(e, &e, &visited, nullptr, None, true)) {
+        if (!R_impl(e, &e, &visited, nullptr,
+                    None, SearchMode::RelatedVisitAll)) {
             if (!all_props(ReflexiveClosure)) {
                 visited -= e;
             }
@@ -630,21 +643,28 @@ class ElementRel {
     typedef std::unordered_map<Element, bool,
                                typename Element::Hash> FlagSet;
 
-    void get_cyclic_path(const Element* start, FlagSet *onstack, Path* cyclic) const
-    {
-        assert(start != nullptr && onstack != nullptr && cyclic != nullptr);
+    enum class SearchMode {
+        Related,
+        RelatedVisitAll,
+        FindCycle
+    };
 
-        cyclic->push_back(*start);
-        (*onstack)[*start] = false;
+    void get_path(Path *out, const Element* start, const Element *end,
+                  FlagSet *visiting, SearchMode mode = SearchMode::Related) const
+    {
+        assert(out != nullptr && start != nullptr && visiting != nullptr);
+
+        out->push_back(*start);
+        (*visiting)[*start] = false;
 
         while (start != nullptr) {
             const ElementSet<Element>& next = rel_.find(*start)->second;
             start = nullptr;
 
             for (const auto& e : next.get()) {
-                const auto se = onstack->find(e);
-                if (se != onstack->end() && se->second) {
-                    cyclic->push_back(e);
+                const auto se = visiting->find(e);
+                if (se != visiting->end() && se->second) {
+                    out->push_back(e);
                     se->second = false;
                     start = &e;
                     break;
@@ -652,13 +672,25 @@ class ElementRel {
             }
         }
 
-        const ElementSet<Element>& next = rel_.find(cyclic->back())->second;
-        for (const auto& e : *cyclic) {
-            if (next.contains(e)) {
-                // Final edge
-                cyclic->push_back(e);
-                break;
+        const ElementSet<Element>& next = rel_.find(out->back())->second;
+        if (mode == SearchMode::FindCycle) {
+            assert(end == nullptr);
+
+            for (const auto& e : *out) {
+                if (next.contains(e)) {
+                    // Final edge
+                    out->push_back(e);
+                    break;
+                }
             }
+        } else {
+            assert(end != nullptr);
+
+            // This function should only be called if search established there
+            // is a path between start->end.
+            assert(next.contains(*end));
+
+            out->push_back(*end);
         }
     }
 
@@ -671,12 +703,15 @@ class ElementRel {
         }
 
         ElementSet<Element> visited;
-        FlagSet onstack;
+        FlagSet visiting;
 
         for (const auto& tuples : rel_) {
-            if (R_impl(tuples.first, nullptr, &visited, &onstack, local_props)) {
+            if (R_impl(tuples.first, nullptr, &visited, &visiting,
+                       local_props, SearchMode::FindCycle)) {
+
                 if (cyclic != nullptr) {
-                    get_cyclic_path(&tuples.first, &onstack, cyclic);
+                    get_path(cyclic, &tuples.first, nullptr, &visiting,
+                             SearchMode::FindCycle);
                 }
 
                 return false;
@@ -689,7 +724,7 @@ class ElementRel {
     /*** SEARCH IMPLEMENTATION OF DIRECTED GRAPHS **
      *
      * Returns true if the two elements are ordered. If visit_all is set, all
-     * reachable nodes are visisted; these are stored in visisted (including
+     * reachable nodes are visited; these are stored in visited (including
      * the start node).
      *
      * If e2 == nullptr, returns true if a definite cycle has been detected;
@@ -704,17 +739,12 @@ class ElementRel {
      */
     bool R_impl(const Element& e1, const Element *e2,
                 ElementSet<Element>* visited,
-                FlagSet* onstack = nullptr,
+                FlagSet* visiting = nullptr,
                 Properties local_props = None,
-                bool visit_all = false) const
+                SearchMode mode = SearchMode::Related) const
     {
         // We always require visited to be set.
         assert(visited != nullptr);
-
-        // onstack should only be provided if we are looking for cycles;
-        // visit_all has no effect if onstack is provided, and as a sanity
-        // check, check it's false in all calls.
-        assert(onstack == nullptr || (e2 == nullptr && visit_all == false));
 
         // Merge call-specific props with global props.
         local_props |= props_;
@@ -722,28 +752,32 @@ class ElementRel {
         if (e2 == nullptr) {
             // For the purpose of cycle detection, we are looking for e1->*e1.
             // In addition, if the transitive property is set, we require that
-            // onstack is provided, as we cannot make assuptions on if visited
-            // is reset before every call -- and for performance reaons, this
+            // visiting is provided, as we cannot make assumptions on if visited
+            // is reset before every call -- and for performance reasons, this
             // usage is discouraged.
 
+            assert(mode == SearchMode::FindCycle);
+
             if (all_bitmask(local_props, TransitiveClosure)) {
-                assert(onstack != nullptr);
+                assert(visiting != nullptr);
             }
 
             e2 = &e1;
+        } else {
+            assert(mode != SearchMode::FindCycle);
         }
 
-        return R_dfs_rec(e1, e2, visited, onstack, local_props, visit_all);
+        return R_dfs_rec(e1, *e2, visited, visiting, local_props, mode);
     }
 
     /*
      * Recursive DFS
      */
-    bool R_dfs_rec(const Element& e1, const Element *e2,
+    bool R_dfs_rec(const Element& e1, const Element& e2,
                    ElementSet<Element>* visited,
-                   FlagSet* onstack,
+                   FlagSet* visiting,
                    Properties local_props,
-                   bool visit_all) const
+                   SearchMode mode) const
     {
         const auto tuples = rel_.find(e1);
 
@@ -751,16 +785,16 @@ class ElementRel {
             return false;
         }
 
-        if (onstack != nullptr) {
-            (*onstack)[e1] = true;
+        if (visiting != nullptr) {
+            (*visiting)[e1] = true;
         }
 
         bool result = false;
         (*visited) += e1;
 
         for (const auto& e : tuples->second.get()) {
-            if (e2 != nullptr && e == *e2) {
-                if (visit_all) {
+            if (e == e2) {
+                if (mode == SearchMode::RelatedVisitAll) {
                     result = true;
                 } else {
                     return true;
@@ -769,9 +803,9 @@ class ElementRel {
 
             if (all_bitmask(local_props, TransitiveClosure)) {
                 if (!visited->contains(e)) {
-                    if (R_dfs_rec(e, e2, visited, onstack,
-                                  local_props, visit_all)) {
-                        if (visit_all) {
+                    if (R_dfs_rec(e, e2, visited, visiting,
+                                  local_props, mode)) {
+                        if (mode == SearchMode::RelatedVisitAll) {
                             result = true;
                         } else {
                             return true;
@@ -783,9 +817,9 @@ class ElementRel {
                     // the caller should only expect the complete set of
                     // visited nodes is visit_all == true.
                     (*visited) += e;
-                } else if(onstack != nullptr) {
-                    const auto se = onstack->find(e);
-                    if (se != onstack->end() && se->second) {
+                } else if(mode == SearchMode::FindCycle) {
+                    const auto se = visiting->find(e);
+                    if (se != visiting->end() && se->second) {
                         // Found a backedge --> cycle!
                         return true;
                     }
@@ -793,8 +827,8 @@ class ElementRel {
             }
         }
 
-        if (onstack != nullptr) {
-            (*onstack)[e1] = false;
+        if (visiting != nullptr) {
+            (*visiting)[e1] = false;
         }
 
         return result;
@@ -948,6 +982,6 @@ class ElementRelSeq : public ElementRelOp<Element> {
 } /* namespace elementsetthy */
 } /* namespace mc2lib */
 
-#endif /* ELEMENTSETTHY_HPP_ */
+#endif /* MC2LIB_ELEMENTSETTHY_HPP_ */
 
 /* vim: set ts=4 sts=4 sw=4 et : */

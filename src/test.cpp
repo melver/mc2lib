@@ -155,6 +155,13 @@ BOOST_AUTO_TEST_CASE(CycleDetectionYes2)
     BOOST_CHECK(!er.acyclic(&p));
     BOOST_CHECK(p[1] == p.back());
     BOOST_CHECK_EQUAL(p.size(), 6);
+
+    p.clear();
+    er.set_props(EventRel::TransitiveClosure);
+    BOOST_CHECK(er.R(e3, e1, &p));
+    BOOST_CHECK(p.front() == e3);
+    BOOST_CHECK(p.back() == e1);
+    BOOST_CHECK_EQUAL(p.size(), 4);
 }
 
 BOOST_AUTO_TEST_CASE(EventRelDiff)
