@@ -189,7 +189,7 @@ class Checker {
     virtual ~Checker()
     {}
 
-    virtual bool wf_rf()
+    virtual bool wf_rf() const
     {
         EventSet reads;
 
@@ -219,7 +219,7 @@ class Checker {
         return true;
     }
 
-    virtual bool wf_co()
+    virtual bool wf_co() const
     {
         // Assert writes ordered captured in co are to the same location.
         for (const auto& tuples : exec_->co.raw()) {
@@ -237,22 +237,22 @@ class Checker {
                     }));
     }
 
-    virtual bool wf()
+    virtual bool wf() const
     {
         return wf_rf() && wf_co();
     }
 
-    virtual bool sc_per_location()
+    virtual bool sc_per_location() const
     {
         return (exec_->com() + exec_->po_loc()).acyclic();
     }
 
-    virtual bool no_thin_air()
+    virtual bool no_thin_air() const
     {
         return exec_->hb(*arch_).acyclic();
     }
 
-    virtual bool observation()
+    virtual bool observation() const
     {
         EventRel prop = arch_->prop(*exec_);
         EventRel hbstar = exec_->hb(*arch_);
@@ -260,12 +260,12 @@ class Checker {
         return EventRelSeq({exec_->fre(), prop, hbstar}).irreflexive();
     }
 
-    virtual bool propagation()
+    virtual bool propagation() const
     {
         return (exec_->co + arch_->prop(*exec_)).acyclic();
     }
 
-    virtual bool valid_exec()
+    virtual bool valid_exec() const
     {
         return wf()
             && sc_per_location()

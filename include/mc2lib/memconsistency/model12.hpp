@@ -192,7 +192,7 @@ class Checker {
     virtual ~Checker()
     {}
 
-    virtual bool wf_rf()
+    virtual bool wf_rf() const
     {
         EventSet reads;
 
@@ -222,7 +222,7 @@ class Checker {
         return true;
     }
 
-    virtual bool wf_ws()
+    virtual bool wf_ws() const
     {
         // Assert writes ordered captured in ws are to the same location.
         for (const auto& tuples : exec_->ws.raw()) {
@@ -240,27 +240,27 @@ class Checker {
                     }));
     }
 
-    virtual bool wf()
+    virtual bool wf() const
     {
         return wf_rf() && wf_ws();
     }
 
-    virtual bool uniproc()
+    virtual bool uniproc() const
     {
         return (exec_->com() + exec_->po_loc()).acyclic();
     }
 
-    virtual bool thin()
+    virtual bool thin() const
     {
         return (exec_->rf + exec_->dp).acyclic();
     }
 
-    virtual bool check_exec()
+    virtual bool check_exec() const
     {
         return exec_->ghb(*arch_).acyclic();
     }
 
-    virtual bool valid_exec()
+    virtual bool valid_exec() const
     {
         return wf()
             && uniproc()
