@@ -57,7 +57,7 @@ class Architecture {
 
     virtual EventRel ppo(const ExecWitness&) const = 0;
     virtual EventRel grf(const ExecWitness&) const = 0;
-    virtual EventRel ab (const ExecWitness&) const = 0;
+    virtual EventRel ab(const ExecWitness&)  const = 0;
 
     /*
      * Should return the mask of all types that are classed as read.
@@ -163,6 +163,15 @@ class ExecWitness {
     EventRel ghb(const Architecture& arch) const
     {
         return ws + fr() + arch.ppo(*this) + arch.grf(*this) + arch.ab(*this);
+    }
+
+    void clear()
+    {
+        events.clear();
+        po.clear();
+        dp.clear();
+        rf.clear();
+        ws.clear();
     }
 
   public:
@@ -280,7 +289,7 @@ class Arch_SC : public Architecture {
         return ew.rf;
     }
 
-    EventRel ab (const ExecWitness& ew) const
+    EventRel ab(const ExecWitness& ew) const
     {
         return EventRel();
     }
@@ -315,7 +324,7 @@ class Arch_TSO : public Architecture {
         return ew.rfe();
     }
 
-    EventRel ab (const ExecWitness& ew) const
+    EventRel ab(const ExecWitness& ew) const
     {
         return EventRel();
     }

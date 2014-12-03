@@ -164,6 +164,14 @@ class ExecWitness {
         return rfe() + arch.ppo(*this) + arch.fences(*this);
     }
 
+    void clear()
+    {
+        events.clear();
+        po.clear();
+        co.clear();
+        rf.clear();
+    }
+
   public:
     EventSet events;
     EventRel po;
