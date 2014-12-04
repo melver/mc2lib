@@ -75,12 +75,17 @@ class ElementSet {
         return set_ == rhs.set_;
     }
 
+    const Element& insert(const Element& e)
+    {
+        return *set_.insert(e).first;
+    }
+
     /*
      * Set union.
      */
     ElementSet& operator+=(const Element& rhs)
     {
-        set_.insert(rhs);
+        insert(rhs);
         return *this;
     }
 
