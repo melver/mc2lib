@@ -75,9 +75,12 @@ class ElementSet {
         return set_ == rhs.set_;
     }
 
+    template <bool assert_unique = false>
     const Element& insert(const Element& e)
     {
-        return *set_.insert(e).first;
+        auto result = set_.insert(e);
+        assert(!assert_unique || result.second);
+        return *result.first;
     }
 
     /*
@@ -254,7 +257,7 @@ class ElementRel {
         for (const auto& e1 : dom.get()) {
             const auto reach = reachable(e1);
             for (const auto& e2 : reach.get()) {
-                result.insert(e1, e2);
+                result.template insert(e1, e2);
             }
         }
         return result;
@@ -549,9 +552,10 @@ class ElementRel {
         return partial_order(on) && total_on(on);
     }
 
+    template <bool assert_unique = false>
     void insert(const Element& e1, const Element& e2)
     {
-        rel_[e1] += e2;
+        rel_[e1].template insert<assert_unique>(e2);
     }
 
     std::size_t size() const
@@ -942,7 +946,7 @@ class ElementRelSeq : public ElementRelOp<Element> {
         for (const auto& e1 : potential_domain.get()) {
             for (const auto& e2 : potential_range.get()) {
                 if (R(e1, e2)) {
-                    er.insert(e1, e2);
+                    er.template insert(e1, e2);
                 }
             }
         }
