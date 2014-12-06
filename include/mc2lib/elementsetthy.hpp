@@ -974,13 +974,16 @@ class ElementRelSeq : public ElementRelOp<Element> {
         return this->rels_[seq].R(e1, e2);
     }
 
-    bool irreflexive() const
+    bool irreflexive(typename ElementRel<Element>::Path *cyclic = nullptr) const
     {
         if (!this->size()) return true;
 
         const auto domain = this->rels_.front().domain();
         for (const auto& e : domain.get()) {
             if (R(e, e)) {
+                if (cyclic != nullptr) {
+                    eval().irreflexive(cyclic);
+                }
                 return false;
             }
         }

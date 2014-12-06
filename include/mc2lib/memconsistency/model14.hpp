@@ -242,36 +242,36 @@ class Checker {
         return wf_rf() && wf_co();
     }
 
-    virtual bool sc_per_location() const
+    virtual bool sc_per_location(EventRel::Path *cyclic = nullptr) const
     {
-        return (exec_->com() + exec_->po_loc()).acyclic();
+        return (exec_->com() + exec_->po_loc()).acyclic(cyclic);
     }
 
-    virtual bool no_thin_air() const
+    virtual bool no_thin_air(EventRel::Path *cyclic = nullptr) const
     {
-        return exec_->hb(*arch_).acyclic();
+        return exec_->hb(*arch_).acyclic(cyclic);
     }
 
-    virtual bool observation() const
+    virtual bool observation(EventRel::Path *cyclic = nullptr) const
     {
         EventRel prop = arch_->prop(*exec_);
         EventRel hbstar = exec_->hb(*arch_);
         hbstar.set_props(EventRel::ReflexiveTransitiveClosure);
-        return EventRelSeq({exec_->fre(), prop, hbstar}).irreflexive();
+        return EventRelSeq({exec_->fre(), prop, hbstar}).irreflexive(cyclic);
     }
 
-    virtual bool propagation() const
+    virtual bool propagation(EventRel::Path *cyclic = nullptr) const
     {
-        return (exec_->co + arch_->prop(*exec_)).acyclic();
+        return (exec_->co + arch_->prop(*exec_)).acyclic(cyclic);
     }
 
-    virtual bool valid_exec() const
+    virtual bool valid_exec(EventRel::Path *cyclic = nullptr) const
     {
         return wf()
-            && sc_per_location()
-            && no_thin_air()
-            && observation()
-            && propagation();
+            && sc_per_location(cyclic)
+            && no_thin_air(cyclic)
+            && observation(cyclic)
+            && propagation(cyclic);
     }
 
   protected:

@@ -245,27 +245,27 @@ class Checker {
         return wf_rf() && wf_ws();
     }
 
-    virtual bool uniproc() const
+    virtual bool uniproc(EventRel::Path *cyclic = nullptr) const
     {
-        return (exec_->com() + exec_->po_loc()).acyclic();
+        return (exec_->com() + exec_->po_loc()).acyclic(cyclic);
     }
 
-    virtual bool thin() const
+    virtual bool thin(EventRel::Path *cyclic = nullptr) const
     {
-        return (exec_->rf + exec_->dp).acyclic();
+        return (exec_->rf + exec_->dp).acyclic(cyclic);
     }
 
-    virtual bool check_exec() const
+    virtual bool check_exec(EventRel::Path *cyclic = nullptr) const
     {
-        return exec_->ghb(*arch_).acyclic();
+        return exec_->ghb(*arch_).acyclic(cyclic);
     }
 
-    virtual bool valid_exec() const
+    virtual bool valid_exec(EventRel::Path *cyclic = nullptr) const
     {
         return wf()
-            && uniproc()
-            && thin()
-            && check_exec();
+            && uniproc(cyclic)
+            && thin(cyclic)
+            && check_exec(cyclic);
     }
 
   protected:
