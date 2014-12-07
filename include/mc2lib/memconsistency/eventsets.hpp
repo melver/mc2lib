@@ -36,8 +36,9 @@
 
 #include "../elementsetthy.hpp"
 
-#include <string>
+#include <iomanip>
 #include <sstream>
+#include <string>
 
 namespace mc2lib {
 namespace memconsistency {
@@ -68,7 +69,8 @@ class Iiid {
     operator std::string() const
     {
         std::ostringstream oss;
-        oss << "Iiid(" << pid << ", " << poi << ")";
+        oss << "P" << std::setfill('0') << std::setw(2) << pid
+            << ": " << std::setfill('0') << std::setw(16) << std::hex << poi;
         return oss.str();
     }
 
@@ -145,36 +147,39 @@ class Event {
     operator std::string() const
     {
         std::ostringstream oss;
-        oss << "Event(";
+        oss << "[" << static_cast<std::string>(iiid) << "] ";
+
+        std::ostringstream memtype;
 
         if (!type) {
-            oss << "None";
+            memtype << "None";
         } else if (all_type(MemoryOperation)) {
-            oss << "MemoryOperation";
+            memtype << "MemoryOperation";
         } else {
             bool found_type = false;
 
             if (all_type(Read)) {
-                oss << "Read";
+                memtype << "Read";
                 found_type = true;
             }
 
             if (all_type(Write)) {
-                oss << (found_type ? "|" : "") << "Write";
+                memtype << (found_type ? "|" : "") << "Write";
                 found_type = true;
             }
 
             if (all_type(Acquire)) {
-                oss << (found_type ? "|" : "") << "Acquire";
+                memtype << (found_type ? "|" : "") << "Acquire";
                 found_type = true;
             }
 
             if (all_type(Release)) {
-                oss << (found_type ? "|" : "") << "Release";
+                memtype << (found_type ? "|" : "") << "Release";
             }
         }
 
-        oss << ", " << addr << ", " << static_cast<std::string>(iiid) << ")";
+        oss << std::setfill(' ') << std::setw(8) << memtype.str()
+            << " @ " <<  std::hex << addr;
         return oss.str();
     }
 
