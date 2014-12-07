@@ -342,7 +342,7 @@ class ElementRel {
     {
         const auto diff_tuples = [&](const Element& e1,
                                      const ElementSet<Ts>& e2s) {
-            if (contains(e1)) {
+            if (this->contains(e1)) {
                 rel_[e1] -= e2s;
 
                 if (rel_[e1].empty()) {
@@ -875,8 +875,8 @@ class ElementRel {
 };
 
 template <class Ts>
-ElementRel<Ts> operator*(const ElementSet<Ts>& lhs,
-                         const ElementSet<Ts>& rhs)
+inline ElementRel<Ts> operator*(const ElementSet<Ts>& lhs,
+                                const ElementSet<Ts>& rhs)
 {
     ElementRel<Ts> er;
     for (const auto& e1 : lhs.get()) {

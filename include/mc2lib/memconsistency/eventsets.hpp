@@ -226,8 +226,15 @@ struct Types {
 
     typedef std::unordered_set<Event, typename Element::Hash> Set;
 
+#if !defined(__GNUC__) || \
+    (__GNUC__ > 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ > 6)))
+    // Only works for GCC > 4.6
     template <class T>
     using Map = std::unordered_map<Event, T, typename Element::Hash>;
+#else
+    template <class T>
+    class Map : public std::unordered_map<Event, T, typename Element::Hash> {};
+#endif
 };
 
 typedef elementsetthy::ElementSet<Types> EventSet;
