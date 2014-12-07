@@ -36,8 +36,6 @@
 
 #include <cassert>
 #include <cstddef>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace mc2lib {
@@ -55,10 +53,11 @@ inline bool any_bitmask(unsigned mask, unsigned any)
     return (mask & any) != 0;
 }
 
-template <class Element>
+template <class Ts>
 class ElementSet {
   public:
-    typedef std::unordered_set<Element, typename Element::Hash> Set;
+    typedef typename Ts::Element Element;
+    typedef typename Ts::Set Set;
 
     ElementSet()
     {}
@@ -210,11 +209,12 @@ class ElementSet {
      Set set_;
 };
 
-template <class Element>
+template <class Ts>
 class ElementRel {
   public:
-    typedef std::unordered_map<Element, ElementSet<Element>,
-                               typename Element::Hash> Relation;
+    typedef typename Ts::Element Element;
+
+    typedef typename Ts::template Map<ElementSet<Ts>> Relation;
 
     typedef std::pair<Element, Element> Tuple;
 
@@ -341,7 +341,7 @@ class ElementRel {
     ElementRel& operator-=(const ElementRel& rhs)
     {
         const auto diff_tuples = [&](const Element& e1,
-                                     const ElementSet<Element>& e2s) {
+                                     const ElementSet<Ts>& e2s) {
             if (contains(e1)) {
                 rel_[e1] -= e2s;
 
@@ -382,7 +382,7 @@ class ElementRel {
         for (const auto& e : this_domain.get()) {
             const auto this_reachable = reachable(e);
             const auto rhs_reachable = rhs.reachable(e);
-            ElementSet<Element> intersect = this_reachable & rhs_reachable;
+            ElementSet<Ts> intersect = this_reachable & rhs_reachable;
             if (!intersect.empty()) {
                 es.rel_[e] = intersect;
             }
@@ -430,7 +430,7 @@ class ElementRel {
             }
         }
 
-        ElementSet<Element> visited;
+        ElementSet<Ts> visited;
 
         if (path != nullptr) {
             FlagSet visiting;
@@ -451,9 +451,9 @@ class ElementRel {
      * itself, but includes start if start can reach itself (e.g. through
      * cycle).
      */
-    ElementSet<Element> reachable(const Element& e) const
+    ElementSet<Ts> reachable(const Element& e) const
     {
-        ElementSet<Element> visited;
+        ElementSet<Ts> visited;
 
         if (all_props(ReflexiveClosure) && in_on(e)) {
             visited += e;
@@ -516,7 +516,7 @@ class ElementRel {
     /*
      * ∀(x,y) ∈ on×on, x→y ∨ y→x
      */
-    bool total_on(const ElementSet<Element>& on) const
+    bool total_on(const ElementSet<Ts>& on) const
     {
         for (const auto& e1 : on.get()) {
             for (const auto& e2 : on.get()) {
@@ -532,7 +532,7 @@ class ElementRel {
     /*
      * ∀(x,y) ∈ on×on, x→y ∨ y→x ∨ x=y
      */
-    bool connex_on(const ElementSet<Element>& on) const
+    bool connex_on(const ElementSet<Ts>& on) const
     {
         for (const auto& e1 : on.get()) {
             for (const auto& e2 : on.get()) {
@@ -545,7 +545,7 @@ class ElementRel {
         return true;
     }
 
-    bool weak_partial_order(const ElementSet<Element>& on) const
+    bool weak_partial_order(const ElementSet<Ts>& on) const
     {
         // (domain ∪ range) in on
         for (const auto& tuples : rel_) {
@@ -557,12 +557,12 @@ class ElementRel {
         return transitive() && !irreflexive();
     }
 
-    bool weak_total_order(const ElementSet<Element>& on) const
+    bool weak_total_order(const ElementSet<Ts>& on) const
     {
         return weak_partial_order(on) && total_on(on);
     }
 
-    bool strict_partial_order(const ElementSet<Element>& on) const
+    bool strict_partial_order(const ElementSet<Ts>& on) const
     {
         // (domain ∪ range) in on
         for (const auto& tuples : rel_) {
@@ -574,7 +574,7 @@ class ElementRel {
         return transitive() && irreflexive();
     }
 
-    bool strict_total_order(const ElementSet<Element>& on) const
+    bool strict_total_order(const ElementSet<Ts>& on) const
     {
         return strict_partial_order(on) && connex_on(on);
     }
@@ -633,9 +633,9 @@ class ElementRel {
         return false;
     }
 
-    ElementSet<Element> on() const
+    ElementSet<Ts> on() const
     {
-        ElementSet<Element> es;
+        ElementSet<Ts> es;
         for (const auto& tuples : rel_) {
             es += tuples.first;
             es += tuples.second;
@@ -643,7 +643,7 @@ class ElementRel {
         return es;
     }
 
-    ElementSet<Element> domain() const
+    ElementSet<Ts> domain() const
     {
         if (all_props(ReflexiveClosure)) {
             // By the fact that the reflexive closure is
@@ -653,7 +653,7 @@ class ElementRel {
             return on();
         }
 
-        ElementSet<Element> es;
+        ElementSet<Ts> es;
         for (const auto& tuples : rel_) {
             es += tuples.first;
         }
@@ -661,14 +661,14 @@ class ElementRel {
         return es;
     }
 
-    ElementSet<Element> range() const
+    ElementSet<Ts> range() const
     {
         if (all_props(ReflexiveClosure)) {
             // See above.
             return on();
         }
 
-        ElementSet<Element> es;
+        ElementSet<Ts> es;
         for (const auto& tuples : rel_) {
             es += reachable(tuples.first);
         }
@@ -676,8 +676,7 @@ class ElementRel {
     }
 
   protected:
-    typedef std::unordered_map<Element, bool,
-                               typename Element::Hash> FlagSet;
+    typedef typename Ts::template Map<bool> FlagSet;
 
     enum class SearchMode {
         Related,
@@ -694,7 +693,7 @@ class ElementRel {
         (*visiting)[*start] = false;
 
         while (start != nullptr) {
-            const ElementSet<Element>& next = rel_.find(*start)->second;
+            const ElementSet<Ts>& next = rel_.find(*start)->second;
             start = nullptr;
 
             for (const auto& e : next.get()) {
@@ -708,7 +707,7 @@ class ElementRel {
             }
         }
 
-        const ElementSet<Element>& next = rel_.find(out->back())->second;
+        const ElementSet<Ts>& next = rel_.find(out->back())->second;
         if (mode == SearchMode::FindCycle) {
             assert(end == nullptr);
 
@@ -738,7 +737,7 @@ class ElementRel {
             return false;
         }
 
-        ElementSet<Element> visited;
+        ElementSet<Ts> visited;
         FlagSet visiting;
 
         for (const auto& tuples : rel_) {
@@ -774,7 +773,7 @@ class ElementRel {
      * Common setup.
      */
     bool R_impl(const Element& e1, const Element *e2,
-                ElementSet<Element>* visited,
+                ElementSet<Ts>* visited,
                 FlagSet* visiting = nullptr,
                 Properties local_props = None,
                 SearchMode mode = SearchMode::Related) const
@@ -810,7 +809,7 @@ class ElementRel {
      * Recursive DFS
      */
     bool R_dfs_rec(const Element& e1, const Element& e2,
-                   ElementSet<Element>* visited,
+                   ElementSet<Ts>* visited,
                    FlagSet* visiting,
                    Properties local_props,
                    SearchMode mode) const
@@ -875,14 +874,11 @@ class ElementRel {
     Relation rel_;
 };
 
-/*
- * Cross product of ElementSets
- */
-template <class Element>
-inline ElementRel<Element> operator*(const ElementSet<Element>& lhs,
-                                     const ElementSet<Element>& rhs)
+template <class Ts>
+ElementRel<Ts> operator*(const ElementSet<Ts>& lhs,
+                         const ElementSet<Ts>& rhs)
 {
-    ElementRel<Element> er;
+    ElementRel<Ts> er;
     for (const auto& e1 : lhs.get()) {
         for (const auto& e2 : rhs.get()) {
             er.insert(e1, e2);
@@ -891,13 +887,13 @@ inline ElementRel<Element> operator*(const ElementSet<Element>& lhs,
     return er;
 }
 
-template <class Element>
+template <class Ts>
 class ElementRelOp {
   public:
     ElementRelOp()
     {}
 
-    ElementRelOp(const std::vector<ElementRel<Element>>& rels) :
+    ElementRelOp(const std::vector<ElementRel<Ts>>& rels) :
         rels_(rels) {}
 
     virtual ~ElementRelOp()
@@ -912,32 +908,34 @@ class ElementRelOp {
         return total;
     }
 
-    virtual ElementRel<Element> eval() const = 0;
+    virtual ElementRel<Ts> eval() const = 0;
 
   protected:
-    void add(const ElementRel<Element>& er)
+    void add(const ElementRel<Ts>& er)
     {
         rels_.push_back(er);
     }
 
-    void add(const std::vector<ElementRel<Element>>& rels)
+    void add(const std::vector<ElementRel<Ts>>& rels)
     {
         rels_.reserve(rels_.size() + rels.size());
         rels_.insert(rels_.end(), rels.begin(), rels.end());
     }
 
   protected:
-    std::vector<ElementRel<Element>> rels_;
+    std::vector<ElementRel<Ts>> rels_;
 };
 
-template <class Element>
-class ElementRelSeq : public ElementRelOp<Element> {
+template <class Ts>
+class ElementRelSeq : public ElementRelOp<Ts> {
   public:
+    typedef typename Ts::Element Element;
+
     ElementRelSeq()
     {}
 
-    ElementRelSeq(const std::vector<ElementRel<Element>>& v)
-        : ElementRelOp<Element>(v)
+    ElementRelSeq(const std::vector<ElementRel<Ts>>& v)
+        : ElementRelOp<Ts>(v)
     {}
 
     ElementRelSeq& operator+=(const ElementRelSeq& rhs)
@@ -952,21 +950,21 @@ class ElementRelSeq : public ElementRelOp<Element> {
         return ers += rhs;
     }
 
-    ElementRelSeq& operator+=(const ElementRel<Element>& rhs)
+    ElementRelSeq& operator+=(const ElementRel<Ts>& rhs)
     {
         this->add(rhs);
         return *this;
     }
 
-    ElementRelSeq operator+(const ElementRel<Element>& rhs) const
+    ElementRelSeq operator+(const ElementRel<Ts>& rhs) const
     {
         ElementRelSeq ers = *this;
         return ers += rhs;
     }
 
-    ElementRel<Element> eval() const
+    ElementRel<Ts> eval() const
     {
-        ElementRel<Element> er;
+        ElementRel<Ts> er;
         if (!this->size()) return er;
         const auto potential_domain = this->rels_.front().domain();
         const auto potential_range = this->rels_.back().range();
@@ -988,7 +986,7 @@ class ElementRelSeq : public ElementRelOp<Element> {
         if (seq + 1 < this->rels_.size()) {
             const auto& rel = this->rels_[seq];
 
-            const ElementSet<Element> reach = rel.reachable(e1);
+            const ElementSet<Ts> reach = rel.reachable(e1);
             for (const auto& e : reach.get()) {
                 if (R(e, e2, seq+1)) {
                     return true;
@@ -1001,7 +999,7 @@ class ElementRelSeq : public ElementRelOp<Element> {
         return this->rels_[seq].R(e1, e2);
     }
 
-    bool irreflexive(typename ElementRel<Element>::Path *cyclic = nullptr) const
+    bool irreflexive(typename ElementRel<Ts>::Path *cyclic = nullptr) const
     {
         if (!this->size()) return true;
 

@@ -39,11 +39,14 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace mc2lib {
 namespace memconsistency {
 
 #ifndef MC2LIB_MEMCONSISTENCY_EVENT_CUSTOM_TYPES
+// TODO: Remove hack.
 typedef unsigned long long Addr;
 typedef unsigned long long Pid;
 typedef unsigned long long Poi;
@@ -218,9 +221,18 @@ class Event {
     Iiid iiid;
 };
 
-typedef elementsetthy::ElementSet<Event> EventSet;
-typedef elementsetthy::ElementRel<Event> EventRel;
-typedef elementsetthy::ElementRelSeq<Event> EventRelSeq;
+struct Types {
+    typedef Event Element;
+
+    typedef std::unordered_set<Event, typename Element::Hash> Set;
+
+    template <class T>
+    using Map = std::unordered_map<Event, T, typename Element::Hash>;
+};
+
+typedef elementsetthy::ElementSet<Types> EventSet;
+typedef elementsetthy::ElementRel<Types> EventRel;
+typedef elementsetthy::ElementRelSeq<Types> EventRelSeq;
 
 } /* namespace memconsistency */
 } /* namespace mc2lib */
