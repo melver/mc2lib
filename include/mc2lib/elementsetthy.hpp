@@ -514,42 +514,69 @@ class ElementRel {
     }
 
     /*
-     * (domain ∪ range) ⊆ on
+     * ∀(x,y) ∈ on×on, x→y ∨ y→x
      */
-    bool partial_order(const ElementSet<Element>& on) const
+    bool total_on(const ElementSet<Element>& on) const
     {
+        for (const auto& e1 : on.get()) {
+            for (const auto& e2 : on.get()) {
+                if (!R(e1, e2) && !R(e2, e1)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /*
+     * ∀(x,y) ∈ on×on, x→y ∨ y→x ∨ x=y
+     */
+    bool connex_on(const ElementSet<Element>& on) const
+    {
+        for (const auto& e1 : on.get()) {
+            for (const auto& e2 : on.get()) {
+                if (e1 != e2 && !R(e1, e2) && !R(e2, e1)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    bool weak_partial_order(const ElementSet<Element>& on) const
+    {
+        // (domain ∪ range) in on
         for (const auto& tuples : rel_) {
             if (!on.contains(tuples.first) && !tuples.second.subseteq(on)) {
                 return false;
             }
         }
-        return transitive() && irreflexive();
+
+        return transitive() && !irreflexive();
     }
 
-    /*
-     * ∀(x,y) ∈ on×on, x→y ∨ y→x
-     */
-    bool total_on(const ElementSet<Element>& on) const
+    bool weak_total_order(const ElementSet<Element>& on) const
     {
-        ElementSet<Element> rem = on;
+        return weak_partial_order(on) && total_on(on);
+    }
 
+    bool strict_partial_order(const ElementSet<Element>& on) const
+    {
+        // (domain ∪ range) in on
         for (const auto& tuples : rel_) {
-            if (on.contains(tuples.first) && tuples.second.subseteq(on)) {
-                rem -= tuples.first;
-                rem -= tuples.second;
-
-                if (rem.empty()) {
-                    break;
-                }
+            if (!on.contains(tuples.first) && !tuples.second.subseteq(on)) {
+                return false;
             }
         }
 
-        return rem.empty();
+        return transitive() && irreflexive();
     }
 
     bool strict_total_order(const ElementSet<Element>& on) const
     {
-        return partial_order(on) && total_on(on);
+        return strict_partial_order(on) && connex_on(on);
     }
 
     template <bool assert_unique = false>

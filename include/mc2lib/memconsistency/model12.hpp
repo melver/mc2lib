@@ -224,8 +224,12 @@ class Checker {
 
     virtual bool wf_ws() const
     {
+        std::unordered_set<Addr> addrs;
+
         // Assert writes ordered captured in ws are to the same location.
         for (const auto& tuples : exec_->ws.raw()) {
+            addrs.insert(tuples.first.addr);
+
             for (const auto& e : tuples.second.get()) {
                 if (arch_->addrToLine(tuples.first.addr) != arch_->addrToLine(e.addr)) {
                     assert(false);
@@ -234,10 +238,25 @@ class Checker {
             }
         }
 
-        return exec_->ws.strict_total_order(
-                exec_->events.filter([&](const Event& e) {
-                        return e.any_type(arch_->eventTypeWrite());
-                    }));
+        auto writes = exec_->events.filter([&](const Event& e) {
+                    return e.any_type(arch_->eventTypeWrite());
+                });
+        if (!exec_->ws.strict_partial_order(writes)) {
+            assert(false);
+            return false;
+        }
+
+        for (const auto& addr : addrs) {
+            auto same_addr_writes = writes.filter([&](const Event& e) {
+                        return e.addr == addr;
+                    });
+            if (!exec_->ws.connex_on(same_addr_writes)) {
+                assert(false);
+                return false;
+            }
+        }
+
+        return true;
     }
 
     virtual bool wf() const
