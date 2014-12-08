@@ -254,7 +254,12 @@ class ElementRel {
      */
     ElementRel eval() const
     {
+        if (!props()) {
+            return *this;
+        }
+
         ElementRel result;
+
         const auto dom = domain();
         for (const auto& e1 : dom.get()) {
             const auto reach = reachable(e1);
@@ -262,6 +267,7 @@ class ElementRel {
                 result.template insert(e1, e2);
             }
         }
+
         return result;
     }
 
@@ -612,9 +618,11 @@ class ElementRel {
     ElementRel filter(FilterFunc filterFunc) const
     {
         ElementRel er;
-        for (const auto& tuples : rel_) {
-            for (const auto& e : tuples.second.get()) {
-                const auto tuple = std::make_pair(tuples.first, e);
+        const auto dom = domain();
+        for (const auto& e1 : dom.get()) {
+            const auto reach = reachable(e1);
+            for (const auto& e2 : reach.get()) {
+                const auto tuple = std::make_pair(e1, e2);
                 if (filterFunc(tuple)) {
                     er += tuple;
                 }

@@ -314,7 +314,8 @@ class Arch_SC : public Architecture {
   public:
     EventRel ppo(const ExecWitness& ew) const
     {
-        return ew.po;
+        assert(ew.po.transitive());
+        return ew.po.eval();
     }
 
     EventRel fences(const ExecWitness& ew) const
@@ -347,6 +348,7 @@ class Arch_TSO : public Architecture {
   public:
     EventRel ppo(const ExecWitness& ew) const
     {
+        assert(ew.po.transitive());
         return ew.po.filter([](const EventRel::Tuple& t)
                             { return !t.first.all_type(Event::Write)
                                   || !t.second.all_type(Event::Read); });
