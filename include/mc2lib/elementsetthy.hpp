@@ -266,19 +266,22 @@ class ElementRel {
     Properties props() const
     { return props_; }
 
-    void set_props(Properties props)
+    ElementRel& set_props(Properties props)
     {
         props_ = props;
+        return *this;
     }
 
-    void add_props(Properties props)
+    ElementRel& add_props(Properties props)
     {
         props_ |= props;
+        return *this;
     }
 
-    void unset_props(Properties props)
+    ElementRel& unset_props(Properties props)
     {
         props_ &= ~props;
+        return *this;
     }
 
     bool all_props(Properties all) const

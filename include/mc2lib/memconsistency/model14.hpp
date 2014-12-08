@@ -273,10 +273,14 @@ class Checker {
 
     virtual bool observation(EventRel::Path *cyclic = nullptr) const
     {
-        EventRel prop = arch_->prop(*exec_);
-        EventRel hbstar = exec_->hb(*arch_);
-        hbstar.set_props(EventRel::ReflexiveTransitiveClosure);
-        return EventRelSeq({exec_->fre(), prop, hbstar}).irreflexive(cyclic);
+        const EventRel prop = arch_->prop(*exec_);
+        const EventRel hbstar = exec_->hb(*arch_).set_props(
+                EventRel::ReflexiveTransitiveClosure);
+
+        // Not eval'ing hbstar causes performance to degrade substantially, as
+        // EventRelSeq recomputes reachability from nodes from prop to hbstar
+        // several times!
+        return EventRelSeq({exec_->fre(), prop, hbstar.eval()}).irreflexive(cyclic);
     }
 
     virtual bool propagation(EventRel::Path *cyclic = nullptr) const
