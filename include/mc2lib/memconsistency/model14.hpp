@@ -182,6 +182,16 @@ class ExecWitness {
 
 class Checker {
   public:
+    enum class Error {
+        OK,
+        WF_RF_NOT_FROM_WRITE,
+        WF_RF_NOT_SAME_LOC,
+        WF_RF_MULTI_SOURCE,
+        WF_CO_NOT_SAME_LOC,
+        WF_CO_NOT_STRICT_PARTIAL_ORDER,
+        WF_CO_NOT_CONNEX
+    };
+
     Checker(const Architecture *arch, const ExecWitness *exec)
         : arch_(arch), exec_(exec)
     {}
@@ -189,37 +199,34 @@ class Checker {
     virtual ~Checker()
     {}
 
-    virtual bool wf_rf() const
+    virtual Error wf_rf() const
     {
         EventSet reads;
 
         for (const auto& tuples : exec_->rf.raw()) {
             if (!tuples.first.any_type(arch_->eventTypeWrite())) {
-                assert(false);
-                return false;
+                return Error::WF_RF_NOT_FROM_WRITE;
             }
 
             for (const auto& e : tuples.second.get()) {
                 if (   !e.any_type(arch_->eventTypeRead())
                     || arch_->addrToLine(tuples.first.addr) != arch_->addrToLine(e.addr))
                 {
-                    assert(false);
-                    return false;
+                    return Error::WF_RF_NOT_SAME_LOC;
                 }
 
                 // For every read, there exists only 1 source!
                 if (reads.contains(e)) {
-                    assert(false);
-                    return false;
+                    return Error::WF_RF_MULTI_SOURCE;
                 }
                 reads += e;
             }
         }
 
-        return true;
+        return Error::OK;
     }
 
-    virtual bool wf_co() const
+    virtual Error wf_co() const
     {
         std::unordered_set<Event::Addr> addrs;
 
@@ -229,8 +236,7 @@ class Checker {
 
             for (const auto& e : tuples.second.get()) {
                 if (arch_->addrToLine(tuples.first.addr) != arch_->addrToLine(e.addr)) {
-                    assert(false);
-                    return false;
+                    return Error::WF_CO_NOT_SAME_LOC;
                 }
             }
         }
@@ -239,8 +245,7 @@ class Checker {
                     return e.any_type(arch_->eventTypeWrite());
                 });
         if (!exec_->co.strict_partial_order(writes)) {
-            assert(false);
-            return false;
+            return Error::WF_CO_NOT_STRICT_PARTIAL_ORDER;
         }
 
         for (const auto& addr : addrs) {
@@ -248,17 +253,16 @@ class Checker {
                         return e.addr == addr;
                     });
             if (!exec_->co.connex_on(same_addr_writes)) {
-                assert(false);
-                return false;
+                return Error::WF_CO_NOT_CONNEX;
             }
         }
 
-        return true;
+        return Error::OK;
     }
 
     virtual bool wf() const
     {
-        return wf_rf() && wf_co();
+        return wf_rf() == Error::OK && wf_co() == Error::OK;
     }
 
     virtual bool sc_per_location(EventRel::Path *cyclic = nullptr) const

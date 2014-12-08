@@ -326,8 +326,8 @@ BOOST_AUTO_TEST_CASE(Model12Empty)
     model12::Arch_SC sc;
     model12::Checker c(&sc, &ew);
 
-    BOOST_CHECK(c.wf_rf());
-    BOOST_CHECK(c.wf_ws());
+    BOOST_CHECK(c.wf_rf() == model12::Checker::Error::OK);
+    BOOST_CHECK(c.wf_ws() == model12::Checker::Error::OK);
     BOOST_CHECK(c.uniproc());
     BOOST_CHECK(c.thin());
     BOOST_CHECK(c.check_exec());
@@ -340,8 +340,8 @@ BOOST_AUTO_TEST_CASE(Model14Empty)
     model14::Arch_SC sc;
     model14::Checker c(&sc, &ew);
 
-    BOOST_CHECK(c.wf_rf());
-    BOOST_CHECK(c.wf_co());
+    BOOST_CHECK(c.wf_rf() == model14::Checker::Error::OK);
+    BOOST_CHECK(c.wf_co() == model14::Checker::Error::OK);
     BOOST_CHECK(c.sc_per_location());
     BOOST_CHECK(c.no_thin_air());
     BOOST_CHECK(c.observation());
@@ -374,8 +374,8 @@ BOOST_AUTO_TEST_CASE(Model12DekkerValidSC)
     ew.rf.insert(Wx0, Rx1);
     ew.rf.insert(Wy1, Ry0);
 
-    BOOST_CHECK(c.wf_rf());
-    BOOST_CHECK(c.wf_ws());
+    BOOST_CHECK(c.wf_rf() == model12::Checker::Error::OK);
+    BOOST_CHECK(c.wf_ws() == model12::Checker::Error::OK);
     BOOST_CHECK(c.uniproc());
     BOOST_CHECK(c.thin());
     BOOST_CHECK(c.check_exec());
@@ -409,16 +409,16 @@ BOOST_AUTO_TEST_CASE(Model14DekkerInvalidSCValidTSO)
     ew.rf.insert(Ix, Rx1);
     ew.rf.insert(Iy, Ry0);
 
-    BOOST_CHECK(c_sc.wf_rf());
-    BOOST_CHECK(c_sc.wf_co());
+    BOOST_CHECK(c_sc.wf_rf() == model14::Checker::Error::OK);
+    BOOST_CHECK(c_sc.wf_co() == model14::Checker::Error::OK);
     BOOST_CHECK(c_sc.sc_per_location());
     BOOST_CHECK(c_sc.no_thin_air());
     BOOST_CHECK(c_sc.observation());
     BOOST_CHECK(!c_sc.propagation());
     BOOST_CHECK(!c_sc.valid_exec());
 
-    BOOST_CHECK(c_tso.wf_rf());
-    BOOST_CHECK(c_tso.wf_co());
+    BOOST_CHECK(c_tso.wf_rf() == model14::Checker::Error::OK);
+    BOOST_CHECK(c_tso.wf_co() == model14::Checker::Error::OK);
     BOOST_CHECK(c_tso.sc_per_location());
     BOOST_CHECK(c_tso.no_thin_air());
     BOOST_CHECK(c_tso.observation());
