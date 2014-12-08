@@ -36,6 +36,8 @@
 
 #include <cassert>
 #include <cstddef>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace mc2lib {
@@ -1017,6 +1019,23 @@ class ElementRelSeq : public ElementRelOp<Ts> {
         }
         return true;
     }
+};
+
+template <class E>
+struct Types {
+    typedef E Element;
+
+    typedef std::unordered_set<Element, typename Element::Hash> Set;
+
+#if defined(__GNUC__) && (__GNUC__ == 4 && (__GNUC_MINOR__ == 6))
+    template <class T>
+    class Map : public std::unordered_map<Element, T, typename Element::Hash>
+    {};
+#else
+    // Only works for GCC > 4.6
+    template <class T>
+    using Map = std::unordered_map<Element, T, typename Element::Hash>;
+#endif
 };
 
 } /* namespace elementsetthy */

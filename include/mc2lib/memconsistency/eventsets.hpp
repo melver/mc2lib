@@ -39,21 +39,27 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace mc2lib {
 namespace memconsistency {
 
-#ifndef MC2LIB_MEMCONSISTENCY_EVENT_CUSTOM_TYPES
-// TODO: Remove hack.
-typedef unsigned long long Addr;
-typedef unsigned long long Pid;
-typedef unsigned long long Poi;
-#endif
+// Can be specialized to declare custom types; I'd rather not pollute the
+// classes using Event with further template parameters, as it makes it even
+// harder to track. This method is a compromise.
+template <class>
+struct Types {
+    typedef unsigned long long Addr;
+    typedef unsigned long long Pid;
+    typedef unsigned long long Poi;
+};
+
+class Event;
 
 class Iiid {
   public:
+    typedef typename Types<Event>::Pid Pid;
+    typedef typename Types<Event>::Poi Poi;
+
     struct Hash {
         typedef std::hash<unsigned long long>::result_type result_type;
         result_type operator()(const Iiid& k) const
@@ -116,6 +122,8 @@ class Iiid {
 
 class Event {
   public:
+    typedef typename Types<Event>::Addr Addr;
+
     struct Hash {
         Iiid::Hash::result_type operator()(const Event& k) const
         {
@@ -221,25 +229,9 @@ class Event {
     Iiid iiid;
 };
 
-struct Types {
-    typedef Event Element;
-
-    typedef std::unordered_set<Event, typename Element::Hash> Set;
-
-#if !defined(__GNUC__) || \
-    (__GNUC__ > 4 || (__GNUC__ == 4 && (__GNUC_MINOR__ > 6)))
-    // Only works for GCC > 4.6
-    template <class T>
-    using Map = std::unordered_map<Event, T, typename Element::Hash>;
-#else
-    template <class T>
-    class Map : public std::unordered_map<Event, T, typename Element::Hash> {};
-#endif
-};
-
-typedef elementsetthy::ElementSet<Types> EventSet;
-typedef elementsetthy::ElementRel<Types> EventRel;
-typedef elementsetthy::ElementRelSeq<Types> EventRelSeq;
+typedef elementsetthy::ElementSet<elementsetthy::Types<Event>> EventSet;
+typedef elementsetthy::ElementRel<elementsetthy::Types<Event>> EventRel;
+typedef elementsetthy::ElementRelSeq<elementsetthy::Types<Event>> EventRelSeq;
 
 } /* namespace memconsistency */
 } /* namespace mc2lib */
