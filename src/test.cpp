@@ -39,13 +39,18 @@
 #if 1
 #include <mc2lib/memconsistency.hpp>
 #include <mc2lib/simplega.hpp>
+#include <mc2lib/codegen/ops/x86_64.hpp>
+#include <mc2lib/codegen/rit.hpp>
 #else
 #include "../include/mc2lib/memconsistency.hpp"
 #include "../include/mc2lib/simplega.hpp"
+#include "../include/mc2lib/codegen/ops/x86_64.hpp"
+#include "../include/mc2lib/codegen/rit.hpp"
 #endif
 
 using namespace mc2lib::memconsistency;
 using namespace mc2lib::simplega;
+using namespace mc2lib::codegen;
 
 // TODO: add more tests
 
@@ -440,10 +445,10 @@ class GenomeAdd : public Genome<float> {
 
     void mutate(float rate)
     {
-        std::uniform_int_distribution<size_t> dist_idx(0, genome_.size() - 1);
+        std::uniform_int_distribution<std::size_t> dist_idx(0, genome_.size() - 1);
         std::uniform_real_distribution<float> dist_mut(-2.0f, 2.0f);
-        std::unordered_set<size_t> used;
-        size_t selection_count = (size_t)((float)genome_.size() * rate);
+        std::unordered_set<std::size_t> used;
+        std::size_t selection_count = (std::size_t)((float)genome_.size() * rate);
 
         while (selection_count) {
             auto idx = dist_idx(*generator_ptr);
@@ -483,7 +488,8 @@ class GenomeAdd : public Genome<float> {
     }
 };
 
-BOOST_AUTO_TEST_CASE(SimpleGAAdd24) {
+BOOST_AUTO_TEST_CASE(SimpleGAAdd24)
+{
     std::default_random_engine generator(1234);
     generator_ptr = &generator;
 
@@ -491,9 +497,9 @@ BOOST_AUTO_TEST_CASE(SimpleGAAdd24) {
                              0.3f // mutation_rate
                              );
 
-    size_t tournament_size = 10;
-    size_t tournament_winners = 5;
-    size_t elite = tournament_winners;
+    std::size_t tournament_size = 10;
+    std::size_t tournament_winners = 5;
+    std::size_t elite = tournament_winners;
 
     for (int i = 0; i<50; ++i) {
         auto tournament_population = pool.select_uniform(generator, tournament_size);
@@ -516,4 +522,96 @@ BOOST_AUTO_TEST_CASE(SimpleGAAdd24) {
 
     BOOST_CHECK(sum >= 23.1f && sum <= 24.9);
 }
+
+BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
+{
+    std::default_random_engine urng(1234);
+
+    model14::ExecWitness ew;
+    model14::Arch_TSO arch;
+
+    ops::RandomFactory factory(0, 1, 0xfff0, 0xfffa);
+    RandInstTest<std::default_random_engine, ops::RandomFactory> rit(urng, &factory, 20);
+
+    const auto threads = rit.threads();
+    BOOST_CHECK_EQUAL(threads.size(), 2);
+
+    Compiler<Backend_X86_64> compiler(&arch, &ew,  &threads);
+
+    char code[128];
+    BOOST_CHECK(compiler.emit(1, 0xff, code, sizeof(code)) != 0);
+
+    std::size_t emit_len = compiler.emit(0, 0, code, sizeof(code));
+    BOOST_CHECK(emit_len != 0);
+
+    WriteID wid = 0;
+#if 0
+    // This test passing is dependent on the random number generator
+    // implementation.
+    compiler.insert_from(0x12, &wid, 1); // write 0xfff2
+    wid = 0x6;
+    compiler.insert_from(0x3e, &wid, 1); // read  0xfff2
+
+    mc::model14::Checker checker(&arch, &ew);
+    ew.po.set_props(mc::EventRel::TransitiveClosure);
+    ew.co.set_props(mc::EventRel::TransitiveClosure);
+    BOOST_CHECK(checker.sc_per_location());
+#else
+    BOOST_CHECK(compiler.insert_from(0, &wid, 1));
+#endif
+
+#if 0
+    memset(code + emit_len, 0x90, sizeof(code) - emit_len);
+    auto f = fopen("/tmp/mc2lib-test.bin", "wb");
+    fwrite(code, sizeof(code), 1, f);
+    fclose(f);
+#endif
+}
+
+#if defined(__linux__) && defined(__x86_64__)
+#include <sys/mman.h>
+BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux)
+{
+    model14::ExecWitness ew;
+    model14::Arch_TSO arch;
+
+    Compiler<Backend_X86_64> compiler(&arch, &ew);
+
+    unsigned char test_mem[] = {
+        0x03, 0x14, 0x25, 0x36, 0x47, 0x58, 0x69, 0x7a, 0x8b, 0x9c,
+        0xad, 0xbe, 0xcf, 0xd0, 0xe1, 0xf2
+    };
+
+    OperationPtr ops[] = {
+        std::make_shared<ops::Read>(reinterpret_cast<Event::Addr>(&test_mem[0xf])),
+        std::make_shared<ops::Return>()
+    };
+
+    const std::size_t MAX_CODE_SIZE = 4096;
+    char *code = (char*)mmap(NULL, MAX_CODE_SIZE,
+                             PROT_READ | PROT_WRITE | PROT_EXEC,
+                             MAP_ANONYMOUS | MAP_PRIVATE,
+                             0, 0);
+    memset(code, 0x90, MAX_CODE_SIZE);
+
+    std::size_t emit_len = 0;
+    for (auto& op : ops) {
+        emit_len += compiler.emit(op.get(), emit_len, code + emit_len,
+                                  MAX_CODE_SIZE - emit_len, nullptr);
+    }
+
+    unsigned char (*func)() = (unsigned char (*)()) code;
+    unsigned result = func();
+
+    BOOST_CHECK_EQUAL(result, test_mem[0xf]);
+
+#if 0
+    auto f = fopen("/tmp/mc2lib-test.bin", "wb");
+    fwrite(code, MAX_CODE_SIZE, 1, f);
+    fclose(f);
+#endif
+
+    munmap(code, MAX_CODE_SIZE);
+}
+#endif
 

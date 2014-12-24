@@ -54,6 +54,9 @@ class Architecture {
     virtual ~Architecture()
     {}
 
+    virtual void clear()
+    {}
+
     virtual EventRel ppo(const ExecWitness&) const = 0;
     virtual EventRel fences(const ExecWitness&) const = 0;
     virtual EventRel prop(const ExecWitness&) const = 0;
