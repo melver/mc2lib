@@ -349,6 +349,11 @@ class Arch_SC : public Architecture {
 
 class Arch_TSO : public Architecture {
   public:
+    void clear()
+    {
+        fences_.clear();
+    }
+
     EventRel ppo(const ExecWitness& ew) const
     {
         assert(ew.po.transitive());
@@ -359,7 +364,7 @@ class Arch_TSO : public Architecture {
 
     EventRel fences(const ExecWitness& ew) const
     {
-        return EventRel();
+        return fences_;
     }
 
     EventRel prop(const ExecWitness& ew) const
@@ -381,6 +386,8 @@ class Arch_TSO : public Architecture {
     {
         return a;
     }
+
+    EventRel fences_;
 };
 
 } /* namespace model14 */

@@ -39,12 +39,12 @@
 #if 1
 #include <mc2lib/memconsistency.hpp>
 #include <mc2lib/simplega.hpp>
-#include <mc2lib/codegen/ops/x86_64.hpp>
+#include <mc2lib/codegen/ops.hpp>
 #include <mc2lib/codegen/rit.hpp>
 #else
 #include "../include/mc2lib/memconsistency.hpp"
 #include "../include/mc2lib/simplega.hpp"
-#include "../include/mc2lib/codegen/ops/x86_64.hpp"
+#include "../include/mc2lib/codegen/ops.hpp"
 #include "../include/mc2lib/codegen/rit.hpp"
 #endif
 
