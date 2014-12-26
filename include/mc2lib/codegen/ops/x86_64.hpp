@@ -61,8 +61,9 @@ Read::emit_X86_64(AssemblerState *asms,
 
     assert(len >= EXPECTED_LEN);
 
-    // ASM 0> movabs addr_, %al ;
+    // ASM @0> movabs addr_, %al ;
     event_ = asms->make_read<1>(pid(), mc::Event::Read, addr_)[0];
+    at_ = start;
 
     // @0
     *cnext++ = 0xa0;
@@ -83,17 +84,18 @@ Write::emit_X86_64(AssemblerState *asms,
 
     assert(len >= EXPECTED_LEN);
 
-    // ASM 0> movabs addr_, %rax    ;
-    //     a> movb write_id, (%rax) ;
+    // ASM @0> movabs addr_, %rax    ;
+    //     @a> movb write_id, (%rax) ;
     WriteID write_id = 0;
     event_ = asms->make_write<1>(pid(), mc::Event::Read, addr_, &write_id)[0];
+    at_ = start + 0xa;
 
-    // 0
+    // @0
     *cnext++ = 0x48; *cnext++ = 0xb8;
     *reinterpret_cast<mc::Event::Addr*>(cnext) = addr_;
     cnext += sizeof(mc::Event::Addr);
 
-    // a
+    // @a
     *cnext++ = 0xc6; *cnext++ = 0x00;
     *reinterpret_cast<WriteID*>(cnext) = write_id;
     cnext += sizeof(WriteID);

@@ -545,19 +545,19 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     BOOST_CHECK(emit_len != 0);
 
     WriteID wid = 0;
-#if 0
+#if 1
     // This test passing is dependent on the random number generator
     // implementation.
-    compiler.insert_from(0x12, &wid, 1); // write 0xfff2
+    compiler.insert_from(0x1c, 0xfff2, &wid, 1); // write 0xfff2
     wid = 0x6;
-    compiler.insert_from(0x3e, &wid, 1); // read  0xfff2
+    compiler.insert_from(0x3e, 0xfff2, &wid, 1); // read  0xfff2
 
     mc::model14::Checker checker(&arch, &ew);
     ew.po.set_props(mc::EventRel::TransitiveClosure);
     ew.co.set_props(mc::EventRel::TransitiveClosure);
     BOOST_CHECK(checker.sc_per_location());
 #else
-    BOOST_CHECK(compiler.insert_from(0, &wid, 1));
+    BOOST_CHECK(compiler.insert_from(0, 0xfff3, &wid, 1));
 #endif
 
 #if 0

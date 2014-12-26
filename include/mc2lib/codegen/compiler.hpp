@@ -115,6 +115,7 @@ class Operation {
      * @param asms Pointer to AssemblerState instance maintained by Compiler.
      * @param ew Pointer to ExecWitness to be inserted into.
      * @param ip Instruction pointer of instruction for which a value was observed.
+     * @param addr Address for observed operation.
      * @param from_id Pointer to observed memory (WriteIDs).
      * @param size Size of observed memory operations in from_id;
      *             implementation should assert expected size.
@@ -122,8 +123,8 @@ class Operation {
      * @return Success or not.
      */
     virtual bool insert_from(AssemblerState *asms, mc::model14::ExecWitness *ew,
-                             InstPtr ip, const WriteID *from_id,
-                             std::size_t size) const = 0;
+                             InstPtr ip, mc::Event::Addr addr,
+                             const WriteID *from_id, std::size_t size) const = 0;
 
     mc::Iiid::Pid pid() const
     { return pid_; }
@@ -336,9 +337,10 @@ class Compiler {
         return emit_len;
     }
 
-    bool insert_from(InstPtr ip, const WriteID *from_id, std::size_t size)
+    bool insert_from(InstPtr ip, mc::Event::Addr addr,
+                     const WriteID *from_id, std::size_t size)
     {
-        return ip_to_op(ip)->insert_from(&asms_, ew_, ip, from_id, size);
+        return ip_to_op(ip)->insert_from(&asms_, ew_, ip, addr, from_id, size);
     }
 
     const Operation* ip_to_op(InstPtr ip)

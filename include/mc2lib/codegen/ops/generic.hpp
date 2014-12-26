@@ -58,7 +58,8 @@ class Return : public Operation {
                                const mc::Event *before) const
     { return nullptr; }
 
-    bool insert_from(AssemblerState *asms, mc::model14::ExecWitness *ew, InstPtr ip,
+    bool insert_from(AssemblerState *asms, mc::model14::ExecWitness *ew,
+                     InstPtr ip, mc::Event::Addr addr,
                      const WriteID *from_id, std::size_t size) const
     { return true; }
 };
@@ -90,10 +91,13 @@ class Read : public Operation {
         return event_;
     }
 
-    bool insert_from(AssemblerState *asms, mc::model14::ExecWitness *ew, InstPtr ip,
+    bool insert_from(AssemblerState *asms, mc::model14::ExecWitness *ew,
+                     InstPtr ip, mc::Event::Addr addr,
                      const WriteID *from_id, std::size_t size) const
     {
         assert(event_ != nullptr);
+        assert(ip == at_);
+        assert(addr == addr_);
         assert(size == 1);
 
         const mc::Event *from = asms->get_write<1>(event_, addr_, from_id)[0];
@@ -110,6 +114,7 @@ class Read : public Operation {
 
     mc::Event::Addr addr_;
     const mc::Event *event_;
+    InstPtr at_;
 };
 
 class Write : public Read {
