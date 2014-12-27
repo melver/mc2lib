@@ -117,7 +117,7 @@ class Operation {
      * @param ip Instruction pointer of instruction for which a value was observed.
      * @param addr Address for observed operation.
      * @param from_id Pointer to observed memory (WriteIDs).
-     * @param size Size of observed memory operations in from_id;
+     * @param size Total size of observed memory operations in from_id;
      *             implementation should assert expected size.
      *
      * @return Success or not.
@@ -178,7 +178,7 @@ class AssemblerState {
         std::array<const mc::Event*, max_size/sizeof(WriteID)> result;
 
         for (std::size_t i = 0; i < size/sizeof(WriteID); ++i) {
-            result[i] = mkevt(i);
+            result[i] = mkevt(i * sizeof(WriteID));
         }
 
         return result;
@@ -189,10 +189,9 @@ class AssemblerState {
     make_read(mc::Iiid::Pid pid, mc::Event::Type type, mc::Event::Addr addr,
               std::size_t size = max_size)
     {
-        return make_event<max_size>(pid, type, addr, size, [&](std::size_t offset) {
+        return make_event<max_size>(pid, type, addr, size, [&](mc::Event::Addr offset) {
             const mc::Event event =
-                mc::Event(type, addr + (offset * sizeof(WriteID)),
-                          mc::Iiid(pid, ++last_read_id_));
+                mc::Event(type, addr + offset, mc::Iiid(pid, ++last_read_id_));
 
             return &ew_->events.insert(event, true);
         });
@@ -203,12 +202,11 @@ class AssemblerState {
     make_write(mc::Iiid::Pid pid, mc::Event::Type type, mc::Event::Addr addr,
                WriteID *data, std::size_t size = max_size)
     {
-        return make_event<max_size>(pid, type, addr, size, [&](std::size_t offset) {
+        return make_event<max_size>(pid, type, addr, size, [&](mc::Event::Addr offset) {
             const WriteID write_id = ++last_write_id_;
 
             const mc::Event event =
-                mc::Event(type, addr + (offset * sizeof(WriteID)),
-                          mc::Iiid(pid, write_id));
+                mc::Event(type, addr + offset, mc::Iiid(pid, write_id));
 
             *(data + offset) = write_id;
             return (writes_[write_id] = &ew_->events.insert(event, true));
@@ -217,7 +215,7 @@ class AssemblerState {
 
     template <std::size_t max_size>
     std::array<const mc::Event*, max_size/sizeof(WriteID)>
-    get_write(const mc::Event *after, const mc::Event::Addr addr,
+    get_write(const mc::Event *after, mc::Event::Addr addr,
               const WriteID *from_id, std::size_t size = max_size)
     {
         static_assert(max_size <= MAX_INST_SIZE, "Invalid size!");
@@ -254,6 +252,8 @@ class AssemblerState {
                 auto initial = mc::Event(mc::Event::Write, addr, mc::Iiid(-1, addr));
                 result[i] = &ew_->events.insert(initial);
             }
+
+            addr += sizeof(WriteID);
         }
 
         return result;
