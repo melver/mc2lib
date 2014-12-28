@@ -288,6 +288,9 @@ class Compiler {
         ip_to_op_.clear();
     }
 
+    const Threads* threads()
+    { return threads_; }
+
     std::size_t emit(Operation *op, types::InstPtr base, void *code, std::size_t len,
                      const mc::Event **last_evt) {
         // Generate code and architecture-specific ordering relations.
