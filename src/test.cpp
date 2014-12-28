@@ -48,9 +48,10 @@
 #include "../include/mc2lib/codegen/rit.hpp"
 #endif
 
+using namespace mc2lib::codegen;
 using namespace mc2lib::memconsistency;
 using namespace mc2lib::simplega;
-using namespace mc2lib::codegen;
+using namespace mc2lib;
 
 // TODO: add more tests
 
@@ -544,7 +545,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     std::size_t emit_len = compiler.emit(0, 0, code, sizeof(code));
     BOOST_CHECK(emit_len != 0);
 
-    WriteID wid = 0;
+    types::WriteID wid = 0;
 #if 1
     // This test passing is dependent on the random number generator
     // implementation.
@@ -583,7 +584,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux)
     };
 
     OperationPtr ops[] = {
-        std::make_shared<ops::Read>(reinterpret_cast<Event::Addr>(&test_mem[0xf])),
+        std::make_shared<ops::Read>(reinterpret_cast<types::Addr>(&test_mem[0xf])),
         std::make_shared<ops::Return>()
     };
 

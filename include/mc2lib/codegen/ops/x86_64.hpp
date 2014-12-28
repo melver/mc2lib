@@ -42,7 +42,7 @@ namespace ops {
 
 inline std::size_t
 Return::emit_X86_64(AssemblerState *asms,
-                    mc::model14::Arch_TSO *arch, InstPtr start,
+                    mc::model14::Arch_TSO *arch, types::InstPtr start,
                     void *code, std::size_t len)
 {
     assert(len >= 1);
@@ -53,7 +53,7 @@ Return::emit_X86_64(AssemblerState *asms,
 
 inline std::size_t
 Read::emit_X86_64(AssemblerState *asms,
-                  mc::model14::Arch_TSO *arch, InstPtr start,
+                  mc::model14::Arch_TSO *arch, types::InstPtr start,
                   void *code, std::size_t len)
 {
     const std::size_t EXPECTED_LEN = 9;
@@ -67,8 +67,8 @@ Read::emit_X86_64(AssemblerState *asms,
 
     // @0
     *cnext++ = 0xa0;
-    *reinterpret_cast<mc::Event::Addr*>(cnext) = addr_;
-    cnext += sizeof(mc::Event::Addr);
+    *reinterpret_cast<types::Addr*>(cnext) = addr_;
+    cnext += sizeof(types::Addr);
 
     assert((cnext - static_cast<char*>(code)) == EXPECTED_LEN);
     return EXPECTED_LEN;
@@ -76,7 +76,7 @@ Read::emit_X86_64(AssemblerState *asms,
 
 inline std::size_t
 Write::emit_X86_64(AssemblerState *asms,
-                   mc::model14::Arch_TSO *arch, InstPtr start,
+                   mc::model14::Arch_TSO *arch, types::InstPtr start,
                    void *code, std::size_t len)
 {
     const std::size_t EXPECTED_LEN = 13;
@@ -86,19 +86,19 @@ Write::emit_X86_64(AssemblerState *asms,
 
     // ASM @0> movabs addr_, %rax    ;
     //     @a> movb write_id, (%rax) ;
-    WriteID write_id = 0;
+    types::WriteID write_id = 0;
     event_ = asms->make_write<1>(pid(), mc::Event::Read, addr_, &write_id)[0];
     at_ = start + 0xa;
 
     // @0
     *cnext++ = 0x48; *cnext++ = 0xb8;
-    *reinterpret_cast<mc::Event::Addr*>(cnext) = addr_;
-    cnext += sizeof(mc::Event::Addr);
+    *reinterpret_cast<types::Addr*>(cnext) = addr_;
+    cnext += sizeof(types::Addr);
 
     // @a
     *cnext++ = 0xc6; *cnext++ = 0x00;
-    *reinterpret_cast<WriteID*>(cnext) = write_id;
-    cnext += sizeof(WriteID);
+    *reinterpret_cast<types::WriteID*>(cnext) = write_id;
+    cnext += sizeof(types::WriteID);
 
     assert((cnext - static_cast<char*>(code)) == EXPECTED_LEN);
     return EXPECTED_LEN;

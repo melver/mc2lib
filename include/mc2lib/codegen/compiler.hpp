@@ -34,6 +34,9 @@
 #ifndef MC2LIB_CODEGEN_COMPILER_HPP_
 #define MC2LIB_CODEGEN_COMPILER_HPP_
 
+#include "../memconsistency/model14.hpp"
+#include "../types.hpp"
+
 #include <array>
 #include <cassert>
 #include <cstddef>
@@ -45,8 +48,6 @@
 #include <utility>
 #include <vector>
 
-#include "../memconsistency/model14.hpp"
-
 namespace mc2lib {
 namespace codegen {
 
@@ -55,14 +56,12 @@ namespace mc = memconsistency;
 class AssemblerState;
 class Operation;
 
-typedef mc::Event::Addr InstPtr;
 typedef std::shared_ptr<Operation> OperationPtr;
-typedef std::unordered_map<mc::Iiid::Pid, std::vector<Operation*>> Threads;
-typedef uint8_t WriteID;
+typedef std::unordered_map<types::Pid, std::vector<Operation*>> Threads;
 
 class Operation {
   public:
-    explicit Operation(mc::Iiid::Pid pid)
+    explicit Operation(types::Pid pid)
         : pid_(pid)
     {}
 
@@ -88,7 +87,7 @@ class Operation {
      * @return Size of emitted code.
      */
     virtual std::size_t emit_X86_64(AssemblerState *asms,
-                                    mc::model14::Arch_TSO *arch, InstPtr start,
+                                    mc::model14::Arch_TSO *arch, types::InstPtr start,
                                     void *code, std::size_t len)
     {
         // Provide default (nop), as not all operations may be implementable on
@@ -123,28 +122,28 @@ class Operation {
      * @return Success or not.
      */
     virtual bool insert_from(AssemblerState *asms, mc::model14::ExecWitness *ew,
-                             InstPtr ip, mc::Event::Addr addr,
-                             const WriteID *from_id, std::size_t size) const = 0;
+                             types::InstPtr ip, types::Addr addr,
+                             const types::WriteID *from_id, std::size_t size) const = 0;
 
-    mc::Iiid::Pid pid() const
+    types::Pid pid() const
     { return pid_; }
 
-    void set_pid(mc::Iiid::Pid pid)
+    void set_pid(types::Pid pid)
     { pid_ = pid; }
 
   private:
-    mc::Iiid::Pid pid_;
+    types::Pid pid_;
 };
 
 class AssemblerState {
   public:
     static constexpr std::size_t MAX_INST_SIZE = 8;
-    static constexpr std::size_t MAX_INST_EVTS  = MAX_INST_SIZE / sizeof(WriteID);
-    static constexpr WriteID INIT_WRITE = 0x00;
-    static constexpr WriteID MIN_WRITE = INIT_WRITE + 1;
-    static constexpr WriteID MAX_WRITE = 0xff - (MAX_INST_EVTS - 1);
-    static constexpr mc::Iiid::Poi MIN_READ = 0x8000000000000000ULL;
-    static constexpr mc::Iiid::Poi MAX_READ = 0xffffffffffffffffULL - (MAX_INST_EVTS - 1);
+    static constexpr std::size_t MAX_INST_EVTS  = MAX_INST_SIZE / sizeof(types::WriteID);
+    static constexpr types::WriteID INIT_WRITE = 0x00;
+    static constexpr types::WriteID MIN_WRITE = INIT_WRITE + 1;
+    static constexpr types::WriteID MAX_WRITE = 0xff - (MAX_INST_EVTS - 1);
+    static constexpr types::Poi MIN_READ = 0x8000000000000000ULL;
+    static constexpr types::Poi MAX_READ = 0xffffffffffffffffULL - (MAX_INST_EVTS - 1);
 
     explicit AssemblerState(mc::model14::ExecWitness *ew)
         : ew_(ew)
@@ -162,34 +161,34 @@ class AssemblerState {
     { return last_write_id_ >= MAX_WRITE || last_read_id_ >= MAX_READ; }
 
     template <std::size_t max_size, class Func>
-    std::array<const mc::Event*, max_size/sizeof(WriteID)>
-    make_event(mc::Iiid::Pid pid, mc::Event::Type type,
-               mc::Event::Addr addr, std::size_t size, Func mkevt)
+    std::array<const mc::Event*, max_size/sizeof(types::WriteID)>
+    make_event(types::Pid pid, mc::Event::Type type,
+               types::Addr addr, std::size_t size, Func mkevt)
     {
         static_assert(max_size <= MAX_INST_SIZE, "Invalid size!");
-        static_assert(sizeof(WriteID) <= max_size, "Invalid size!");
-        static_assert(max_size % sizeof(WriteID) == 0, "Invalid size!");
+        static_assert(sizeof(types::WriteID) <= max_size, "Invalid size!");
+        static_assert(max_size % sizeof(types::WriteID) == 0, "Invalid size!");
         assert(size <= max_size);
-        assert(sizeof(WriteID) <= size);
-        assert(size % sizeof(WriteID) == 0);
+        assert(sizeof(types::WriteID) <= size);
+        assert(size % sizeof(types::WriteID) == 0);
 
         assert(!exhausted());
 
-        std::array<const mc::Event*, max_size/sizeof(WriteID)> result;
+        std::array<const mc::Event*, max_size/sizeof(types::WriteID)> result;
 
-        for (std::size_t i = 0; i < size/sizeof(WriteID); ++i) {
-            result[i] = mkevt(i * sizeof(WriteID));
+        for (std::size_t i = 0; i < size/sizeof(types::WriteID); ++i) {
+            result[i] = mkevt(i * sizeof(types::WriteID));
         }
 
         return result;
     }
 
     template <std::size_t max_size>
-    std::array<const mc::Event*, max_size/sizeof(WriteID)>
-    make_read(mc::Iiid::Pid pid, mc::Event::Type type, mc::Event::Addr addr,
+    std::array<const mc::Event*, max_size/sizeof(types::WriteID)>
+    make_read(types::Pid pid, mc::Event::Type type, types::Addr addr,
               std::size_t size = max_size)
     {
-        return make_event<max_size>(pid, type, addr, size, [&](mc::Event::Addr offset) {
+        return make_event<max_size>(pid, type, addr, size, [&](types::Addr offset) {
             const mc::Event event =
                 mc::Event(type, addr + offset, mc::Iiid(pid, ++last_read_id_));
 
@@ -198,12 +197,12 @@ class AssemblerState {
     }
 
     template <std::size_t max_size>
-    std::array<const mc::Event*, max_size/sizeof(WriteID)>
-    make_write(mc::Iiid::Pid pid, mc::Event::Type type, mc::Event::Addr addr,
-               WriteID *data, std::size_t size = max_size)
+    std::array<const mc::Event*, max_size/sizeof(types::WriteID)>
+    make_write(types::Pid pid, mc::Event::Type type, types::Addr addr,
+               types::WriteID *data, std::size_t size = max_size)
     {
-        return make_event<max_size>(pid, type, addr, size, [&](mc::Event::Addr offset) {
-            const WriteID write_id = ++last_write_id_;
+        return make_event<max_size>(pid, type, addr, size, [&](types::Addr offset) {
+            const types::WriteID write_id = ++last_write_id_;
 
             const mc::Event event =
                 mc::Event(type, addr + offset, mc::Iiid(pid, write_id));
@@ -214,22 +213,22 @@ class AssemblerState {
     }
 
     template <std::size_t max_size>
-    std::array<const mc::Event*, max_size/sizeof(WriteID)>
-    get_write(const mc::Event *after, mc::Event::Addr addr,
-              const WriteID *from_id, std::size_t size = max_size)
+    std::array<const mc::Event*, max_size/sizeof(types::WriteID)>
+    get_write(const mc::Event *after, types::Addr addr,
+              const types::WriteID *from_id, std::size_t size = max_size)
     {
         static_assert(max_size <= MAX_INST_SIZE, "Invalid size!");
-        static_assert(sizeof(WriteID) <= max_size, "Invalid size!");
-        static_assert(max_size % sizeof(WriteID) == 0, "Invalid size!");
+        static_assert(sizeof(types::WriteID) <= max_size, "Invalid size!");
+        static_assert(max_size % sizeof(types::WriteID) == 0, "Invalid size!");
         assert(size <= max_size);
-        assert(sizeof(WriteID) <= size);
-        assert(size % sizeof(WriteID) == 0);
+        assert(sizeof(types::WriteID) <= size);
+        assert(size % sizeof(types::WriteID) == 0);
 
         assert(after != nullptr);
 
-        std::array<const mc::Event*, max_size/sizeof(WriteID)> result;
+        std::array<const mc::Event*, max_size/sizeof(types::WriteID)> result;
 
-        for (std::size_t i = 0; i < size/sizeof(WriteID); ++i) {
+        for (std::size_t i = 0; i < size/sizeof(types::WriteID); ++i) {
             WriteID_EventPtr::const_iterator write;
 
             const bool valid = from_id[i] != INIT_WRITE &&
@@ -253,22 +252,21 @@ class AssemblerState {
                 result[i] = &ew_->events.insert(initial);
             }
 
-            addr += sizeof(WriteID);
+            addr += sizeof(types::WriteID);
         }
 
         return result;
     }
 
   private:
-    typedef std::unordered_map<WriteID, const mc::Event*> WriteID_EventPtr;
+    typedef std::unordered_map<types::WriteID, const mc::Event*> WriteID_EventPtr;
 
     mc::model14::ExecWitness *ew_;
 
     WriteID_EventPtr writes_;
 
-    WriteID last_write_id_;
-    mc::Iiid::Poi last_read_id_;
-
+    types::WriteID last_write_id_;
+    types::Poi last_read_id_;
 };
 
 template <class Backend>
@@ -290,7 +288,7 @@ class Compiler {
         ip_to_op_.clear();
     }
 
-    std::size_t emit(Operation *op, InstPtr base, void *code, std::size_t len,
+    std::size_t emit(Operation *op, types::InstPtr base, void *code, std::size_t len,
                      const mc::Event **last_evt) {
         // Generate code and architecture-specific ordering relations.
         const std::size_t op_len = backend_(op, base, code, len);
@@ -310,7 +308,7 @@ class Compiler {
         return op_len;
     }
 
-    std::size_t emit(mc::Iiid::Pid pid, InstPtr base, void *code, std::size_t len)
+    std::size_t emit(types::Pid pid, types::InstPtr base, void *code, std::size_t len)
     {
         assert(threads_ != nullptr);
 
@@ -337,13 +335,13 @@ class Compiler {
         return emit_len;
     }
 
-    bool insert_from(InstPtr ip, mc::Event::Addr addr,
-                     const WriteID *from_id, std::size_t size)
+    bool insert_from(types::InstPtr ip, types::Addr addr,
+                     const types::WriteID *from_id, std::size_t size)
     {
         return ip_to_op(ip)->insert_from(&asms_, ew_, ip, addr, from_id, size);
     }
 
-    const Operation* ip_to_op(InstPtr ip)
+    const Operation* ip_to_op(types::InstPtr ip)
     {
         assert(!ip_to_op_.empty());
 
@@ -354,7 +352,7 @@ class Compiler {
     }
 
   private:
-    typedef std::map<InstPtr, std::pair<InstPtr, const Operation*>> InstPtr_Op;
+    typedef std::map<types::InstPtr, std::pair<types::InstPtr, const Operation*>> InstPtr_Op;
 
     AssemblerState asms_;
     Backend backend_;
@@ -381,7 +379,7 @@ class Backend_X86_64 {
         arch_->clear();
     }
 
-    std::size_t operator ()(Operation *op, InstPtr start,
+    std::size_t operator ()(Operation *op, types::InstPtr start,
                             void *code, std::size_t len) const
     {
         return op->emit_X86_64(asms_, arch_, start, code, len);

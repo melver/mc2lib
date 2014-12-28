@@ -34,9 +34,9 @@
 #ifndef MC2LIB_CODEGEN_OPS_GENERIC_HPP_
 #define MC2LIB_CODEGEN_OPS_GENERIC_HPP_
 
-#include <random>
-
 #include "../compiler.hpp"
+
+#include <random>
 
 namespace mc2lib {
 namespace codegen {
@@ -44,14 +44,14 @@ namespace ops {
 
 class Return : public Operation {
   public:
-    explicit Return(mc::Iiid::Pid pid = -1)
+    explicit Return(types::Pid pid = -1)
         : Operation(pid)
     {}
 
     void reset() {}
 
     std::size_t emit_X86_64(AssemblerState *asms,
-                            mc::model14::Arch_TSO *arch, InstPtr start,
+                            mc::model14::Arch_TSO *arch, types::InstPtr start,
                             void *code, std::size_t len);
 
     const mc::Event* insert_po(AssemblerState *asms, mc::model14::ExecWitness *ew,
@@ -59,14 +59,14 @@ class Return : public Operation {
     { return nullptr; }
 
     bool insert_from(AssemblerState *asms, mc::model14::ExecWitness *ew,
-                     InstPtr ip, mc::Event::Addr addr,
-                     const WriteID *from_id, std::size_t size) const
+                     types::InstPtr ip, types::Addr addr,
+                     const types::WriteID *from_id, std::size_t size) const
     { return true; }
 };
 
 class Read : public Operation {
   public:
-    explicit Read(mc::Event::Addr addr, mc::Iiid::Pid pid = -1)
+    explicit Read(types::Addr addr, types::Pid pid = -1)
         : Operation(pid), addr_(addr), event_(nullptr)
     {}
 
@@ -76,7 +76,7 @@ class Read : public Operation {
     }
 
     std::size_t emit_X86_64(AssemblerState *asms,
-                            mc::model14::Arch_TSO *arch, InstPtr start,
+                            mc::model14::Arch_TSO *arch, types::InstPtr start,
                             void *code, std::size_t len);
 
     const mc::Event* insert_po(AssemblerState *asms, mc::model14::ExecWitness *ew,
@@ -92,8 +92,8 @@ class Read : public Operation {
     }
 
     bool insert_from(AssemblerState *asms, mc::model14::ExecWitness *ew,
-                     InstPtr ip, mc::Event::Addr addr,
-                     const WriteID *from_id, std::size_t size) const
+                     types::InstPtr ip, types::Addr addr,
+                     const types::WriteID *from_id, std::size_t size) const
     {
         assert(event_ != nullptr);
         assert(ip == at_);
@@ -112,19 +112,19 @@ class Read : public Operation {
         ew->rf.insert(*e1, *e2);
     }
 
-    mc::Event::Addr addr_;
+    types::Addr addr_;
     const mc::Event *event_;
-    InstPtr at_;
+    types::InstPtr at_;
 };
 
 class Write : public Read {
   public:
-    explicit Write(mc::Event::Addr addr, mc::Iiid::Pid pid = -1)
+    explicit Write(types::Addr addr, types::Pid pid = -1)
         : Read(addr, pid)
     {}
 
     std::size_t emit_X86_64(AssemblerState *asms,
-                            mc::model14::Arch_TSO *arch, InstPtr start,
+                            mc::model14::Arch_TSO *arch, types::InstPtr start,
                             void *code, std::size_t len);
 
   protected:
@@ -138,8 +138,8 @@ class Write : public Read {
 struct RandomFactory {
     static constexpr std::size_t OPERATIONS = 2;
 
-    explicit RandomFactory(mc::Iiid::Pid min_pid, mc::Iiid::Pid max_pid,
-                           mc::Event::Addr min_addr, mc::Event::Addr max_addr)
+    explicit RandomFactory(types::Pid min_pid, types::Pid max_pid,
+                           types::Addr min_addr, types::Addr max_addr)
         : min_pid_(min_pid), max_pid_(max_pid),
           min_addr_(min_addr), max_addr_(max_addr)
     {}
@@ -148,8 +148,8 @@ struct RandomFactory {
     Operation* operator ()(URNG& urng) const
     {
         std::uniform_int_distribution<std::size_t> dist_idx(0, OPERATIONS - 1);
-        std::uniform_int_distribution<mc::Event::Addr> dist_addr(min_addr_, max_addr_);
-        std::uniform_int_distribution<mc::Iiid::Pid> dist_pid(min_pid_, max_pid_);
+        std::uniform_int_distribution<types::Addr> dist_addr(min_addr_, max_addr_);
+        std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);
 
         const auto pid = dist_pid(urng);
         const auto addr = dist_addr(urng);
@@ -164,10 +164,10 @@ struct RandomFactory {
     }
 
   private:
-    mc::Iiid::Pid min_pid_;
-    mc::Iiid::Pid max_pid_;
-    mc::Event::Addr min_addr_;
-    mc::Event::Addr max_addr_;
+    types::Pid min_pid_;
+    types::Pid max_pid_;
+    types::Addr min_addr_;
+    types::Addr max_addr_;
 };
 
 } /* namespace ops */

@@ -78,7 +78,7 @@ class Architecture {
      * addresses, but to the same cache-line! The well-formedness checks for
      * rf and co require this. This is an extension.
      */
-    virtual Event::Addr addrToLine(Event::Addr) const = 0;
+    virtual types::Addr addrToLine(types::Addr) const = 0;
 };
 
 class ExecWitness {
@@ -231,7 +231,7 @@ class Checker {
 
     virtual Error wf_co() const
     {
-        std::unordered_set<Event::Addr> addrs;
+        std::unordered_set<types::Addr> addrs;
 
         // Assert writes ordered captured in ws are to the same location.
         for (const auto& tuples : exec_->co.raw()) {
@@ -341,7 +341,7 @@ class Arch_SC : public Architecture {
         return Event::Write;
     }
 
-    Event::Addr addrToLine(Event::Addr a) const
+    types::Addr addrToLine(types::Addr a) const
     {
         return a;
     }
@@ -382,7 +382,7 @@ class Arch_TSO : public Architecture {
         return Event::Write;
     }
 
-    Event::Addr addrToLine(Event::Addr a) const
+    types::Addr addrToLine(types::Addr a) const
     {
         return a;
     }

@@ -35,6 +35,7 @@
 #define MC2LIB_MEMCONSISTENCY_EVENTSETS_HPP_
 
 #include "../elementsetthy.hpp"
+#include "../types.hpp"
 
 #include <iomanip>
 #include <sstream>
@@ -43,23 +44,8 @@
 namespace mc2lib {
 namespace memconsistency {
 
-// Can be specialized to declare custom types; I'd rather not pollute the
-// classes using Event with further template parameters, as it makes it even
-// harder to track. This method is a compromise.
-template <class>
-struct Types {
-    typedef unsigned long long Addr;
-    typedef unsigned long long Pid;
-    typedef unsigned long long Poi;
-};
-
-class Event;
-
 class Iiid {
   public:
-    typedef typename Types<Event>::Pid Pid;
-    typedef typename Types<Event>::Poi Poi;
-
     struct Hash {
         typedef std::hash<unsigned long long>::result_type result_type;
         result_type operator()(const Iiid& k) const
@@ -71,7 +57,7 @@ class Iiid {
     Iiid() : pid(0), poi(0)
     {}
 
-    Iiid(Pid pid_, Poi poi_) :
+    Iiid(types::Pid pid_, types::Poi poi_) :
         pid(pid_), poi(poi_)
     {}
 
@@ -116,14 +102,12 @@ class Iiid {
     }
 
   public:
-    Pid pid;
-    Poi poi;
+    types::Pid pid;
+    types::Poi poi;
 };
 
 class Event {
   public:
-    typedef typename Types<Event>::Addr Addr;
-
     struct Hash {
         Iiid::Hash::result_type operator()(const Event& k) const
         {
@@ -151,7 +135,7 @@ class Event {
         : type(None), addr(0)
     {}
 
-    Event(TypeMask type_, Addr addr_, Iiid iiid_)
+    Event(TypeMask type_, types::Addr addr_, Iiid iiid_)
         : type(type_), addr(addr_), iiid(iiid_)
     {}
 
@@ -225,7 +209,7 @@ class Event {
 
   public:
     TypeMask type;
-    Addr addr;
+    types::Addr addr;
     Iiid iiid;
 };
 

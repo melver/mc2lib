@@ -31,69 +31,37 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MC2LIB_CODEGEN_RIT_HPP_
-#define MC2LIB_CODEGEN_RIT_HPP_
-
-#include "../simplega.hpp"
-#include "compiler.hpp"
-
-#include <random>
-#include <unordered_set>
+#ifndef MC2LIB_TYPES_HPP_
+#define MC2LIB_TYPES_HPP_
 
 namespace mc2lib {
-namespace codegen {
+    namespace types {
 
-template <class URNG, class OperationFactory>
-class RandInstTest : public simplega::Genome<OperationPtr> {
-  public:
-	RandInstTest(URNG& urng, const OperationFactory *factory, std::size_t len)
-		: fitness_(0.0f), urng_(urng), factory_(factory)
-	{
-        genome_.resize(len);
+        /**
+         * Common types, shared among several classes and header files.
+         *
+         * Can be specialized to declare custom types without overwriting
+         * types.hh; however, this appraoch depends on user specializing before
+         * including any mc2lib header file.
+         */
+        template <bool use_specialized>
+            struct Types {
+                typedef unsigned long long Addr;
+                typedef unsigned long long Pid;
+                typedef unsigned long long Poi;
+                typedef Addr InstPtr;
+                typedef uint8_t WriteID;
+            };
 
-        for (auto& op_ptr : genome_) {
-            op_ptr.reset((*factory)(urng));
-        }
-	}
+        typedef typename Types<true>::Addr Addr;
+        typedef typename Types<true>::Pid Pid;
+        typedef typename Types<true>::Poi Poi;
+        typedef typename Types<true>::InstPtr InstPtr;
+        typedef typename Types<true>::WriteID WriteID;
 
-	void mutate(float rate)
-	{
-		std::uniform_int_distribution<std::size_t> dist_idx(0, genome_.size() - 1);
-        std::unordered_set<std::size_t> used;
-        std::size_t selection_count = (std::size_t)((float)genome_.size() * rate);
+    } // namespace types
+} // namespace mc2lib
 
-        while (selection_count) {
-            auto idx = dist_idx(urng_);
-            if (used.find(idx) != used.end())
-                continue;
-
-            genome_[idx].reset((*factory_)(urng_));
-
-            used.insert(idx);
-            --selection_count;
-        }
-	}
-
-    float fitness() const
-	{ return fitness_; }
-
-	void set_fitness(float fitness)
-	{ fitness_ = fitness; }
-
-	Threads threads()
-    {
-        return extract_threads(get());
-    }
-
-  private:
-    float fitness_;
-	URNG& urng_;
-    const OperationFactory *factory_;
-};
-
-} /* namespace codegen */
-} /* namespace mc2lib */
-
-#endif /* MC2LIB_CODEGEN_RIT_HPP_ */
+#endif /* TYPES_HPP_ */
 
 /* vim: set ts=4 sts=4 sw=4 et : */
