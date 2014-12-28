@@ -41,8 +41,8 @@ namespace codegen {
 namespace ops {
 
 inline std::size_t
-Return::emit_X86_64(AssemblerState *asms,
-                    mc::model14::Arch_TSO *arch, types::InstPtr start,
+Return::emit_X86_64(types::InstPtr start,
+                    AssemblerState *asms, mc::model14::Arch_TSO *arch,
                     void *code, std::size_t len)
 {
     assert(len >= 1);
@@ -52,8 +52,8 @@ Return::emit_X86_64(AssemblerState *asms,
 }
 
 inline std::size_t
-Read::emit_X86_64(AssemblerState *asms,
-                  mc::model14::Arch_TSO *arch, types::InstPtr start,
+Read::emit_X86_64(types::InstPtr start,
+                  AssemblerState *asms, mc::model14::Arch_TSO *arch,
                   void *code, std::size_t len)
 {
     const std::size_t EXPECTED_LEN = 9;
@@ -62,8 +62,8 @@ Read::emit_X86_64(AssemblerState *asms,
     assert(len >= EXPECTED_LEN);
 
     // ASM @0> movabs addr_, %al ;
-    event_ = asms->make_read<1>(pid(), mc::Event::Read, addr_)[0];
     at_ = start;
+    event_ = asms->make_read<1>(pid(), mc::Event::Read, addr_)[0];
 
     // @0
     *cnext++ = 0xa0;
@@ -75,8 +75,8 @@ Read::emit_X86_64(AssemblerState *asms,
 }
 
 inline std::size_t
-Write::emit_X86_64(AssemblerState *asms,
-                   mc::model14::Arch_TSO *arch, types::InstPtr start,
+Write::emit_X86_64(types::InstPtr start,
+                   AssemblerState *asms, mc::model14::Arch_TSO *arch,
                    void *code, std::size_t len)
 {
     const std::size_t EXPECTED_LEN = 13;
@@ -86,9 +86,9 @@ Write::emit_X86_64(AssemblerState *asms,
 
     // ASM @0> movabs addr_, %rax    ;
     //     @a> movb write_id, (%rax) ;
+    at_ = start + 0xa;
     types::WriteID write_id = 0;
     event_ = asms->make_write<1>(pid(), mc::Event::Read, addr_, &write_id)[0];
-    at_ = start + 0xa;
 
     // @0
     *cnext++ = 0x48; *cnext++ = 0xb8;

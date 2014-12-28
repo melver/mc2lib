@@ -50,17 +50,18 @@ class Return : public Operation {
 
     void reset() {}
 
-    std::size_t emit_X86_64(AssemblerState *asms,
-                            mc::model14::Arch_TSO *arch, types::InstPtr start,
+    std::size_t emit_X86_64(types::InstPtr start,
+                            AssemblerState *asms, mc::model14::Arch_TSO *arch,
                             void *code, std::size_t len);
 
-    const mc::Event* insert_po(AssemblerState *asms, mc::model14::ExecWitness *ew,
-                               const mc::Event *before) const
+    const mc::Event* insert_po(const mc::Event *before,
+                               AssemblerState *asms,
+                               mc::model14::ExecWitness *ew) const
     { return nullptr; }
 
-    bool insert_from(AssemblerState *asms, mc::model14::ExecWitness *ew,
-                     types::InstPtr ip, types::Addr addr,
-                     const types::WriteID *from_id, std::size_t size) const
+    bool insert_from(types::InstPtr ip, types::Addr addr,
+                     const types::WriteID *from_id, std::size_t size,
+                     AssemblerState *asms, mc::model14::ExecWitness *ew) const
     { return true; }
 };
 
@@ -75,12 +76,13 @@ class Read : public Operation {
         event_ = nullptr;
     }
 
-    std::size_t emit_X86_64(AssemblerState *asms,
-                            mc::model14::Arch_TSO *arch, types::InstPtr start,
+    std::size_t emit_X86_64(types::InstPtr start,
+                            AssemblerState *asms, mc::model14::Arch_TSO *arch,
                             void *code, std::size_t len);
 
-    const mc::Event* insert_po(AssemblerState *asms, mc::model14::ExecWitness *ew,
-                               const mc::Event *before) const
+    const mc::Event* insert_po(const mc::Event *before,
+                               AssemblerState *asms,
+                               mc::model14::ExecWitness *ew) const
     {
         assert(event_ != nullptr);
 
@@ -91,9 +93,9 @@ class Read : public Operation {
         return event_;
     }
 
-    bool insert_from(AssemblerState *asms, mc::model14::ExecWitness *ew,
-                     types::InstPtr ip, types::Addr addr,
-                     const types::WriteID *from_id, std::size_t size) const
+    bool insert_from(types::InstPtr ip, types::Addr addr,
+                     const types::WriteID *from_id, std::size_t size,
+                     AssemblerState *asms, mc::model14::ExecWitness *ew) const
     {
         assert(event_ != nullptr);
         assert(ip == at_);
@@ -101,13 +103,13 @@ class Read : public Operation {
         assert(size == 1);
 
         const mc::Event *from = asms->get_write<1>(event_, addr_, from_id)[0];
-        insert_from_helper(ew, from, event_);
+        insert_from_helper(from, event_, ew);
         return true;
     }
 
   protected:
-    virtual void insert_from_helper(mc::model14::ExecWitness *ew,
-                                    const mc::Event *e1, const mc::Event *e2) const
+    virtual void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
+                                    mc::model14::ExecWitness *ew) const
     {
         ew->rf.insert(*e1, *e2);
     }
@@ -123,13 +125,13 @@ class Write : public Read {
         : Read(addr, pid)
     {}
 
-    std::size_t emit_X86_64(AssemblerState *asms,
-                            mc::model14::Arch_TSO *arch, types::InstPtr start,
+    std::size_t emit_X86_64(types::InstPtr start,
+                            AssemblerState *asms, mc::model14::Arch_TSO *arch,
                             void *code, std::size_t len);
 
   protected:
-    virtual void insert_from_helper(mc::model14::ExecWitness *ew,
-                                    const mc::Event *e1, const mc::Event *e2) const
+    virtual void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
+                                    mc::model14::ExecWitness *ew) const
     {
         ew->co.insert(*e1, *e2);
     }
