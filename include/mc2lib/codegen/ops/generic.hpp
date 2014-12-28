@@ -144,6 +144,15 @@ struct RandomFactory {
           min_addr_(min_addr), max_addr_(max_addr)
     {}
 
+    void reset(types::Pid min_pid, types::Pid max_pid,
+               types::Addr min_addr, types::Addr max_addr)
+    {
+        min_pid_ = min_pid;
+        max_pid_ = max_pid;
+        min_addr_ = min_addr;
+        max_addr_ = max_addr;
+    }
+
     template <class URNG>
     Operation* operator ()(URNG& urng) const
     {
