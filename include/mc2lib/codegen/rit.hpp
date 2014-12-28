@@ -52,7 +52,7 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
         genome_.resize(len);
 
         for (auto& op_ptr : genome_) {
-            op_ptr.reset((*factory)(urng));
+            op_ptr = (*factory)(urng);
         }
 	}
 
@@ -67,7 +67,7 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
             if (used.find(idx) != used.end())
                 continue;
 
-            genome_[idx].reset((*factory_)(urng_));
+            genome_[idx] = (*factory_)(urng_);
 
             used.insert(idx);
             --selection_count;

@@ -154,7 +154,7 @@ struct RandomFactory {
     }
 
     template <class URNG>
-    Operation* operator ()(URNG& urng) const
+    OperationPtr operator ()(URNG& urng) const
     {
         std::uniform_int_distribution<std::size_t> dist_idx(0, OPERATIONS - 1);
         std::uniform_int_distribution<types::Addr> dist_addr(min_addr_, max_addr_);
@@ -164,8 +164,8 @@ struct RandomFactory {
         const auto addr = dist_addr(urng);
 
         switch (dist_idx(urng)) {
-            case 0: return new Read(addr, pid);
-            case 1: return new Write(addr, pid);
+            case 0: return std::make_shared<Read>(addr, pid);
+            case 1: return std::make_shared<Write>(addr, pid);
         }
 
         assert(false);

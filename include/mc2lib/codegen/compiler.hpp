@@ -57,7 +57,7 @@ class AssemblerState;
 class Operation;
 
 typedef std::shared_ptr<Operation> OperationPtr;
-typedef std::unordered_map<types::Pid, std::vector<Operation*>> Threads;
+typedef std::unordered_map<types::Pid, std::vector<OperationPtr>> Threads;
 
 class Operation {
   public:
@@ -326,7 +326,7 @@ class Compiler {
 
         for (const auto& op : thread->second) {
             // Generate code and architecture-specific ordering relations.
-            const std::size_t op_len = emit(op, base + emit_len, code,
+            const std::size_t op_len = emit(op.get(), base + emit_len, code,
                                             len - emit_len, &last_evt);
 
             emit_len += op_len;
@@ -400,7 +400,7 @@ inline Threads extract_threads(const T& container)
 
     for (const auto& op : container) {
         op->reset();
-        result[op->pid()].emplace_back(&(*op));
+        result[op->pid()].emplace_back(op);
     }
 
     return result;
