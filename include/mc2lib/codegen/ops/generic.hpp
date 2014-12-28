@@ -101,13 +101,13 @@ class Read : public Operation {
         assert(size == 1);
 
         const mc::Event *from = asms->get_write<1>(event_, addr_, from_id)[0];
-        insert_from(ew, from, event_);
+        insert_from_helper(ew, from, event_);
         return true;
     }
 
   protected:
-    virtual void insert_from(mc::model14::ExecWitness *ew,
-                             const mc::Event *e1, const mc::Event *e2) const
+    virtual void insert_from_helper(mc::model14::ExecWitness *ew,
+                                    const mc::Event *e1, const mc::Event *e2) const
     {
         ew->rf.insert(*e1, *e2);
     }
@@ -128,8 +128,8 @@ class Write : public Read {
                             void *code, std::size_t len);
 
   protected:
-    void insert_from(mc::model14::ExecWitness *ew,
-                             const mc::Event *e1, const mc::Event *e2) const
+    virtual void insert_from_helper(mc::model14::ExecWitness *ew,
+                                    const mc::Event *e1, const mc::Event *e2) const
     {
         ew->co.insert(*e1, *e2);
     }
