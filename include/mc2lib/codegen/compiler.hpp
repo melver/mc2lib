@@ -297,8 +297,9 @@ class Compiler {
         const std::size_t op_len = backend_(base, op, code, len);
         assert(op_len != 0);
 
-        // Insert IP to Operation mapping.
+        // Base IP must be unique!
         assert(ip_to_op_.find(base) == ip_to_op_.end());
+        // Insert IP to Operation mapping.
         ip_to_op_[base] = std::make_pair(base + op_len, op);
 
         // Generate program-order.
@@ -341,15 +342,26 @@ class Compiler {
     bool insert_from(types::InstPtr ip, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size)
     {
-        return ip_to_op(ip)->insert_from(ip, addr, from_id, size, &asms_, ew_);
+        auto op = ip_to_op(ip);
+
+        if (op == nullptr) {
+            return false;
+        }
+
+        return op->insert_from(ip, addr, from_id, size, &asms_, ew_);
     }
 
     const Operation* ip_to_op(types::InstPtr ip)
     {
-        assert(!ip_to_op_.empty());
+        if (ip_to_op_.empty()) {
+            return nullptr;
+        }
 
         auto e = --ip_to_op_.upper_bound(ip);
-        assert(e->first <= ip && ip < e->second.first);
+
+        if (!(e->first <= ip && ip < e->second.first)) {
+            return nullptr;
+        }
 
         return e->second.second;
     }
