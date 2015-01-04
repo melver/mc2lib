@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Marco Elver
+ * Copyright (c) 2014-2015, Marco Elver
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,6 +83,12 @@ class ElementSet {
         return *result.first;
     }
 
+    void erase(const Element& e, bool assert_exists = false)
+    {
+        auto result = set_.erase(e);
+        assert(!assert_exists || result != 0);
+    }
+
     /*
      * Set union.
      */
@@ -116,7 +122,7 @@ class ElementSet {
      */
     ElementSet& operator-=(const Element& rhs)
     {
-        set_.erase(rhs);
+        erase(rhs);
         return *this;
     }
 
@@ -132,7 +138,7 @@ class ElementSet {
             clear();
         } else {
             for (const auto& e : rhs.get()) {
-                set_.erase(e);
+                erase(e);
             }
         }
 
@@ -247,29 +253,6 @@ class ElementRel {
     const Relation& raw() const
     { return rel_; }
 
-    /*
-     * Provide eval() for evaluated view of the relation (with properties
-     * evaluated).
-     */
-    ElementRel eval() const
-    {
-        if (!props()) {
-            return *this;
-        }
-
-        ElementRel result;
-
-        const auto dom = domain();
-        for (const auto& e1 : dom.get()) {
-            const auto reach = reachable(e1);
-            for (const auto& e2 : reach.get()) {
-                result.insert(e1, e2);
-            }
-        }
-
-        return result;
-    }
-
     Properties props() const
     { return props_; }
 
@@ -306,6 +289,96 @@ class ElementRel {
         const auto props = props_;
         props_ = None;
         return props;
+    }
+
+    void insert(const Element& e1, const Element& e2, bool assert_unique = false)
+    {
+        rel_[e1].insert(e2, assert_unique);
+    }
+
+    void insert(const Element& e1, const ElementSet<Ts>& e2s)
+    {
+        rel_[e1] += e2s;
+    }
+
+    void erase(const Element& e1, const Element& e2, bool assert_exists = false)
+    {
+        if (this->contains(e1)) {
+            rel_[e1].erase(e2, assert_exists);
+
+            if (rel_[e1].empty()) {
+                rel_.erase(e1);
+            }
+        }
+    }
+
+    void erase(const Element& e1, const ElementSet<Ts>& e2s)
+    {
+        if (this->contains(e1)) {
+            rel_[e1] -= e2s;
+
+            if (rel_[e1].empty()) {
+                rel_.erase(e1);
+            }
+        }
+    }
+
+    std::size_t size() const
+    {
+        std::size_t total = 0;
+
+        if (props()) {
+            const auto dom = domain();
+            for (const auto& e : dom.get()) {
+                total += reachable(e).size();
+            }
+        } else {
+            for (const auto& tuples : rel_) {
+                total += tuples.second.size();
+            }
+        }
+
+        return total;
+    }
+
+    /*
+     * Provide eval() for evaluated view of the relation (with properties
+     * evaluated).
+     */
+    ElementRel eval() const
+    {
+        if (!props()) {
+            return *this;
+        }
+
+        ElementRel result;
+
+        const auto dom = domain();
+        for (const auto& e1 : dom.get()) {
+            const auto reach = reachable(e1);
+            for (const auto& e2 : reach.get()) {
+                result.insert(e1, e2);
+            }
+        }
+
+        return result;
+    }
+
+    template <class FilterFunc>
+    ElementRel filter(FilterFunc filterFunc) const
+    {
+        ElementRel er;
+        const auto dom = domain();
+        for (const auto& e1 : dom.get()) {
+            const auto reach = reachable(e1);
+            for (const auto& e2 : reach.get()) {
+                const auto tuple = std::make_pair(e1, e2);
+                if (filterFunc(tuple)) {
+                    er += tuple;
+                }
+            }
+        }
+        return er;
     }
 
     /*
@@ -350,25 +423,14 @@ class ElementRel {
      */
     ElementRel& operator-=(const ElementRel& rhs)
     {
-        const auto diff_tuples = [&](const Element& e1,
-                                     const ElementSet<Ts>& e2s) {
-            if (this->contains(e1)) {
-                rel_[e1] -= e2s;
-
-                if (rel_[e1].empty()) {
-                    rel_.erase(e1);
-                }
-            }
-        };
-
         if (rhs.props()) {
             const auto rhs_domain = rhs.domain();
             for (const auto& e : rhs_domain.get()) {
-                diff_tuples(e, rhs.reachable(e));
+                erase(e, rhs.reachable(e));
             }
         } else {
             for (const auto& tuples : rhs.raw()) {
-                diff_tuples(tuples.first, tuples.second);
+                erase(tuples.first, tuples.second);
             }
         }
 
@@ -587,46 +649,6 @@ class ElementRel {
     bool strict_total_order(const ElementSet<Ts>& on) const
     {
         return strict_partial_order(on) && connex_on(on);
-    }
-
-    void insert(const Element& e1, const Element& e2, bool assert_unique = false)
-    {
-        rel_[e1].insert(e2, assert_unique);
-    }
-
-    std::size_t size() const
-    {
-        std::size_t total = 0;
-
-        if (props()) {
-            const auto dom = domain();
-            for (const auto& e : dom.get()) {
-                total += reachable(e).size();
-            }
-        } else {
-            for (const auto& tuples : rel_) {
-                total += tuples.second.size();
-            }
-        }
-
-        return total;
-    }
-
-    template <class FilterFunc>
-    ElementRel filter(FilterFunc filterFunc) const
-    {
-        ElementRel er;
-        const auto dom = domain();
-        for (const auto& e1 : dom.get()) {
-            const auto reach = reachable(e1);
-            for (const auto& e2 : reach.get()) {
-                const auto tuple = std::make_pair(e1, e2);
-                if (filterFunc(tuple)) {
-                    er += tuple;
-                }
-            }
-        }
-        return er;
     }
 
     bool in_on(const Element& e) const
