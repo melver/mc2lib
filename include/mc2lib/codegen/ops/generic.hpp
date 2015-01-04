@@ -56,24 +56,25 @@ class Return : public Operation {
 
     const mc::Event* insert_po(const mc::Event *before,
                                AssemblerState *asms,
-                               mc::model14::ExecWitness *ew) const
+                               mc::model14::ExecWitness *ew)
     { return nullptr; }
 
     bool insert_from(types::InstPtr ip, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
-                     AssemblerState *asms, mc::model14::ExecWitness *ew) const
+                     AssemblerState *asms, mc::model14::ExecWitness *ew)
     { return true; }
 };
 
 class Read : public Operation {
   public:
     explicit Read(types::Addr addr, types::Pid pid = -1)
-        : Operation(pid), addr_(addr), event_(nullptr)
+        : Operation(pid), addr_(addr), event_(nullptr), from_(nullptr)
     {}
 
     void reset()
     {
         event_ = nullptr;
+        from_ = nullptr;
     }
 
     std::size_t emit_X86_64(types::InstPtr start,
@@ -82,7 +83,7 @@ class Read : public Operation {
 
     const mc::Event* insert_po(const mc::Event *before,
                                AssemblerState *asms,
-                               mc::model14::ExecWitness *ew) const
+                               mc::model14::ExecWitness *ew)
     {
         assert(event_ != nullptr);
 
@@ -95,7 +96,7 @@ class Read : public Operation {
 
     bool insert_from(types::InstPtr ip, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
-                     AssemblerState *asms, mc::model14::ExecWitness *ew) const
+                     AssemblerState *asms, mc::model14::ExecWitness *ew)
     {
         assert(event_ != nullptr);
         assert(ip == at_);
@@ -103,19 +104,36 @@ class Read : public Operation {
         assert(size == 1);
 
         const mc::Event *from = asms->get_write<1>(event_, addr_, from_id)[0];
-        insert_from_helper(from, event_, ew);
+
+        if (from_ != nullptr) {
+            // If from_ == from, we still need to continue to try to erase and
+            // insert, in case the from-relation has been cleared.
+
+            erase_from_helper(from_, event_, ew);
+        }
+
+        from_ = from;
+        insert_from_helper(from_, event_, ew);
+
         return true;
     }
 
   protected:
     virtual void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
-                                    mc::model14::ExecWitness *ew) const
+                                    mc::model14::ExecWitness *ew)
     {
-        ew->rf.insert(*e1, *e2);
+        ew->rf.insert(*e1, *e2, true);
+    }
+
+    virtual void erase_from_helper(const mc::Event *e1, const mc::Event *e2,
+                                   mc::model14::ExecWitness *ew)
+    {
+        ew->rf.erase(*e1, *e2);
     }
 
     types::Addr addr_;
     const mc::Event *event_;
+    const mc::Event *from_;
     types::InstPtr at_;
 };
 
@@ -131,9 +149,15 @@ class Write : public Read {
 
   protected:
     virtual void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
-                                    mc::model14::ExecWitness *ew) const
+                                    mc::model14::ExecWitness *ew)
     {
         ew->co.insert(*e1, *e2);
+    }
+
+    virtual void erase_from_helper(const mc::Event *e1, const mc::Event *e2,
+                                   mc::model14::ExecWitness *ew)
+    {
+        ew->co.erase(*e1, *e2);
     }
 };
 

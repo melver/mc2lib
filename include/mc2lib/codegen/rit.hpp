@@ -46,19 +46,19 @@ namespace codegen {
 template <class URNG, class OperationFactory>
 class RandInstTest : public simplega::Genome<OperationPtr> {
   public:
-	RandInstTest(URNG& urng, const OperationFactory *factory, std::size_t len)
-		: fitness_(0.0f), urng_(urng), factory_(factory)
-	{
+    RandInstTest(URNG& urng, const OperationFactory *factory, std::size_t len)
+        : fitness_(0.0f), urng_(urng), factory_(factory)
+    {
         genome_.resize(len);
 
         for (auto& op_ptr : genome_) {
             op_ptr = (*factory)(urng);
         }
-	}
+    }
 
-	void mutate(float rate)
-	{
-		std::uniform_int_distribution<std::size_t> dist_idx(0, genome_.size() - 1);
+    void mutate(float rate)
+    {
+        std::uniform_int_distribution<std::size_t> dist_idx(0, genome_.size() - 1);
         std::unordered_set<std::size_t> used;
         std::size_t selection_count = (std::size_t)((float)genome_.size() * rate);
 
@@ -72,22 +72,22 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
             used.insert(idx);
             --selection_count;
         }
-	}
+    }
 
     float fitness() const
-	{ return fitness_; }
+    { return fitness_; }
 
-	void set_fitness(float fitness)
-	{ fitness_ = fitness; }
+    void set_fitness(float fitness)
+    { fitness_ = fitness; }
 
-	Threads threads()
+    Threads threads()
     {
         return extract_threads(get());
     }
 
   private:
     float fitness_;
-	URNG& urng_;
+    URNG& urng_;
     const OperationFactory *factory_;
 };
 

@@ -88,7 +88,7 @@ Write::emit_X86_64(types::InstPtr start,
     //     @a> movb write_id, (%rax) ;
     at_ = start + 0xa;
     types::WriteID write_id = 0;
-    event_ = asms->make_write<1>(pid(), mc::Event::Read, addr_, &write_id)[0];
+    event_ = asms->make_write<1>(pid(), mc::Event::Write, addr_, &write_id)[0];
 
     // @0
     *cnext++ = 0x48; *cnext++ = 0xb8;

@@ -106,7 +106,7 @@ class Operation {
      */
     virtual const mc::Event* insert_po(const mc::Event *before,
                                        AssemblerState *asms,
-                                       mc::model14::ExecWitness *ew) const = 0;
+                                       mc::model14::ExecWitness *ew) = 0;
 
     /**
      * Insert dynamic ordering relations (read-from, coherence-order).
@@ -123,7 +123,7 @@ class Operation {
      */
     virtual bool insert_from(types::InstPtr ip, types::Addr addr,
                              const types::WriteID *from_id, std::size_t size,
-                             AssemblerState *asms, mc::model14::ExecWitness *ew) const = 0;
+                             AssemblerState *asms, mc::model14::ExecWitness *ew) = 0;
 
     types::Pid pid() const
     { return pid_; }
@@ -282,6 +282,15 @@ class Compiler {
     void reset(const Threads *threads = nullptr)
     {
         threads_ = threads;
+
+        if (threads_ != nullptr) {
+            for (const auto& thread : (*threads_)) {
+                for(const auto& op : thread.second) {
+                    op->reset();
+                }
+            }
+        }
+
         asms_.reset();
         backend_.reset();
         ew_->clear();
@@ -351,7 +360,7 @@ class Compiler {
         return op->insert_from(ip, addr, from_id, size, &asms_, ew_);
     }
 
-    const Operation* ip_to_op(types::InstPtr ip)
+    Operation* ip_to_op(types::InstPtr ip)
     {
         if (ip_to_op_.empty()) {
             return nullptr;
@@ -367,7 +376,7 @@ class Compiler {
     }
 
   private:
-    typedef std::map<types::InstPtr, std::pair<types::InstPtr, const Operation*>> InstPtr_Op;
+    typedef std::map<types::InstPtr, std::pair<types::InstPtr, Operation*>> InstPtr_Op;
 
     AssemblerState asms_;
     Backend backend_;
@@ -411,7 +420,6 @@ inline Threads extract_threads(const T& container)
     Threads result;
 
     for (const auto& op : container) {
-        op->reset();
         result[op->pid()].emplace_back(op);
     }
 
