@@ -75,6 +75,15 @@ class Operation {
     virtual void reset() = 0;
 
     /**
+     * Prepares the operation for emit; common emit code.
+     *
+     * @param[in,out] asms Pointer to AssemblerState instance of calling Compiler.
+     *
+     * @return true if can emit; false otherwise.
+     */
+    virtual bool enable_emit(AssemblerState *asms) = 0;
+
+    /**
      * Emit X86-64 machine code; fill in architecture-dependent ordering
      * relations.
      *
@@ -300,8 +309,16 @@ class Compiler {
     const Threads* threads()
     { return threads_; }
 
+    const AssemblerState* asms()
+    { return &asms_; }
+
     std::size_t emit(types::InstPtr base, Operation *op, void *code, std::size_t len,
                      const mc::Event **last_evt) {
+        // Prepare op for emit.
+        if (!op->enable_emit(&asms_)) {
+            return 0;
+        }
+
         // Generate code and architecture-specific ordering relations.
         const std::size_t op_len = backend_(base, op, code, len);
         assert(op_len != 0);

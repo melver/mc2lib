@@ -50,6 +50,9 @@ class Return : public Operation {
 
     void reset() {}
 
+    bool enable_emit(AssemblerState *asms)
+    { return true; }
+
     std::size_t emit_X86_64(types::InstPtr start,
                             AssemblerState *asms, mc::model14::Arch_TSO *arch,
                             void *code, std::size_t len);
@@ -76,6 +79,9 @@ class Read : public Operation {
         event_ = nullptr;
         from_ = nullptr;
     }
+
+    bool enable_emit(AssemblerState *asms)
+    { return !asms->exhausted(); }
 
     std::size_t emit_X86_64(types::InstPtr start,
                             AssemblerState *asms, mc::model14::Arch_TSO *arch,
