@@ -498,6 +498,11 @@ class ElementRel {
     {
         if (e1 == e2 && all_props(ReflexiveClosure)) {
             if (in_on(e1)) {
+                if (path != nullptr) {
+                    path->push_back(e1);
+                    path->push_back(e1);
+                }
+
                 return true;
             }
         }
@@ -766,7 +771,13 @@ class ElementRel {
     {
         local_props |= props_;
 
-        if (all_bitmask(local_props, ReflexiveClosure)) {
+        if (all_bitmask(local_props, ReflexiveClosure) && !empty()) {
+            if (cyclic != nullptr) {
+                // Pick arbitrary.
+                cyclic->push_back(rel_.begin()->first);
+                cyclic->push_back(rel_.begin()->first);
+            }
+
             return false;
         }
 
@@ -1011,25 +1022,39 @@ class ElementRelSeq : public ElementRelOp<Ts> {
         return er;
     }
 
-    bool R(const Element& e1, const Element& e2, std::size_t seq = 0) const
+    bool R(const Element& e1, const Element& e2,
+           typename ElementRel<Ts>::Path *path = nullptr, std::size_t seq = 0) const
     {
         if (!this->size()) return false;
         assert(seq < this->rels_.size());
 
         if (seq + 1 < this->rels_.size()) {
             const auto& rel = this->rels_[seq];
+            std::size_t path_size = 0;
 
             const ElementSet<Ts> reach = rel.reachable(e1);
             for (const auto& e : reach.get()) {
-                if (R(e, e2, seq+1)) {
+                if (path != nullptr) {
+                    path_size = path->size();
+                    rel.R(e1, e, path); // true
+                    path->pop_back(); // remove e
+                }
+
+                if (R(e, e2, path, seq + 1)) {
                     return true;
+                }
+
+                if (path != nullptr) {
+                    // e not connected to e2, remove all up to e1 (inclusive).
+                    assert(path_size < path->size());
+                    path->erase(path->begin() + path_size, path->end());
                 }
             }
 
             return false;
         }
 
-        return this->rels_[seq].R(e1, e2);
+        return this->rels_[seq].R(e1, e2, path);
     }
 
     bool irreflexive(typename ElementRel<Ts>::Path *cyclic = nullptr) const
@@ -1038,13 +1063,11 @@ class ElementRelSeq : public ElementRelOp<Ts> {
 
         const auto domain = this->rels_.front().domain();
         for (const auto& e : domain.get()) {
-            if (R(e, e)) {
-                if (cyclic != nullptr) {
-                    eval().irreflexive(cyclic);
-                }
+            if (R(e, e, cyclic)) {
                 return false;
             }
         }
+
         return true;
     }
 };

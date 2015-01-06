@@ -287,7 +287,13 @@ class Checker {
         // Not eval'ing hbstar causes performance to degrade substantially, as
         // EventRelSeq recomputes reachability from nodes from prop to hbstar
         // several times!
-        return EventRelSeq({exec_->fre(), prop, hbstar.eval()}).irreflexive(cyclic);
+        bool r = EventRelSeq({exec_->fre(), prop, hbstar.eval()}).irreflexive();
+
+        if (!r && cyclic != nullptr) {
+            EventRelSeq({exec_->fre(), prop, hbstar}).irreflexive(cyclic);
+        }
+
+        return r;
     }
 
     virtual bool propagation(EventRel::Path *cyclic = nullptr) const

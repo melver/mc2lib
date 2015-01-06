@@ -280,21 +280,30 @@ BOOST_AUTO_TEST_CASE(EventRelSeqIrrefl1)
 
     EventRelSeq ers;
     EventRel er;
+    er.insert(e1, nextevt());
+    er.insert(e1, nextevt());
+    er.insert(e1, nextevt());
     er.insert(start = e1, e2 = nextevt());
     ers += er;
 
     er = EventRel();
     er.insert(e2, e1 = nextevt());
+    er.insert(e1, e2 = nextevt());
+    er.add_props(EventRel::TransitiveClosure);
     ers += er;
 
     er = EventRel();
-    er.insert(e1, start);
+    er.insert(e2, start);
     ers += er;
 
     BOOST_CHECK(!ers.irreflexive());
 
     const EventRel evald = ers.eval();
     BOOST_CHECK(!evald.irreflexive());
+
+    EventRel::Path p;
+    ers.irreflexive(&p);
+    BOOST_CHECK_EQUAL(p.size(), 5);
 }
 
 BOOST_AUTO_TEST_CASE(EventRelSeqIrrefl2)
@@ -324,6 +333,36 @@ BOOST_AUTO_TEST_CASE(EventRelSeqIrrefl2)
 
     const EventRel evald = ers.eval();
     BOOST_CHECK(!evald.irreflexive());
+}
+
+BOOST_AUTO_TEST_CASE(EventRelReflexivePath)
+{
+    Event e1 = resetevt();
+    Event e2;
+
+    EventRelSeq ers;
+
+    EventRel er;
+    er.insert(e1, e2 = nextevt());
+    er.insert(e1, e2 = nextevt());
+    er.set_props(EventRel::ReflexiveClosure);
+    ers += er;
+
+    er = EventRel();
+    er.insert(e2, e1 = nextevt());
+    er.set_props(EventRel::ReflexiveClosure);
+    ers += er;
+
+    EventRel::Path p;
+    BOOST_CHECK(!er.irreflexive(&p));
+    BOOST_CHECK_EQUAL(p.size(), 2);
+    BOOST_CHECK(p[0] == p[1]);
+
+    p.clear();
+    BOOST_CHECK(!ers.irreflexive(&p));
+    BOOST_CHECK_EQUAL(p.size(), 3);
+    BOOST_CHECK(p[0] == p[1]);
+    BOOST_CHECK(p[1] == p[2]);
 }
 
 BOOST_AUTO_TEST_CASE(Model12Empty)
