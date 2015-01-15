@@ -43,6 +43,8 @@
 
 #include "eventsets.hpp"
 
+#include <exception>
+
 namespace mc2lib {
 namespace memconsistency {
 namespace model14 {
@@ -185,14 +187,17 @@ class ExecWitness {
 
 class Checker {
   public:
-    enum class Error {
-        OK,
-        WF_RF_NOT_FROM_WRITE,
-        WF_RF_NOT_SAME_LOC,
-        WF_RF_MULTI_SOURCE,
-        WF_CO_NOT_SAME_LOC,
-        WF_CO_NOT_STRICT_PARTIAL_ORDER,
-        WF_CO_NOT_CONNEX
+    class Error : public std::exception {
+      public:
+        Error(const char *w)
+            : what_(w)
+        {}
+
+        const char* what() const noexcept
+        { return what_; }
+
+      private:
+        const char *what_;
     };
 
     Checker(const Architecture *arch, const ExecWitness *exec)
@@ -202,34 +207,32 @@ class Checker {
     virtual ~Checker()
     {}
 
-    virtual Error wf_rf() const
+    virtual void wf_rf() const
     {
         EventSet reads;
 
         for (const auto& tuples : exec_->rf.raw()) {
             if (!tuples.first.any_type(arch_->eventTypeWrite())) {
-                return Error::WF_RF_NOT_FROM_WRITE;
+                throw Error("WF_RF_NOT_FROM_WRITE");
             }
 
             for (const auto& e : tuples.second.get()) {
                 if (   !e.any_type(arch_->eventTypeRead())
                     || arch_->addrToLine(tuples.first.addr) != arch_->addrToLine(e.addr))
                 {
-                    return Error::WF_RF_NOT_SAME_LOC;
+                    throw Error("WF_RF_NOT_SAME_LOC");
                 }
 
                 // For every read, there exists only 1 source!
                 if (reads.contains(e)) {
-                    return Error::WF_RF_MULTI_SOURCE;
+                    throw Error("WF_RF_MULTI_SOURCE");
                 }
                 reads += e;
             }
         }
-
-        return Error::OK;
     }
 
-    virtual Error wf_co() const
+    virtual void wf_co() const
     {
         std::unordered_set<types::Addr> addrs;
 
@@ -239,7 +242,7 @@ class Checker {
 
             for (const auto& e : tuples.second.get()) {
                 if (arch_->addrToLine(tuples.first.addr) != arch_->addrToLine(e.addr)) {
-                    return Error::WF_CO_NOT_SAME_LOC;
+                    throw Error("WF_CO_NOT_SAME_LOC");
                 }
             }
         }
@@ -248,7 +251,7 @@ class Checker {
                     return e.any_type(arch_->eventTypeWrite());
                 });
         if (!exec_->co.strict_partial_order(writes)) {
-            return Error::WF_CO_NOT_STRICT_PARTIAL_ORDER;
+            throw Error("WF_CO_NOT_STRICT_PARTIAL_ORDER");
         }
 
         for (const auto& addr : addrs) {
@@ -256,16 +259,15 @@ class Checker {
                         return e.addr == addr;
                     });
             if (!exec_->co.connex_on(same_addr_writes)) {
-                return Error::WF_CO_NOT_CONNEX;
+                throw Error("WF_CO_NOT_CONNEX");
             }
         }
-
-        return Error::OK;
     }
 
-    virtual bool wf() const
+    virtual void wf() const
     {
-        return wf_rf() == Error::OK && wf_co() == Error::OK;
+        wf_rf();
+        wf_co();
     }
 
     virtual bool sc_per_location(EventRel::Path *cyclic = nullptr) const
@@ -301,13 +303,21 @@ class Checker {
         return (exec_->co + arch_->prop(*exec_)).acyclic(cyclic);
     }
 
-    virtual bool valid_exec(EventRel::Path *cyclic = nullptr) const
+    virtual void valid_exec(EventRel::Path *cyclic = nullptr) const
     {
-        return wf()
-            && sc_per_location(cyclic)
-            && no_thin_air(cyclic)
-            && observation(cyclic)
-            && propagation(cyclic);
+        wf();
+
+        if (!sc_per_location(cyclic))
+            throw Error("SC_PER_LOCATION");
+
+        if (!no_thin_air(cyclic))
+            throw Error("NO_THIN_AIR");
+
+        if (!observation(cyclic))
+            throw Error("OBSERVATION");
+
+        if (!propagation(cyclic))
+            throw Error("PROPAGATION");
     }
 
   protected:

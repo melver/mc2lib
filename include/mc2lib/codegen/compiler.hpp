@@ -380,6 +380,11 @@ class Compiler {
     Operation* ip_to_op(types::InstPtr ip)
     {
         if (ip_to_op_.empty()) {
+            // Can be legally empty if no code has yet been emitted, i.e. right
+            // after host system startup. By not faulting here, the host can
+            // still use ip_to_op to check if an instruction needs to be
+            // treated specially: before any code has been emitted, no
+            // instructions will be treated specially.
             return nullptr;
         }
 
