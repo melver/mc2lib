@@ -204,6 +204,18 @@ struct RandomFactory {
         return nullptr;
     }
 
+    types::Pid min_pid()
+    { return min_pid_; }
+
+    types::Pid max_pid()
+    { return max_pid_; }
+
+    types::Addr min_addr()
+    { return min_addr_; }
+
+    types::Addr max_addr()
+    { return max_addr_; }
+
   private:
     types::Pid min_pid_;
     types::Pid max_pid_;
