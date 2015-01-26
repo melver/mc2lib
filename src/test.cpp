@@ -476,7 +476,8 @@ class GenomeAdd : public Genome<float> {
         mutate(1.0f);
     }
 
-    GenomeAdd(const std::vector<float>& g)
+    GenomeAdd(const GenomeAdd& parent1, const GenomeAdd& parent2,
+              const std::vector<float>& g)
         : Genome<float>(g)
     {}
 

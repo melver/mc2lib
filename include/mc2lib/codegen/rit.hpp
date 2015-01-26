@@ -46,7 +46,7 @@ namespace codegen {
 template <class URNG, class OperationFactory>
 class RandInstTest : public simplega::Genome<OperationPtr> {
   public:
-    RandInstTest(URNG& urng, const OperationFactory *factory, std::size_t len)
+    explicit RandInstTest(URNG& urng, const OperationFactory *factory, std::size_t len)
         : fitness_(0.0f), urng_(urng), factory_(factory)
     {
         genome_.resize(len);
@@ -55,6 +55,12 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
             op_ptr = (*factory)(urng);
         }
     }
+
+    explicit RandInstTest(const RandInstTest& parent1, const RandInstTest& parent2,
+                          const std::vector<OperationPtr>& g)
+        : simplega::Genome<OperationPtr>(g)
+        , fitness_(0.0f), urng_(parent1.urng_), factory_(parent1.factory_)
+    {}
 
     void mutate(float rate)
     {

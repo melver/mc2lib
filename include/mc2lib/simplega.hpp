@@ -145,7 +145,7 @@ void crossover_mutate(URNG& urng, const GenomeT& mate1, const GenomeT& mate2,
         auto itb = b.get().begin();
         std::advance(itb, cut_b);
         result.insert(result.end(), itb, b.get().end());
-        return GenomeT(result);
+        return GenomeT(a, b, result);
     };
 
     // child1 = mate1[0:cut1] + mate2[cut2:]
