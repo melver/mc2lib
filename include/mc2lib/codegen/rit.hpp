@@ -88,7 +88,7 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
 
     Threads threads()
     {
-        return extract_threads(get());
+        return threads_extract(getptr());
     }
 
   private:

@@ -573,6 +573,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 
     const auto threads = rit.threads();
     BOOST_CHECK_EQUAL(threads.size(), 2);
+    BOOST_CHECK_EQUAL(threads_size(threads), rit.get().size());
 
     Compiler<Backend_X86_64> compiler(&arch, &ew,  &threads);
 

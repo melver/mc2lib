@@ -45,6 +45,7 @@
 #include <map>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -67,6 +68,11 @@ class Operation {
 
     virtual ~Operation()
     {}
+
+    /**
+     * Clone the instance.
+     */
+    virtual OperationPtr clone() const = 0;
 
     /**
      * Provide Reset, as emit functions may modify the state of an Operation to
@@ -293,6 +299,7 @@ class Compiler {
         threads_ = threads;
 
         if (threads_ != nullptr) {
+            // Must ensure all Operation instances have been reset.
             for (const auto& thread : (*threads_)) {
                 for(const auto& op : thread.second) {
                     op->reset();
@@ -437,12 +444,32 @@ class Backend_X86_64 {
 };
 
 template <class T>
-inline Threads extract_threads(const T& container)
+inline Threads
+threads_extract(T *container)
 {
     Threads result;
+    std::unordered_set<Operation*> used;
 
-    for (const auto& op : container) {
+    for (auto& op : (*container)) {
+        if (used.insert(op.get()).second) {
+            // Using same instance of Operation multiple times is not
+            // permitted.
+            op = op->clone();
+        }
+
         result[op->pid()].emplace_back(op);
+    }
+
+    return result;
+}
+
+inline std::size_t
+threads_size(const Threads& threads)
+{
+    std::size_t result = 0;
+
+    for (const auto& thread : threads) {
+        result += thread.second.size();
     }
 
     return result;

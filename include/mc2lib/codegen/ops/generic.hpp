@@ -48,6 +48,11 @@ class Return : public Operation {
         : Operation(pid)
     {}
 
+    OperationPtr clone() const
+    {
+        return std::make_shared<Return>(*this);
+    }
+
     void reset() {}
 
     bool enable_emit(AssemblerState *asms)
@@ -73,6 +78,11 @@ class Read : public Operation {
     explicit Read(types::Addr addr, types::Pid pid = -1)
         : Operation(pid), addr_(addr), event_(nullptr), from_(nullptr)
     {}
+
+    OperationPtr clone() const
+    {
+        return std::make_shared<Read>(*this);
+    }
 
     void reset()
     {
@@ -148,6 +158,11 @@ class Write : public Read {
     explicit Write(types::Addr addr, types::Pid pid = -1)
         : Read(addr, pid)
     {}
+
+    OperationPtr clone() const
+    {
+        return std::make_shared<Write>(*this);
+    }
 
     std::size_t emit_X86_64(types::InstPtr start,
                             AssemblerState *asms, mc::model14::Arch_TSO *arch,
