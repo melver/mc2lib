@@ -36,6 +36,8 @@
 
 #include "generic.hpp"
 
+#include <cstdint>
+
 namespace mc2lib {
 namespace codegen {
 namespace ops {
@@ -56,22 +58,37 @@ Read::emit_X86_64(types::InstPtr start,
                   AssemblerState *asms, mc::model14::Arch_TSO *arch,
                   void *code, std::size_t len)
 {
-    const std::size_t EXPECTED_LEN = 9;
     char *cnext = static_cast<char*>(code);
+    std::size_t expected_len = 0;
 
-    assert(len >= EXPECTED_LEN);
-
-    // ASM @0> movabs addr_, %al ;
-    at_ = start;
     event_ = asms->make_read<1>(pid(), mc::Event::Read, addr_)[0];
 
-    // @0
-    *cnext++ = 0xa0;
-    *reinterpret_cast<types::Addr*>(cnext) = addr_;
-    cnext += sizeof(types::Addr);
+    if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
+        // ASM @0> movzbl addr_, %eax ;
+        expected_len = 8;
+        assert(len >= expected_len);
+        at_ = start;
 
-    assert((cnext - static_cast<char*>(code)) == EXPECTED_LEN);
-    return EXPECTED_LEN;
+        // @0
+        *cnext++ = 0x0f; *cnext++ = 0xb6;
+        *cnext++ = 0x04; *cnext++ = 0x25;
+        *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
+        cnext += sizeof(std::uint32_t);
+    } else {
+        // ASM @0> movabs addr_, %al ;
+        expected_len = 9;
+        assert(len >= expected_len);
+        at_ = start;
+
+        // @0
+        *cnext++ = 0xa0;
+        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+        cnext += sizeof(std::uint64_t);
+    }
+
+    assert((cnext - static_cast<char*>(code)) ==
+            static_cast<std::ptrdiff_t>(expected_len));
+    return expected_len;
 }
 
 inline std::size_t
@@ -79,29 +96,48 @@ Write::emit_X86_64(types::InstPtr start,
                    AssemblerState *asms, mc::model14::Arch_TSO *arch,
                    void *code, std::size_t len)
 {
-    const std::size_t EXPECTED_LEN = 13;
     char *cnext = static_cast<char*>(code);
+    std::size_t expected_len = 0;
 
-    assert(len >= EXPECTED_LEN);
-
-    // ASM @0> movabs addr_, %rax    ;
-    //     @a> movb write_id, (%rax) ;
-    at_ = start + 0xa;
     types::WriteID write_id = 0;
     event_ = asms->make_write<1>(pid(), mc::Event::Write, addr_, &write_id)[0];
 
-    // @0
-    *cnext++ = 0x48; *cnext++ = 0xb8;
-    *reinterpret_cast<types::Addr*>(cnext) = addr_;
-    cnext += sizeof(types::Addr);
+    if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
+        // ASM @0> movb write_id, addr_ ;
+        expected_len = 8;
+        assert(len >= expected_len);
+        at_ = start;
 
-    // @a
-    *cnext++ = 0xc6; *cnext++ = 0x00;
-    *reinterpret_cast<types::WriteID*>(cnext) = write_id;
-    cnext += sizeof(types::WriteID);
+        // @0
+        *cnext++ = 0xc6; *cnext++ = 0x04;
+        *cnext++ = 0x25;
 
-    assert((cnext - static_cast<char*>(code)) == EXPECTED_LEN);
-    return EXPECTED_LEN;
+        *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
+        cnext += sizeof(std::uint32_t);
+
+        *reinterpret_cast<types::WriteID*>(cnext) = write_id;
+        cnext += sizeof(types::WriteID);
+    } else {
+        // ASM @0> movabs addr_, %rax    ;
+        //     @a> movb write_id, (%rax) ;
+        expected_len = 13;
+        assert(len >= expected_len);
+        at_ = start + 0xa;
+
+        // @0
+        *cnext++ = 0x48; *cnext++ = 0xb8;
+        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+        cnext += sizeof(std::uint64_t);
+
+        // @a
+        *cnext++ = 0xc6; *cnext++ = 0x00;
+        *reinterpret_cast<types::WriteID*>(cnext) = write_id;
+        cnext += sizeof(types::WriteID);
+    }
+
+    assert((cnext - static_cast<char*>(code)) ==
+            static_cast<std::ptrdiff_t>(expected_len));
+    return expected_len;
 }
 
 } /* namespace ops */

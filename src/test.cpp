@@ -568,7 +568,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     model14::ExecWitness ew;
     model14::Arch_TSO arch;
 
-    ops::RandomFactory factory(0, 1, 0xfff0, 0xfffa);
+    ops::RandomFactory factory(0, 1, 0xccc0, 0xccca);
     RandInstTest<std::default_random_engine, ops::RandomFactory> rit(urng, &factory, 20);
 
     const auto threads = rit.threads();
@@ -587,17 +587,17 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 #if 1
     // This test passing is dependent on the random number generator
     // implementation.
-    BOOST_CHECK(compiler.insert_from(0x1c, 0xfff2, &wid, 1)); // write 0xfff2
-    BOOST_CHECK(compiler.insert_from(0x3e, 0xfff2, &wid, 1)); // read  0xfff2
+    BOOST_CHECK(compiler.insert_from(0x10, 0xccc2, &wid, 1)); // write 0xccc2
+    BOOST_CHECK(compiler.insert_from(0x30, 0xccc2, &wid, 1)); // read  0xccc2
     wid = 0x6; // check replacement works
-    BOOST_CHECK(compiler.insert_from(0x3e, 0xfff2, &wid, 1)); // read  0xfff2
+    BOOST_CHECK(compiler.insert_from(0x30, 0xccc2, &wid, 1)); // read  0xccc2
 
     mc::model14::Checker checker(&arch, &ew);
     ew.po.set_props(mc::EventRel::TransitiveClosure);
     ew.co.set_props(mc::EventRel::TransitiveClosure);
     BOOST_CHECK(checker.sc_per_location());
 #else
-    BOOST_CHECK(compiler.insert_from(0, 0xfff3, &wid, 1));
+    BOOST_CHECK(compiler.insert_from(0, 0xccc3, &wid, 1));
 #endif
 
 #if 0
