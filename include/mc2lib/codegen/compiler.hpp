@@ -451,6 +451,8 @@ threads_extract(T *container)
     std::unordered_set<Operation*> used;
 
     for (auto& op : (*container)) {
+        assert(op.get() != nullptr);
+
         if (used.insert(op.get()).second) {
             // Using same instance of Operation multiple times is not
             // permitted.

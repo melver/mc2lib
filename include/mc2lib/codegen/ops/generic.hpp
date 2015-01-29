@@ -134,6 +134,9 @@ class Read : public Operation {
         return true;
     }
 
+    types::Addr addr() const
+    { return addr_; }
+
   protected:
     virtual void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
                                     mc::model14::ExecWitness *ew)
