@@ -241,6 +241,35 @@ BOOST_AUTO_TEST_CASE(EventRelIntersect)
     BOOST_CHECK(d.domain().subset(er.domain()));
 }
 
+BOOST_AUTO_TEST_CASE(EventRelInverse)
+{
+    Event e1 = resetevt();
+    Event e2;
+
+    EventRel er;
+    er.insert(e1, e2 = nextevt());
+    er.insert(e2, e1 = nextevt());
+    er.insert(e2, e1 = nextevt());
+    er.insert(e1, e2 = nextevt());
+    er.insert(e1, e2 = nextevt());
+
+    EventRel inv = er.inverse();
+    BOOST_CHECK(er.domain() == inv.range());
+    BOOST_CHECK(er.range() == inv.domain());
+    BOOST_CHECK_EQUAL(er.size(), inv.size());
+
+    er.iterate([&inv](const Event& e1, const Event& e2) {
+        BOOST_CHECK(inv.R(e2, e1));
+        BOOST_CHECK(!inv.R(e1, e2));
+    });
+
+    er.set_props(EventRel::ReflexiveTransitiveClosure);
+    inv = er.inverse();
+    BOOST_CHECK(er.domain() == inv.range());
+    BOOST_CHECK(er.range() == inv.domain());
+    BOOST_CHECK_EQUAL(er.size(), inv.size());
+}
+
 BOOST_AUTO_TEST_CASE(EventRelSeqR)
 {
     Event e1 = resetevt();

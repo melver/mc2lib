@@ -341,6 +341,18 @@ class ElementRel {
         return total;
     }
 
+    template <class Func>
+    void iterate(Func func) const
+    {
+        const auto dom = domain();
+        for (const auto& e1 : dom.get()) {
+            const auto reach = reachable(e1);
+            for (const auto& e2 : reach.get()) {
+                func(e1, e2);
+            }
+        }
+    }
+
     /*
      * Provide eval() for evaluated view of the relation (with properties
      * evaluated).
@@ -353,13 +365,9 @@ class ElementRel {
 
         ElementRel result;
 
-        const auto dom = domain();
-        for (const auto& e1 : dom.get()) {
-            const auto reach = reachable(e1);
-            for (const auto& e2 : reach.get()) {
-                result.insert(e1, e2);
-            }
-        }
+        iterate([&result](const Element& e1, const Element& e2) {
+            result.insert(e1, e2);
+        });
 
         return result;
     }
@@ -367,18 +375,26 @@ class ElementRel {
     template <class FilterFunc>
     ElementRel filter(FilterFunc filterFunc) const
     {
-        ElementRel er;
-        const auto dom = domain();
-        for (const auto& e1 : dom.get()) {
-            const auto reach = reachable(e1);
-            for (const auto& e2 : reach.get()) {
-                const auto tuple = std::make_pair(e1, e2);
-                if (filterFunc(tuple)) {
-                    er += tuple;
-                }
+        ElementRel result;
+
+        iterate([&filterFunc, &result](const Element& e1, const Element& e2) {
+            if (filterFunc(e1, e2)) {
+                result.insert(e1, e2);
             }
-        }
-        return er;
+        });
+
+        return result;
+    }
+
+    ElementRel inverse() const
+    {
+        ElementRel result;
+
+        iterate([&result](const Element& e1, const Element& e2) {
+            result.insert(e2, e1);
+        });
+
+        return result;
     }
 
     /*
@@ -408,7 +424,7 @@ class ElementRel {
 
     ElementRel& operator+=(const Tuple& rhs)
     {
-        rel_[rhs.first] += rhs.second;
+        insert(rhs.first, rhs.second);
         return *this;
     }
 

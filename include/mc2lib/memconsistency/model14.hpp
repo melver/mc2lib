@@ -131,26 +131,26 @@ class ExecWitness {
 
     EventRel rfi() const
     {
-        return rf.filter([](const EventRel::Tuple& t)
-                         { return t.first.iiid.pid == t.second.iiid.pid; });
+        return rf.filter([](const Event& e1, const Event& e2)
+                         { return e1.iiid.pid == e2.iiid.pid; });
     }
 
     EventRel rfe() const
     {
-        return rf.filter([](const EventRel::Tuple& t)
-                         { return t.first.iiid.pid != t.second.iiid.pid; });
+        return rf.filter([](const Event& e1, const Event& e2)
+                         { return e1.iiid.pid != e2.iiid.pid; });
     }
 
     EventRel coi() const
     {
-        return co.filter([](const EventRel::Tuple& t)
-                         { return t.first.iiid.pid == t.second.iiid.pid; });
+        return co.filter([](const Event& e1, const Event& e2)
+                         { return e1.iiid.pid == e2.iiid.pid; });
     }
 
     EventRel coe() const
     {
-        return co.filter([](const EventRel::Tuple& t)
-                         { return t.first.iiid.pid != t.second.iiid.pid; });
+        return co.filter([](const Event& e1, const Event& e2)
+                         { return e1.iiid.pid != e2.iiid.pid; });
     }
 
     EventRel com() const
@@ -160,8 +160,8 @@ class ExecWitness {
 
     EventRel po_loc() const
     {
-        return po.filter([](const EventRel::Tuple& t)
-                         { return t.first.addr == t.second.addr; });
+        return po.filter([](const Event& e1, const Event& e2)
+                         { return e1.addr == e2.addr; });
     }
 
     EventRel hb(const Architecture& arch) const
@@ -373,9 +373,9 @@ class Arch_TSO : public Architecture {
     EventRel ppo(const ExecWitness& ew) const
     {
         assert(ew.po.transitive());
-        return ew.po.filter([](const EventRel::Tuple& t)
-                            { return !t.first.all_type(Event::Write)
-                                  || !t.second.all_type(Event::Read); });
+        return ew.po.filter([](const Event& e1, const Event& e2)
+                            { return !e1.all_type(Event::Write)
+                                  || !e2.all_type(Event::Read); });
     }
 
     EventRel fences(const ExecWitness& ew) const
