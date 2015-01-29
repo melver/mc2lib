@@ -123,8 +123,8 @@ class Genome {
  * represent the genome.
  */
 template <class URNG, class GenomeT, class C>
-void crossover_mutate(URNG& urng, const GenomeT& mate1, const GenomeT& mate2,
-                      float mutation_rate, C *container)
+inline void crossover_mutate(URNG& urng, const GenomeT& mate1, const GenomeT& mate2,
+                             float mutation_rate, C *container)
 {
     assert(!mate1.get().empty());
     assert(!mate2.get().empty());
