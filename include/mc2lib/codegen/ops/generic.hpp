@@ -62,9 +62,11 @@ class Return : public Operation {
                             AssemblerState *asms, mc::model14::Arch_TSO *arch,
                             void *code, std::size_t len);
 
-    const mc::Event* insert_po(const mc::Event *before,
-                               AssemblerState *asms,
-                               mc::model14::ExecWitness *ew)
+    void insert_po(const Operation *before,
+                   AssemblerState *asms, mc::model14::ExecWitness *ew)
+    {}
+
+    const mc::Event* last_event(const mc::Event *next_event) const
     { return nullptr; }
 
     bool insert_from(types::InstPtr ip, types::Addr addr,
@@ -97,17 +99,16 @@ class Read : public Operation {
                             AssemblerState *asms, mc::model14::Arch_TSO *arch,
                             void *code, std::size_t len);
 
-    const mc::Event* insert_po(const mc::Event *before,
-                               AssemblerState *asms,
-                               mc::model14::ExecWitness *ew)
+    void insert_po(const Operation *before,
+                   AssemblerState *asms, mc::model14::ExecWitness *ew)
     {
-        assert(event_ != nullptr);
+        event_ = asms->make_read<1>(pid(), mc::Event::Read, addr_)[0];
 
         if (before != nullptr) {
-            ew->po.insert(*before, *event_);
+            auto event_before = before->last_event(event_);
+            assert(event_before != nullptr);
+            ew->po.insert(*event_before, *event_);
         }
-
-        return event_;
     }
 
     bool insert_from(types::InstPtr ip, types::Addr addr,
@@ -119,7 +120,7 @@ class Read : public Operation {
         assert(addr == addr_);
         assert(size == 1);
 
-        const mc::Event *from = asms->get_write<1>(event_, addr_, from_id)[0];
+        const mc::Event *from = asms->get_write<1>(*event_, addr_, from_id)[0];
 
         if (from_ != nullptr) {
             // If from_ == from, we still need to continue to try to erase and
@@ -133,6 +134,9 @@ class Read : public Operation {
 
         return true;
     }
+
+    const mc::Event* last_event(const mc::Event *next_event) const
+    { return event_; }
 
     types::Addr addr() const
     { return addr_; }
@@ -159,7 +163,7 @@ class Read : public Operation {
 class Write : public Read {
   public:
     explicit Write(types::Addr addr, types::Pid pid = -1)
-        : Read(addr, pid)
+        : Read(addr, pid), write_id_(0)
     {}
 
     OperationPtr clone() const
@@ -167,9 +171,28 @@ class Write : public Read {
         return std::make_shared<Write>(*this);
     }
 
+    void reset()
+    {
+        event_ = nullptr;
+        from_ = nullptr;
+        write_id_ = 0;
+    }
+
     std::size_t emit_X86_64(types::InstPtr start,
                             AssemblerState *asms, mc::model14::Arch_TSO *arch,
                             void *code, std::size_t len);
+
+    void insert_po(const Operation *before,
+                   AssemblerState *asms, mc::model14::ExecWitness *ew)
+    {
+        event_ = asms->make_write<1>(pid(), mc::Event::Write, addr_, &write_id_)[0];
+
+        if (before != nullptr) {
+            auto event_before = before->last_event(event_);
+            assert(event_before != nullptr);
+            ew->po.insert(*event_before, *event_);
+        }
+    }
 
   protected:
     virtual void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
@@ -183,6 +206,8 @@ class Write : public Read {
     {
         ew->co.erase(*e1, *e2);
     }
+
+    types::WriteID write_id_;
 };
 
 struct RandomFactory {

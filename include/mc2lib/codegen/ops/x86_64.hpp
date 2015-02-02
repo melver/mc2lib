@@ -61,8 +61,6 @@ Read::emit_X86_64(types::InstPtr start,
     char *cnext = static_cast<char*>(code);
     std::size_t expected_len = 0;
 
-    event_ = asms->make_read<1>(pid(), mc::Event::Read, addr_)[0];
-
     if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
         // ASM @0> movzbl addr_, %eax ;
         expected_len = 8;
@@ -99,11 +97,10 @@ Write::emit_X86_64(types::InstPtr start,
     char *cnext = static_cast<char*>(code);
     std::size_t expected_len = 0;
 
-    types::WriteID write_id = 0;
-    event_ = asms->make_write<1>(pid(), mc::Event::Write, addr_, &write_id)[0];
+    assert(write_id_ != 0);
 
     if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
-        // ASM @0> movb write_id, addr_ ;
+        // ASM @0> movb write_id_, addr_ ;
         expected_len = 8;
         assert(len >= expected_len);
         at_ = start;
@@ -115,11 +112,11 @@ Write::emit_X86_64(types::InstPtr start,
         *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
         cnext += sizeof(std::uint32_t);
 
-        *reinterpret_cast<types::WriteID*>(cnext) = write_id;
+        *reinterpret_cast<types::WriteID*>(cnext) = write_id_;
         cnext += sizeof(types::WriteID);
     } else {
         // ASM @0> movabs addr_, %rax    ;
-        //     @a> movb write_id, (%rax) ;
+        //     @a> movb write_id_, (%rax) ;
         expected_len = 13;
         assert(len >= expected_len);
         at_ = start + 0xa;
@@ -131,7 +128,7 @@ Write::emit_X86_64(types::InstPtr start,
 
         // @a
         *cnext++ = 0xc6; *cnext++ = 0x00;
-        *reinterpret_cast<types::WriteID*>(cnext) = write_id;
+        *reinterpret_cast<types::WriteID*>(cnext) = write_id_;
         cnext += sizeof(types::WriteID);
     }
 
