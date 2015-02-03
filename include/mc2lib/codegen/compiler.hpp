@@ -324,7 +324,7 @@ class Compiler {
     const Threads* threads()
     { return threads_; }
 
-    const AssemblerState* asms()
+    const AssemblerState* asms() const
     { return &asms_; }
 
     std::size_t emit(types::InstPtr base, Operation *op, void *code, std::size_t len,

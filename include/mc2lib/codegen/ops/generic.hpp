@@ -247,16 +247,16 @@ struct RandomFactory {
         return nullptr;
     }
 
-    types::Pid min_pid()
+    types::Pid min_pid() const
     { return min_pid_; }
 
-    types::Pid max_pid()
+    types::Pid max_pid() const
     { return max_pid_; }
 
-    types::Addr min_addr()
+    types::Addr min_addr() const
     { return min_addr_; }
 
-    types::Addr max_addr()
+    types::Addr max_addr() const
     { return max_addr_; }
 
   private:
