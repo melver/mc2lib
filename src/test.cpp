@@ -485,7 +485,8 @@ BOOST_AUTO_TEST_CASE(Model14DekkerInvalidSCValidTSO)
     BOOST_CHECK(c_sc.no_thin_air());
     BOOST_CHECK(c_sc.observation());
     BOOST_CHECK(!c_sc.propagation());
-    BOOST_CHECK_EXCEPTION(c_sc.valid_exec(), model14::Checker::Error, [](const model14::Checker::Error& e) {
+    BOOST_CHECK_EXCEPTION(c_sc.valid_exec(), model14::Checker::Error,
+            [](const model14::Checker::Error& e) {
                 return std::string("PROPAGATION") == e.what();
             });
 

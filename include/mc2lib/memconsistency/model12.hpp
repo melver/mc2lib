@@ -349,7 +349,7 @@ class Arch_TSO : public Architecture {
   public:
     void clear()
     {
-        fences_.clear();
+        mfence.clear();
     }
 
     EventRel ppo(const ExecWitness& ew) const
@@ -367,7 +367,7 @@ class Arch_TSO : public Architecture {
 
     EventRel ab(const ExecWitness& ew) const
     {
-        return fences_;
+        return mfence;
     }
 
     Event::TypeMask eventTypeRead() const
@@ -385,7 +385,71 @@ class Arch_TSO : public Architecture {
         return a;
     }
 
-    EventRel fences_;
+  public:
+    EventRel mfence;
+};
+
+class ArchProxy : public Architecture {
+  public:
+    ArchProxy(Architecture *arch)
+       : arch_(arch), memoized_(false)
+    {}
+
+    void clear()
+    {
+        arch_->clear();
+        memoized_ = false;
+    }
+
+    void memoize(const ExecWitness& ew)
+    {
+        ppo_ = arch_->ppo(ew);
+        grf_ = arch_->grf(ew);
+        ab_ = arch_->ab(ew);
+
+        memoized_ = true;
+    }
+
+    EventRel ppo(const ExecWitness& ew) const
+    {
+        assert(memoized_);
+        return ppo_;
+    }
+
+    EventRel grf(const ExecWitness& ew) const
+    {
+        assert(memoized_);
+        return grf_;
+    }
+
+    EventRel ab(const ExecWitness& ew) const
+    {
+        assert(memoized_);
+        return ab_;
+    }
+
+    Event::TypeMask eventTypeRead() const
+    {
+        return arch_->eventTypeRead();
+    }
+
+    Event::TypeMask eventTypeWrite() const
+    {
+        return arch_->eventTypeWrite();
+    }
+
+    types::Addr addrToLine(types::Addr a) const
+    {
+        return arch_->addrToLine(a);
+    }
+
+  protected:
+   Architecture *arch_;
+   bool memoized_;
+
+   EventRel ppo_;
+   EventRel grf_;
+   EventRel ab_;
 };
 
 } /* namespace model12 */
