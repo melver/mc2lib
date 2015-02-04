@@ -69,7 +69,7 @@ class Return : public Operation {
     const mc::Event* last_event(const mc::Event *next_event) const
     { return nullptr; }
 
-    bool insert_from(types::InstPtr ip, types::Addr addr,
+    bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
                      AssemblerState *asms, mc::model14::ExecWitness *ew)
     { return true; }
@@ -111,7 +111,7 @@ class Read : public Operation {
         }
     }
 
-    bool insert_from(types::InstPtr ip, types::Addr addr,
+    bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
                      AssemblerState *asms, mc::model14::ExecWitness *ew)
     {

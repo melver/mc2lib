@@ -134,9 +134,11 @@ class Operation {
     virtual const mc::Event* last_event(const mc::Event *next_event) const = 0;
 
     /**
-     * Insert dynamic ordering relations (read-from, coherence-order).
+     * Updates dynamic observation for instruction's memory operation.
      *
      * @param ip Instruction pointer of instruction for which a value was observed.
+     * @param part Which part of an instruction; e.g., if an instruction
+     *             generates multiple memory events, part can be used to denote which.
      * @param addr Address for observed operation.
      * @param from_id Pointer to observed memory (WriteIDs).
      * @param size Total size of observed memory operations in from_id;
@@ -146,7 +148,7 @@ class Operation {
      *
      * @return Success or not.
      */
-    virtual bool insert_from(types::InstPtr ip, types::Addr addr,
+    virtual bool update_from(types::InstPtr ip, int part, types::Addr addr,
                              const types::WriteID *from_id, std::size_t size,
                              AssemblerState *asms, mc::model14::ExecWitness *ew) = 0;
 
@@ -381,7 +383,7 @@ class Compiler {
         return emit_len;
     }
 
-    bool insert_from(types::InstPtr ip, types::Addr addr,
+    bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size)
     {
         auto op = ip_to_op(ip);
@@ -390,7 +392,7 @@ class Compiler {
             return false;
         }
 
-        return op->insert_from(ip, addr, from_id, size, &asms_, ew_);
+        return op->update_from(ip, part, addr, from_id, size, &asms_, ew_);
     }
 
     Operation* ip_to_op(types::InstPtr ip)

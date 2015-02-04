@@ -617,17 +617,17 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 #if 1
     // This test passing is dependent on the random number generator
     // implementation.
-    BOOST_CHECK(compiler.insert_from(0x10, 0xccc2, &wid, 1)); // write 0xccc2
-    BOOST_CHECK(compiler.insert_from(0x30, 0xccc2, &wid, 1)); // read  0xccc2
+    BOOST_CHECK(compiler.update_from(0x10, 0, 0xccc2, &wid, 1)); // write 0xccc2
+    BOOST_CHECK(compiler.update_from(0x30, 0, 0xccc2, &wid, 1)); // read  0xccc2
     wid = 0x6; // check replacement works
-    BOOST_CHECK(compiler.insert_from(0x30, 0xccc2, &wid, 1)); // read  0xccc2
+    BOOST_CHECK(compiler.update_from(0x30, 0, 0xccc2, &wid, 1)); // read  0xccc2
 
     mc::model14::Checker checker(&arch, &ew);
     ew.po.set_props(mc::EventRel::TransitiveClosure);
     ew.co.set_props(mc::EventRel::TransitiveClosure);
     BOOST_CHECK(checker.sc_per_location());
 #else
-    BOOST_CHECK(compiler.insert_from(0, 0xccc3, &wid, 1));
+    BOOST_CHECK(compiler.update_from(0, 0, 0xccc3, &wid, 1));
 #endif
 
 #if 0
