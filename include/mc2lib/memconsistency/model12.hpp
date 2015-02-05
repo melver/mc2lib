@@ -375,17 +375,15 @@ class Arch_TSO : public Architecture {
             return mfence;
         }
 
-        // Filter postar by only those events which are possibly relevent,
-        // otherwise EventRelSeq will take too much long to eval.
-        const auto mfence_domain = mfence.domain();
-        const auto mfence_range = mfence.range();
+        // Filter postar by only those events which are possibly relevent.
         const auto postar = ew.po.filter(
-                [&mfence_domain,&mfence_range](const Event& e1, const Event& e2) {
-                    return mfence_domain.contains(e2) ||
-                           mfence_range.contains(e1);
+                [&](const Event& e1, const Event& e2) {
+                    // Only include those where first event is write or second
+                    // is a read, all other are included in po regardless.
+                    return e1.all_type(Event::Write) || e2.all_type(Event::Read);
                 }).set_props(EventRel::ReflexiveClosure);
 
-        return EventRelSeq({postar, mfence, postar}).eval();
+        return EventRelSeq({postar, mfence, postar}).eval_inplace();
     }
 
     Event::TypeMask eventTypeRead() const

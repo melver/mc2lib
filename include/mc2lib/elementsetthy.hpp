@@ -303,7 +303,8 @@ class ElementRel {
 
     void erase(const Element& e1, const Element& e2, bool assert_exists = false)
     {
-        if (this->contains(e1)) {
+        // May not work as expect if ReflexiveClosure is set.
+        if (contains__(e1)) {
             rel_[e1].erase(e2, assert_exists);
 
             if (rel_[e1].empty()) {
@@ -314,7 +315,7 @@ class ElementRel {
 
     void erase(const Element& e1, const ElementSet<Ts>& e2s)
     {
-        if (this->contains(e1)) {
+        if (contains__(e1)) {
             rel_[e1] -= e2s;
 
             if (rel_[e1].empty()) {
@@ -502,11 +503,6 @@ class ElementRel {
         return l.rel_ == r.rel_;
     }
 
-    bool contains(const Element& e) const
-    {
-        return rel_.find(e) != rel_.end();
-    }
-
     /*
      * Return true if two elements are ordered.
      */
@@ -674,13 +670,37 @@ class ElementRel {
 
     bool in_on(const Element& e) const
     {
-        if (contains(e)) {
+        if (contains__(e)) {
             return true;
         } else {
             for (const auto& tuples : rel_) {
                 if (tuples.second.contains(e)) {
                     return true;
                 }
+            }
+        }
+
+        return false;
+    }
+
+    bool in_domain(const Element& e) const
+    {
+        if (all_props(ReflexiveClosure)) {
+            return in_on(e);
+        }
+
+        return contains__(e);
+    }
+
+    bool in_range(const Element& e) const
+    {
+        if (all_props(ReflexiveClosure)) {
+            return in_on(e);
+        }
+
+        for (const auto& tuples : rel_) {
+            if (reachable(tuples.first).contains(e)) {
+                return true;
             }
         }
 
@@ -737,6 +757,11 @@ class ElementRel {
         RelatedVisitAll,
         FindCycle
     };
+
+    bool contains__(const Element& e) const
+    {
+        return rel_.find(e) != rel_.end();
+    }
 
     void get_path(Path *out, const Element* start, const Element *end,
                   FlagSet *visiting, SearchMode mode = SearchMode::Related) const
@@ -959,14 +984,7 @@ class ElementRelOp {
     virtual ~ElementRelOp()
     {}
 
-    std::size_t size() const
-    {
-        std::size_t total = 0;
-        for (const auto& rel : rels_) {
-            total += rel.size();
-        }
-        return total;
-    }
+    virtual ElementRel<Ts> eval_inplace() = 0;
 
     virtual ElementRel<Ts> eval() const = 0;
 
@@ -1022,12 +1040,43 @@ class ElementRelSeq : public ElementRelOp<Ts> {
         return ers += rhs;
     }
 
+    ElementRel<Ts> eval_inplace()
+    {
+        if (this->rels_.empty()) {
+            return ElementRel<Ts>();
+        }
+
+        while (this->rels_.size() > 1) {
+            std::size_t from_idx = this->rels_.size() - 2;
+            const auto first = this->rels_[from_idx];
+            const auto last = this->rels_.back();
+
+            ElementRel<Ts> er;
+
+            first.iterate([&er, &last](const Element& e1, const Element& e2) {
+                if (last.in_domain(e2)) {
+                    er.insert(e1, last.reachable(e2));
+                }
+            });
+
+            this->rels_.erase(this->rels_.end() - 2, this->rels_.end());
+            this->rels_.push_back(std::move(er));
+        }
+
+        return this->rels_.back();
+    }
+
     ElementRel<Ts> eval() const
     {
         ElementRel<Ts> er;
-        if (!this->size()) return er;
+
+        if (this->rels_.empty()) {
+            return ElementRel<Ts>();
+        }
+
         const auto potential_domain = this->rels_.front().domain();
         const auto potential_range = this->rels_.back().range();
+
         for (const auto& e1 : potential_domain.get()) {
             for (const auto& e2 : potential_range.get()) {
                 if (R(e1, e2)) {
@@ -1035,13 +1084,17 @@ class ElementRelSeq : public ElementRelOp<Ts> {
                 }
             }
         }
+
         return er;
     }
 
     bool R(const Element& e1, const Element& e2,
            typename ElementRel<Ts>::Path *path = nullptr, std::size_t seq = 0) const
     {
-        if (!this->size()) return false;
+        if (this->rels_.empty()) {
+            return false;
+        }
+
         assert(seq < this->rels_.size());
 
         if (seq + 1 < this->rels_.size()) {
@@ -1075,7 +1128,9 @@ class ElementRelSeq : public ElementRelOp<Ts> {
 
     bool irreflexive(typename ElementRel<Ts>::Path *cyclic = nullptr) const
     {
-        if (!this->size()) return true;
+        if (this->rels_.empty()) {
+            return true;
+        }
 
         const auto domain = this->rels_.front().domain();
         for (const auto& e : domain.get()) {

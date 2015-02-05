@@ -291,11 +291,21 @@ BOOST_AUTO_TEST_CASE(EventRelSeqR)
     er.add_props(EventRel::TransitiveClosure);
     ers += er;
 
+    // First unevald
     BOOST_CHECK(ers.R(start, end));
     BOOST_CHECK(ers.R(start, e1));
     BOOST_CHECK(ers.irreflexive());
 
     const EventRel evald = ers.eval();
+    const EventRel evald_inplace = ers.eval_inplace();
+    BOOST_CHECK(evald == evald_inplace);
+
+    // Should be same result after eval_inplace
+    BOOST_CHECK(ers.R(start, end));
+    BOOST_CHECK(ers.R(start, e1));
+    BOOST_CHECK(ers.irreflexive());
+
+    // Check evald
     BOOST_CHECK(evald.R(start, end));
     BOOST_CHECK(evald.R(start, e1));
     BOOST_CHECK(evald.irreflexive());
