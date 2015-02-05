@@ -36,6 +36,7 @@
 
 #include "../compiler.hpp"
 
+#include <algorithm>
 #include <random>
 
 namespace mc2lib {
@@ -58,27 +59,26 @@ class Return : public Operation {
     bool enable_emit(AssemblerState *asms)
     { return true; }
 
-    std::size_t emit_X86_64(types::InstPtr start,
-                            AssemblerState *asms, mc::model14::Arch_TSO *arch,
-                            void *code, std::size_t len);
-
-    void insert_po(const Operation *before,
-                   AssemblerState *asms, mc::model14::ExecWitness *ew)
+    void insert_po(const Operation *before, AssemblerState *asms)
     {}
 
-    const mc::Event* last_event(const mc::Event *next_event) const
+    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                            void *code, std::size_t len);
+
+    const mc::Event* last_event(const mc::Event *next_event,
+                                AssemblerState *asms) const
     { return nullptr; }
 
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
-                     AssemblerState *asms, mc::model14::ExecWitness *ew)
+                     AssemblerState *asms)
     { return true; }
 };
 
-class Read : public Operation {
+class Read : public MemOperation {
   public:
     explicit Read(types::Addr addr, types::Pid pid = -1)
-        : Operation(pid), addr_(addr), event_(nullptr), from_(nullptr)
+        : MemOperation(pid), addr_(addr), event_(nullptr), from_(nullptr)
     {}
 
     OperationPtr clone() const
@@ -95,47 +95,46 @@ class Read : public Operation {
     bool enable_emit(AssemblerState *asms)
     { return !asms->exhausted(); }
 
-    std::size_t emit_X86_64(types::InstPtr start,
-                            AssemblerState *asms, mc::model14::Arch_TSO *arch,
-                            void *code, std::size_t len);
-
-    void insert_po(const Operation *before,
-                   AssemblerState *asms, mc::model14::ExecWitness *ew)
+    void insert_po(const Operation *before, AssemblerState *asms)
     {
         event_ = asms->make_read<1>(pid(), mc::Event::Read, addr_)[0];
 
         if (before != nullptr) {
-            auto event_before = before->last_event(event_);
+            auto event_before = before->last_event(event_, asms);
             assert(event_before != nullptr);
-            ew->po.insert(*event_before, *event_);
+            asms->ew()->po.insert(*event_before, *event_);
         }
     }
 
+    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                            void *code, std::size_t len);
+
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
-                     AssemblerState *asms, mc::model14::ExecWitness *ew)
+                     AssemblerState *asms)
     {
         assert(event_ != nullptr);
         assert(ip == at_);
         assert(addr == addr_);
         assert(size == 1);
 
-        const mc::Event *from = asms->get_write<1>(*event_, addr_, from_id)[0];
+        const mc::Event *from = asms->get_write<1>({event_}, addr_, from_id)[0];
 
         if (from_ != nullptr) {
             // If from_ == from, we still need to continue to try to erase and
             // insert, in case the from-relation has been cleared.
 
-            erase_from_helper(from_, event_, ew);
+            erase_from_helper(from_, event_, asms->ew());
         }
 
         from_ = from;
-        insert_from_helper(from_, event_, ew);
+        insert_from_helper(from_, event_, asms->ew());
 
         return true;
     }
 
-    const mc::Event* last_event(const mc::Event *next_event) const
+    const mc::Event* last_event(const mc::Event *next_event,
+                                AssemblerState *asms) const
     { return event_; }
 
     types::Addr addr() const
@@ -178,21 +177,19 @@ class Write : public Read {
         write_id_ = 0;
     }
 
-    std::size_t emit_X86_64(types::InstPtr start,
-                            AssemblerState *asms, mc::model14::Arch_TSO *arch,
-                            void *code, std::size_t len);
-
-    void insert_po(const Operation *before,
-                   AssemblerState *asms, mc::model14::ExecWitness *ew)
+    void insert_po(const Operation *before, AssemblerState *asms)
     {
         event_ = asms->make_write<1>(pid(), mc::Event::Write, addr_, &write_id_)[0];
 
         if (before != nullptr) {
-            auto event_before = before->last_event(event_);
+            auto event_before = before->last_event(event_, asms);
             assert(event_before != nullptr);
-            ew->po.insert(*event_before, *event_);
+            asms->ew()->po.insert(*event_before, *event_);
         }
     }
+
+    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                            void *code, std::size_t len);
 
   protected:
     virtual void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
@@ -210,9 +207,128 @@ class Write : public Read {
     types::WriteID write_id_;
 };
 
-struct RandomFactory {
-    static constexpr std::size_t OPERATIONS = 2;
+class ReadModifyWrite : public MemOperation {
+  public:
+    explicit ReadModifyWrite(types::Addr addr, types::Pid pid = -1)
+        : MemOperation(pid), addr_(addr), last_part_(-1)
+    {}
 
+    OperationPtr clone() const
+    {
+        return std::make_shared<ReadModifyWrite>(*this);
+    }
+
+    void reset()
+    {
+        last_part_ = -1;
+        event_r_ = nullptr;
+        event_w_ = nullptr;
+        from_ = nullptr;
+        write_id_ = 0;
+    }
+
+    bool enable_emit(AssemblerState *asms)
+    { return !asms->exhausted(); }
+
+    void insert_po(const Operation *before, AssemblerState *asms)
+    {
+        event_r_ = asms->make_read<1>(pid(), mc::Event::Read, addr_)[0];
+        event_w_ = asms->make_write<1>(pid(), mc::Event::Write, addr_, &write_id_)[0];
+
+        if (before != nullptr) {
+            auto event_before = before->last_event(event_r_, asms);
+            assert(event_before != nullptr);
+
+            asms->ew()->po.insert(*event_before, *event_r_);
+
+            // Implied fence before atomic
+            if (dynamic_cast<mc::model14::Arch_TSO*>(asms->arch()) != nullptr) {
+                auto arch_tso = dynamic_cast<mc::model14::Arch_TSO*>(asms->arch());
+                arch_tso->mfence.insert(*event_before, *event_r_);
+            }
+
+        }
+
+        asms->ew()->po.insert(*event_r_, *event_w_);
+    }
+
+    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                            void *code, std::size_t len);
+
+    bool update_from(types::InstPtr ip, int part, types::Addr addr,
+                     const types::WriteID *from_id, std::size_t size,
+                     AssemblerState *asms)
+    {
+        assert(event_r_ != nullptr);
+        assert(event_w_ != nullptr);
+        assert(ip == at_);
+        assert(addr == addr_);
+        assert(size == 1);
+
+        // This also alerts us if the read would be seeing the write's data.
+        auto from = asms->get_write<1>({event_w_}, addr_, from_id)[0];
+
+        auto part_event = event_r_;
+        auto obs_rel = &asms->ew()->rf;
+
+        // TODO: clean this up! Do we need ability to update squashed?
+
+        if (last_part_ == -1 || part <= last_part_) {
+            // First part: read
+
+            if (from_ != nullptr) {
+                // Restart
+                asms->ew()->rf.erase(*from_, *event_r_);
+                asms->ew()->co.erase(*from_, *event_w_);
+            }
+        } else {
+            // Second part: write
+            assert(part > last_part_);
+
+            // Assert atomicity; pointer comparison is fine, as get_write
+            // returns unique instances for each Event.
+            assert(from == from_ && "Not atomic!");
+
+            part_event = event_w_;
+            obs_rel = &asms->ew()->co;
+        }
+
+        obs_rel->insert(*from, *part_event, true);
+
+        from_ = from;
+        last_part_ = part;
+        return true;
+    }
+
+    const mc::Event* last_event(const mc::Event *next_event,
+                                AssemblerState *asms) const
+    {
+        // Implied fence after atomic
+        if (dynamic_cast<mc::model14::Arch_TSO*>(asms->arch()) != nullptr) {
+            auto arch_tso = dynamic_cast<mc::model14::Arch_TSO*>(asms->arch());
+            arch_tso->mfence.insert(*event_w_, *next_event);
+        }
+
+        return event_w_;
+    }
+
+    types::Addr addr() const
+    { return addr_; }
+
+  protected:
+    types::Addr addr_;
+    int last_part_;
+    const mc::Event *event_r_;
+    const mc::Event *event_w_;
+    const mc::Event *from_;
+    types::WriteID write_id_;
+    types::InstPtr at_;
+};
+
+/**
+ * RandomFactory.
+ */
+struct RandomFactory {
     explicit RandomFactory(types::Pid min_pid, types::Pid max_pid,
                            types::Addr min_addr, types::Addr max_addr)
         : min_pid_(min_pid), max_pid_(max_pid),
@@ -231,17 +347,22 @@ struct RandomFactory {
     template <class URNG>
     OperationPtr operator ()(URNG& urng) const
     {
-        std::uniform_int_distribution<std::size_t> dist_idx(0, OPERATIONS - 1);
-        std::uniform_int_distribution<types::Addr> dist_addr(min_addr_, max_addr_);
+        std::uniform_int_distribution<types::Addr> dist_addr(min_addr_,
+                                    max_addr_ - AssemblerState::MAX_INST_SIZE);
         std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);
 
         const auto pid = dist_pid(urng);
         const auto addr = dist_addr(urng);
 
-        switch (dist_idx(urng)) {
-            case 0: return std::make_shared<Read>(addr, pid);
-            case 1: return std::make_shared<Write>(addr, pid);
-        }
+        std::uniform_int_distribution<std::size_t> dist_choice(0, 100);
+        const auto choice = dist_choice(urng);
+
+        if (choice <= 50) // 50%
+            return std::make_shared<Read>(addr, pid);
+        else if (choice <= 95) // 45%
+            return std::make_shared<Write>(addr, pid);
+        else if (choice <= 100) // 5%
+            return std::make_shared<ReadModifyWrite>(addr, pid);
 
         assert(false);
         return nullptr;

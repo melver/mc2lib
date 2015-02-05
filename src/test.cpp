@@ -598,8 +598,9 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     model14::ExecWitness ew;
     model14::Arch_TSO arch;
 
-    ops::RandomFactory factory(0, 1, 0xccc0, 0xccca);
-    RandInstTest<std::default_random_engine, ops::RandomFactory> rit(urng, &factory, 20);
+    const types::Addr offset = 0x0;
+    ops::RandomFactory factory(0, 1, offset + 0xccc0, offset + 0xccca);
+    RandInstTest<std::default_random_engine, ops::RandomFactory> rit(urng, &factory, 30);
 
     const auto threads = rit.threads();
     BOOST_CHECK_EQUAL(threads.size(), 2);
@@ -607,7 +608,8 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 
     Compiler<Backend_X86_64> compiler(&arch, &ew,  &threads);
 
-    char code[128];
+    char code[256];
+
     BOOST_CHECK(compiler.emit(1, 0xff, code, sizeof(code)) != 0);
 
     std::size_t emit_len = compiler.emit(0, 0, code, sizeof(code));
@@ -617,17 +619,24 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 #if 1
     // This test passing is dependent on the random number generator
     // implementation.
-    BOOST_CHECK(compiler.update_from(0x10, 0, 0xccc2, &wid, 1)); // write 0xccc2
-    BOOST_CHECK(compiler.update_from(0x30, 0, 0xccc2, &wid, 1)); // read  0xccc2
-    wid = 0x6; // check replacement works
-    BOOST_CHECK(compiler.update_from(0x30, 0, 0xccc2, &wid, 1)); // read  0xccc2
+    BOOST_CHECK(compiler.update_from(0x3c, 0, 0xccc1, &wid, 1)); // write 0xccc1
+    BOOST_CHECK(compiler.update_from(0x4c, 0, 0xccc1, &wid, 1)); // read  0xccc1
+    wid = 0xc; // check replacement/update works
+    BOOST_CHECK(compiler.update_from(0x4c, 0, 0xccc1, &wid, 1)); // read  0xccc1
 
     mc::model14::Checker checker(&arch, &ew);
     ew.po.set_props(mc::EventRel::TransitiveClosure);
     ew.co.set_props(mc::EventRel::TransitiveClosure);
     BOOST_CHECK(checker.sc_per_location());
+
+    // Check atomic works
+    wid = 0;
+    BOOST_CHECK(compiler.update_from(0x17, 0, 0xccc0, &wid, 1));
+    wid = 0xe;
+    BOOST_CHECK(compiler.update_from(0x17, 0, 0xccc0, &wid, 1));
+    BOOST_CHECK(compiler.update_from(0x17, 1, 0xccc0, &wid, 1));
 #else
-    BOOST_CHECK(compiler.update_from(0, 0, 0xccc3, &wid, 1));
+    BOOST_CHECK(compiler.update_from(0, 0, 0xccc0, &wid, 1));
 #endif
 
 #if 0

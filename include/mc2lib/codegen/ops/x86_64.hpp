@@ -43,8 +43,7 @@ namespace codegen {
 namespace ops {
 
 inline std::size_t
-Return::emit_X86_64(types::InstPtr start,
-                    AssemblerState *asms, mc::model14::Arch_TSO *arch,
+Return::emit_X86_64(types::InstPtr start, AssemblerState *asms,
                     void *code, std::size_t len)
 {
     assert(len >= 1);
@@ -54,8 +53,7 @@ Return::emit_X86_64(types::InstPtr start,
 }
 
 inline std::size_t
-Read::emit_X86_64(types::InstPtr start,
-                  AssemblerState *asms, mc::model14::Arch_TSO *arch,
+Read::emit_X86_64(types::InstPtr start, AssemblerState *asms,
                   void *code, std::size_t len)
 {
     char *cnext = static_cast<char*>(code);
@@ -90,8 +88,7 @@ Read::emit_X86_64(types::InstPtr start,
 }
 
 inline std::size_t
-Write::emit_X86_64(types::InstPtr start,
-                   AssemblerState *asms, mc::model14::Arch_TSO *arch,
+Write::emit_X86_64(types::InstPtr start, AssemblerState *asms,
                    void *code, std::size_t len)
 {
     char *cnext = static_cast<char*>(code);
@@ -131,6 +128,59 @@ Write::emit_X86_64(types::InstPtr start,
         *reinterpret_cast<types::WriteID*>(cnext) = write_id_;
         cnext += sizeof(types::WriteID);
     }
+
+    assert((cnext - static_cast<char*>(code)) ==
+            static_cast<std::ptrdiff_t>(expected_len));
+    return expected_len;
+}
+
+inline std::size_t
+ReadModifyWrite::emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                             void *code, std::size_t len)
+{
+    char *cnext = static_cast<char*>(code);
+    std::size_t expected_len = 0;
+
+    assert(write_id_ != 0);
+
+    // ASM @0> mov write_id_, %al
+    expected_len = 2;
+    assert(len >= expected_len);
+
+    // @0
+    *cnext++ = 0xb0;
+    *reinterpret_cast<types::WriteID*>(cnext) = write_id_;
+    cnext += sizeof(types::WriteID);
+
+    if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
+        // ASM @2> mov addr_, %edx
+        //     @7> lock xchg %al, (%rdx)
+        expected_len = 10;
+        assert(len >= expected_len);
+        at_ = start + 0x7;
+
+        // @2
+        *cnext++ = 0xba;
+        *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
+        cnext += sizeof(std::uint32_t);
+
+        // @7
+    } else {
+        // ASM @2> mov addr_, %rdx
+        //     @c> lock xchg %al, (%rdx)
+        expected_len = 15;
+        assert(len >= expected_len);
+        at_ = start + 0xc;
+
+        // @2
+        *cnext++ = 0x48; *cnext++ = 0xba;
+        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+        cnext += sizeof(std::uint64_t);
+
+        // @c
+    }
+
+    *cnext++ = 0xf0; *cnext++ = 0x86; *cnext++ = 0x02;
 
     assert((cnext - static_cast<char*>(code)) ==
             static_cast<std::ptrdiff_t>(expected_len));
