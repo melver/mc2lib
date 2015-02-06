@@ -46,25 +46,42 @@
 #include <vector>
 
 namespace mc2lib {
+
+/**
+ * @namespace mc2lib::simplega
+ * @brief Simple Genetic Algorithm library.
+ */
 namespace simplega {
 
-/*
- * Simple Genome interface.
+/**
+ * @brief Simple Genome interface.
  *
- * Can be used as a base-class for a genome implementation, but this is
- * optional, as long as the interface is implemented.
+ * Use as a baseclass for genome implementations, but this is optional, as long
+ * as the interface is implemented (see GenePool).
  *
- * Note that this class is virtual, as it is conceivable that we could have a
+ * Note that this class is virtual, as it is possible that we could have a
  * heterogeneous collection of genomes, all based off of the same baseclass,
- * where a specialized crossover_mutate operator yields children of different
- * classes.
+ * e.g., where a specialized crossover_mutate operator yields children of
+ * different classes.
+ *
+ * @tparam T The type of genes in this Genome.
  */
 template <class T>
 class Genome {
   public:
+    /**
+     * @brief Default constructor.
+     *
+     * Yields an empty genome.
+     */
     Genome()
     {}
 
+    /**
+     * @brief Converting constructor.
+     *
+     * @param g A raw vector of type T genes forming this new Genome.
+     */
     Genome(const std::vector<T>& g)
         : genome_(g)
     {}
@@ -72,25 +89,52 @@ class Genome {
     virtual ~Genome()
     {}
 
+    /**
+     * @brief Read-only genome accessor.
+     *
+     * @return Const reference to vector of genes.
+     */
     const std::vector<T>& get() const
     { return genome_; }
 
+    /**
+     * @brief Modifiable genome accessor.
+     *
+     * @return Pointer to vector of genes.
+     */
     std::vector<T>* getptr()
     { return &genome_; }
 
-    /*
-     * Ranks genomes from best fitness to worst fitness.
-     * Assumes higher fitness means better.
+    /**
+     * @brief Less than comparison operator.
+     *
+     * Use to rank genomes from best fitness to worst fitness. Assumes higher
+     * fitness means better.
+     *
+     * @return True if this instance (lhs) is fitter than rhs, false otherwise.
      */
     virtual bool operator<(const Genome& rhs) const
     {
         return fitness() > rhs.fitness();
     }
 
+    /**
+     * @brief Mutate this Genome.
+     *
+     * @param rate Mutation rate.
+     */
     virtual void mutate(float rate) = 0;
+
+    /**
+     * @brief Fitness accessor.
+     *
+     * @return Current fitness.
+     */
     virtual float fitness() const = 0;
 
-    /*
+    /**
+     * @brief Converting operator to float.
+     *
      * As this is also used for the roulette selection, the assumption is that
      * higher fitness means better.
      */
@@ -99,6 +143,9 @@ class Genome {
         return fitness();
     }
 
+    /**
+     * @brief Converting operator to std::string.
+     */
     virtual operator std::string() const
     {
         std::ostringstream oss;
@@ -113,6 +160,9 @@ class Genome {
     }
 
   protected:
+    /**
+     * @brief Raw genome of individual genes of T.
+     */
     std::vector<T> genome_;
 };
 

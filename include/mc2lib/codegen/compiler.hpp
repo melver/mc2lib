@@ -50,6 +50,11 @@
 #include <vector>
 
 namespace mc2lib {
+
+/**
+ * @namespace mc2lib::codegen
+ * @brief Code generation for memory consistency verification.
+ */
 namespace codegen {
 
 namespace mc = memconsistency;

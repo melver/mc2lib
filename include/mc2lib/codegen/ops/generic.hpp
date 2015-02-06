@@ -41,6 +41,11 @@
 
 namespace mc2lib {
 namespace codegen {
+
+/**
+ * @namespace mc2lib::codegen::ops
+ * @brief Implementations of Operations.
+ */
 namespace ops {
 
 class Return : public Operation {

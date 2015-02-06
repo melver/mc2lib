@@ -41,14 +41,33 @@
 #include <vector>
 
 namespace mc2lib {
+
+/**
+ * @namespace mc2lib::elementsetthy
+ * @brief Sets and maps exposed in a restricted set of set theory.
+ */
 namespace elementsetthy {
 
+/**
+ * Checks that a bit mask has all given bits set.
+ *
+ * @param mask Bit mask to check.
+ * @param all Bit mask to check against.
+ * @return True if all bits in all are also set in mask, false otherwise.
+ */
 inline bool all_bitmask(unsigned mask, unsigned all)
 {
     assert(all != 0);
     return (mask & all) == all;
 }
 
+/**
+ * Checks that a bit mask has any of given bits set.
+ *
+ * @param mask Bit mask to check.
+ * @param any Bit mask to check against.
+ * @return True if at least any one of the bits in all is set in mask.
+ */
 inline bool any_bitmask(unsigned mask, unsigned any)
 {
     assert(any != 0);

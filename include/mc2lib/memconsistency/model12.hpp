@@ -42,7 +42,7 @@ namespace mc2lib {
 namespace memconsistency {
 
 /**
- * @namespace model12
+ * @namespace mc2lib::memconsistency::model12
  * @brief Memory consistency model framework based on 2012 FMSD paper.
  *
  * This memory consistency model framework is based upon [1].

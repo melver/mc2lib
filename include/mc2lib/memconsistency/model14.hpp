@@ -42,7 +42,7 @@ namespace mc2lib {
 namespace memconsistency {
 
 /**
- * @namespace model14
+ * @namespace mc2lib::memconsistency::model14
  * @brief Memory consistency model framework based on 2014 TOPLAS paper.
  *
  * This memory consistency model framework is based upon [1], and [2].

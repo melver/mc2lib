@@ -35,10 +35,15 @@
 #define MC2LIB_TYPES_HPP_
 
 namespace mc2lib {
+
+    /**
+     * @namespace mc2lib::types
+     * @brief Common types.
+     */
     namespace types {
 
         /**
-         * Common types, shared among several classes and header files.
+         * @brief Template class of common types, permitting specialization.
          *
          * Can be specialized to declare custom types without overwriting
          * types.hh; however, this appraoch depends on user specializing before
@@ -53,10 +58,29 @@ namespace mc2lib {
                 typedef uint8_t WriteID;
             };
 
+        /**
+         * @brief Address type.
+         */
         typedef typename Types<true>::Addr Addr;
+
+        /**
+         * @brief Processor/thread ID type.
+         */
         typedef typename Types<true>::Pid Pid;
+
+        /**
+         * @brief Program order index type.
+         */
         typedef typename Types<true>::Poi Poi;
+
+        /**
+         * @brief Instruction pointer type.
+         */
         typedef typename Types<true>::InstPtr InstPtr;
+
+        /**
+         * @brief Write ID type.
+         */
         typedef typename Types<true>::WriteID WriteID;
 
     } // namespace types

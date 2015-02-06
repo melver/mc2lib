@@ -42,6 +42,11 @@
 #include <string>
 
 namespace mc2lib {
+
+/**
+ * @namespace mc2lib::memconsistency
+ * @brief Various frameworks for expressing memory consistency model semantics.
+ */
 namespace memconsistency {
 
 class Iiid {
