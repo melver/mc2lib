@@ -108,6 +108,28 @@ class ElementSet {
         assert(!assert_exists || result != 0);
     }
 
+    template <class FilterFunc>
+    ElementSet filter(FilterFunc filterFunc) const
+    {
+        ElementSet es;
+
+        for (const auto& e : set_) {
+            if (filterFunc(e)) {
+                es.insert(e);
+            }
+        }
+
+        return es;
+    }
+
+    void clear()
+    { set_.clear(); }
+
+    bool contains(const Element& e) const
+    {
+        return set_.find(e) != set_.end();
+    }
+
     /*
      * Set union.
      */
@@ -125,8 +147,10 @@ class ElementSet {
 
     ElementSet& operator+=(const ElementSet& rhs)
     {
-        if (this == &rhs) return *this;
-        set_.insert(rhs.set_.begin(), rhs.set_.end());
+        if (this != &rhs) {
+            set_.insert(rhs.set_.begin(), rhs.set_.end());
+        }
+
         return *this;
     }
 
@@ -156,6 +180,9 @@ class ElementSet {
         if (this == &rhs) {
             clear();
         } else {
+            // Cannot use set_.erase with iterator, as rhs may contain elements
+            // that do not exist in this set. In such a case, the erase
+            // implementation of current GCC segfaults.
             for (const auto& e : rhs.get()) {
                 erase(e);
             }
@@ -176,26 +203,23 @@ class ElementSet {
     ElementSet operator&(const ElementSet& rhs) const
     {
         ElementSet es;
+
         for (const auto& e : rhs.get()) {
             if (contains(e)) {
-                es += e;
+                es.insert(e);
             }
         }
+
         return es;
     }
 
     ElementSet& operator&=(const ElementSet& rhs)
     {
-        *this = rhs & *this;
+        if (this != &rhs) {
+            *this = rhs & *this;
+        }
+
         return *this;
-    }
-
-    void clear()
-    { set_.clear(); }
-
-    bool contains(const Element& e) const
-    {
-        return set_.find(e) != set_.end();
     }
 
     std::size_t size() const
@@ -206,29 +230,20 @@ class ElementSet {
 
     bool subseteq(const ElementSet& es) const
     {
+        if (size() > es.size()) return false;
+
         for (const auto& e : set_) {
             if (!es.contains(e)) {
                 return false;
             }
         }
+
         return true;
     }
 
     bool subset(const ElementSet& es) const
     {
-        return subseteq(es) && size() < es.size();
-    }
-
-    template <class FilterFunc>
-    ElementSet filter(FilterFunc filterFunc) const
-    {
-        ElementSet es;
-        for (const auto& e : set_) {
-            if (filterFunc(e)) {
-                es += e;
-            }
-        }
-        return es;
+        return size() < es.size() && subseteq(es);
     }
 
   protected:
@@ -317,6 +332,7 @@ class ElementRel {
 
     void insert(const Element& e1, const ElementSet<Ts>& e2s)
     {
+        if (e2s.empty()) return;
         rel_[e1] += e2s;
     }
 
@@ -362,7 +378,7 @@ class ElementRel {
     }
 
     template <class Func>
-    void iterate(Func func) const
+    Func for_each(Func func) const
     {
         const auto dom = domain();
         for (const auto& e1 : dom.get()) {
@@ -371,6 +387,8 @@ class ElementRel {
                 func(e1, e2);
             }
         }
+
+        return std::move(func);
     }
 
     /*
@@ -385,7 +403,7 @@ class ElementRel {
 
         ElementRel result;
 
-        iterate([&result](const Element& e1, const Element& e2) {
+        for_each([&result](const Element& e1, const Element& e2) {
             result.insert(e1, e2);
         });
 
@@ -397,7 +415,7 @@ class ElementRel {
     {
         ElementRel result;
 
-        iterate([&filterFunc, &result](const Element& e1, const Element& e2) {
+        for_each([&filterFunc, &result](const Element& e1, const Element& e2) {
             if (filterFunc(e1, e2)) {
                 result.insert(e1, e2);
             }
@@ -410,7 +428,7 @@ class ElementRel {
     {
         ElementRel result;
 
-        iterate([&result](const Element& e1, const Element& e2) {
+        for_each([&result](const Element& e1, const Element& e2) {
             result.insert(e2, e1);
         });
 
@@ -517,9 +535,8 @@ class ElementRel {
 
     bool operator==(const ElementRel& rhs) const
     {
-        const auto& l = props() ? eval() : *this;
-        const auto& r = rhs.props() ? rhs.eval() : rhs;
-        return l.rel_ == r.rel_;
+        return (props() ? eval() : *this).rel_ ==
+               (rhs.props() ? rhs.eval() : rhs).rel_;
     }
 
     /*
@@ -1072,7 +1089,7 @@ class ElementRelSeq : public ElementRelOp<Ts> {
 
             ElementRel<Ts> er;
 
-            first.iterate([&er, &last](const Element& e1, const Element& e2) {
+            first.for_each([&er, &last](const Element& e1, const Element& e2) {
                 if (last.in_domain(e2)) {
                     er.insert(e1, last.reachable(e2));
                 }

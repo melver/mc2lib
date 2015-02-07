@@ -258,7 +258,7 @@ BOOST_AUTO_TEST_CASE(EventRelInverse)
     BOOST_CHECK(er.range() == inv.domain());
     BOOST_CHECK_EQUAL(er.size(), inv.size());
 
-    er.iterate([&inv](const Event& e1, const Event& e2) {
+    er.for_each([&inv](const Event& e1, const Event& e2) {
         BOOST_CHECK(inv.R(e2, e1));
         BOOST_CHECK(!inv.R(e1, e2));
     });
