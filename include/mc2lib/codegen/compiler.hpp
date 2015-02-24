@@ -380,7 +380,7 @@ class Compiler {
         assert(op_len != 0);
 
         // Base IP must be unique!
-        assert(ip_to_op_.find(base) == ip_to_op_.end());
+        assert(ip_to_op(base) == nullptr);
         // Insert IP to Operation mapping.
         ip_to_op_[base] = std::make_pair(base + op_len, op);
 

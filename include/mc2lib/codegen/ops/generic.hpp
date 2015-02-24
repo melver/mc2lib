@@ -364,9 +364,9 @@ struct RandomFactory {
 
         if (choice <= 50) // 50%
             return std::make_shared<Read>(addr, pid);
-        else if (choice <= 95) // 45%
+        else if (choice <= 99) // 49%
             return std::make_shared<Write>(addr, pid);
-        else if (choice <= 100) // 5%
+        else if (choice <= 100) // 1%
             return std::make_shared<ReadModifyWrite>(addr, pid);
 
         assert(false);

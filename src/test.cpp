@@ -610,7 +610,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 
     const types::Addr offset = 0x0;
     ops::RandomFactory factory(0, 1, offset + 0xccc0, offset + 0xccca);
-    RandInstTest<std::default_random_engine, ops::RandomFactory> rit(urng, &factory, 30);
+    RandInstTest<std::default_random_engine, ops::RandomFactory> rit(urng, &factory, 150);
 
     const auto threads = rit.threads();
     BOOST_CHECK_EQUAL(threads.size(), 2);
@@ -618,21 +618,21 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 
     Compiler<Backend_X86_64> compiler(&arch, &ew,  &threads);
 
-    char code[256];
+    char code[1024];
 
-    BOOST_CHECK(compiler.emit(1, 0xff, code, sizeof(code)) != 0);
+    BOOST_CHECK(compiler.emit(0, 0xffff, code, sizeof(code)) != 0);
 
-    std::size_t emit_len = compiler.emit(0, 0, code, sizeof(code));
+    std::size_t emit_len = compiler.emit(1, 0, code, sizeof(code));
     BOOST_CHECK(emit_len != 0);
 
-    types::WriteID wid = 0;
 #if 1
+    types::WriteID wid = 0;
     // This test passing is dependent on the random number generator
     // implementation.
-    BOOST_CHECK(compiler.update_from(0x3c, 0, 0xccc1, &wid, 1)); // write 0xccc1
-    BOOST_CHECK(compiler.update_from(0x4c, 0, 0xccc1, &wid, 1)); // read  0xccc1
-    wid = 0xc; // check replacement/update works
-    BOOST_CHECK(compiler.update_from(0x4c, 0, 0xccc1, &wid, 1)); // read  0xccc1
+    BOOST_CHECK(compiler.update_from(0x20, 0, 0xccc1, &wid, 1)); // write 0xccc1
+    BOOST_CHECK(compiler.update_from(0x48, 0, 0xccc1, &wid, 1)); // read  0xccc1
+    wid = 0x24; // check replacement/update works
+    BOOST_CHECK(compiler.update_from(0x48, 0, 0xccc1, &wid, 1)); // read  0xccc1
 
     mc::model14::Checker checker(&arch, &ew);
     ew.po.set_props(mc::EventRel::TransitiveClosure);
@@ -641,12 +641,10 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 
     // Check atomic works
     wid = 0;
-    BOOST_CHECK(compiler.update_from(0x17, 0, 0xccc0, &wid, 1));
-    wid = 0xe;
-    BOOST_CHECK(compiler.update_from(0x17, 0, 0xccc0, &wid, 1));
-    BOOST_CHECK(compiler.update_from(0x17, 1, 0xccc0, &wid, 1));
-#else
-    BOOST_CHECK(compiler.update_from(0, 0, 0xccc0, &wid, 1));
+    BOOST_CHECK(compiler.update_from(0x247, 0, 0xccc0, &wid, 1));
+    wid = 0x42; // restart atomic
+    BOOST_CHECK(compiler.update_from(0x247, 0, 0xccc0, &wid, 1));
+    BOOST_CHECK(compiler.update_from(0x247, 1, 0xccc0, &wid, 1));
 #endif
 
 #if 0
