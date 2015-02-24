@@ -335,18 +335,22 @@ class ReadModifyWrite : public MemOperation {
  */
 struct RandomFactory {
     explicit RandomFactory(types::Pid min_pid, types::Pid max_pid,
-                           types::Addr min_addr, types::Addr max_addr)
+                           types::Addr min_addr, types::Addr max_addr,
+                           std::size_t stride = 1)
         : min_pid_(min_pid), max_pid_(max_pid),
-          min_addr_(min_addr), max_addr_(max_addr)
+          min_addr_(min_addr), max_addr_(max_addr),
+          stride_(stride)
     {}
 
     void reset(types::Pid min_pid, types::Pid max_pid,
-               types::Addr min_addr, types::Addr max_addr)
+               types::Addr min_addr, types::Addr max_addr,
+               std::size_t stride = 1)
     {
         min_pid_ = min_pid;
         max_pid_ = max_pid;
         min_addr_ = min_addr;
         max_addr_ = max_addr;
+        stride_ = stride;
     }
 
     template <class URNG>
@@ -356,9 +360,14 @@ struct RandomFactory {
                                     max_addr_ - AssemblerState::MAX_INST_SIZE);
         std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);
 
+        // pid
         const auto pid = dist_pid(urng);
-        const auto addr = dist_addr(urng);
 
+        // addr
+        auto addr = dist_addr(urng);
+        addr -= addr % stride_;
+
+        // select op
         std::uniform_int_distribution<std::size_t> dist_choice(0, 100);
         const auto choice = dist_choice(urng);
 
@@ -369,6 +378,7 @@ struct RandomFactory {
         else if (choice <= 100) // 1%
             return std::make_shared<ReadModifyWrite>(addr, pid);
 
+        // should never get here
         assert(false);
         return nullptr;
     }
@@ -385,11 +395,15 @@ struct RandomFactory {
     types::Addr max_addr() const
     { return max_addr_; }
 
+    std::size_t stride() const
+    { return stride_; }
+
   private:
     types::Pid min_pid_;
     types::Pid max_pid_;
     types::Addr min_addr_;
     types::Addr max_addr_;
+    std::size_t stride_;
 };
 
 } /* namespace ops */
