@@ -164,6 +164,27 @@ class Read : public MemOperation {
     types::InstPtr at_;
 };
 
+class ReadAddrDp : public Read {
+  public:
+    explicit ReadAddrDp(types::Addr addr, types::Pid pid = -1)
+        : Read(addr, pid)
+    {}
+
+    OperationPtr clone() const
+    {
+        return std::make_shared<ReadAddrDp>(*this);
+    }
+
+    // TODO: insert_po: if we start supporting an Arch which does not order
+    // Read->Read, add a dependency-hb between this and the last Read -- this
+    // assumes all Reads are reading into the same register, and this read
+    // computes the address with this one register. NOTE: asms->ew() can be
+    // used to traverse back po beyond the immediate neighbors.
+
+    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                            void *code, std::size_t len);
+};
+
 class Write : public Read {
   public:
     explicit Write(types::Addr addr, types::Pid pid = -1)
@@ -368,14 +389,16 @@ struct RandomFactory {
         addr -= addr % stride_;
 
         // select op
-        std::uniform_int_distribution<std::size_t> dist_choice(0, 100);
+        std::uniform_int_distribution<std::size_t> dist_choice(0, 99);
         const auto choice = dist_choice(urng);
 
-        if (choice <= 50) // 50%
+        if (choice < 45) // 45%
             return std::make_shared<Read>(addr, pid);
-        else if (choice <= 99) // 49%
+        else if (choice < 50) // 5%
+            return std::make_shared<ReadAddrDp>(addr, pid);
+        else if (choice < 99) // 49%
             return std::make_shared<Write>(addr, pid);
-        else if (choice <= 100) // 1%
+        else if (choice < 100) // 1%
             return std::make_shared<ReadModifyWrite>(addr, pid);
 
         // should never get here

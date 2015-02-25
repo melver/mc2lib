@@ -88,6 +88,56 @@ Read::emit_X86_64(types::InstPtr start, AssemblerState *asms,
 }
 
 inline std::size_t
+ReadAddrDp::emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                        void *code, std::size_t len)
+{
+    char *cnext = static_cast<char*>(code);
+    std::size_t expected_len = 0;
+
+    // ASM @0> xor %rax, %rax
+    expected_len = 3;
+    assert(len >= expected_len);
+
+    // @0
+    *cnext++ = 0x48; *cnext++ = 0x31; *cnext++ = 0xc0;
+
+    if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
+        // ASM @3> movzbl addr_(%rax), %eax ;
+        expected_len = 10;
+        assert(len >= expected_len);
+        at_ = start + 3;
+
+        // @3
+        *cnext++ = 0x0f; *cnext++ = 0xb6;
+        *cnext++ = 0x80;
+        *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
+        cnext += sizeof(std::uint32_t);
+    } else {
+        // ASM @03> movabs addr_, %rdx ;
+        //     @0d> add %rdx, %rax ;
+        //     @10> movzbl (%rax), %eax ;
+        expected_len = 19;
+        assert(len >= expected_len);
+        at_ = start + 0x10;
+
+        // @03
+        *cnext++ = 0x48; *cnext++ = 0xba;
+        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+        cnext += sizeof(std::uint64_t);
+
+        // @0d
+        *cnext++ = 0x48; *cnext++ = 0x01; *cnext++ = 0xd0;
+
+        // @10
+        *cnext++ = 0x0f; *cnext++ = 0xb6; *cnext++ = 0x00;
+    }
+
+    assert((cnext - static_cast<char*>(code)) ==
+            static_cast<std::ptrdiff_t>(expected_len));
+    return expected_len;
+}
+
+inline std::size_t
 Write::emit_X86_64(types::InstPtr start, AssemblerState *asms,
                    void *code, std::size_t len)
 {

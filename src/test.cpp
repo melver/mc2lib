@@ -629,10 +629,10 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     types::WriteID wid = 0;
     // This test passing is dependent on the random number generator
     // implementation.
-    BOOST_CHECK(compiler.update_from(0x20, 0, 0xccc1, &wid, 1)); // write 0xccc1
-    BOOST_CHECK(compiler.update_from(0x48, 0, 0xccc1, &wid, 1)); // read  0xccc1
-    wid = 0x24; // check replacement/update works
-    BOOST_CHECK(compiler.update_from(0x48, 0, 0xccc1, &wid, 1)); // read  0xccc1
+    BOOST_CHECK(compiler.update_from(0x22, 0, 0xccc1, &wid, 1)); // write 0xccc1
+    BOOST_CHECK(compiler.update_from(0x4c, 0, 0xccc1, &wid, 1)); // read  0xccc1
+    wid = 0x25; // check replacement/update works
+    BOOST_CHECK(compiler.update_from(0x4c, 0, 0xccc1, &wid, 1)); // read  0xccc1
 
     mc::model14::Checker checker(&arch, &ew);
     ew.po.set_props(mc::EventRel::TransitiveClosure);
@@ -641,10 +641,10 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 
     // Check atomic works
     wid = 0;
-    BOOST_CHECK(compiler.update_from(0x247, 0, 0xccc0, &wid, 1));
-    wid = 0x42; // restart atomic
-    BOOST_CHECK(compiler.update_from(0x247, 0, 0xccc0, &wid, 1));
-    BOOST_CHECK(compiler.update_from(0x247, 1, 0xccc0, &wid, 1));
+    BOOST_CHECK(compiler.update_from(0x24f, 0, 0xccc0, &wid, 1));
+    wid = 0x49; // restart atomic
+    BOOST_CHECK(compiler.update_from(0x24f, 0, 0xccc0, &wid, 1));
+    BOOST_CHECK(compiler.update_from(0x24f, 1, 0xccc0, &wid, 1));
 #endif
 
 #if 0
