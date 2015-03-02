@@ -392,11 +392,11 @@ struct RandomFactory {
         std::uniform_int_distribution<std::size_t> dist_choice(0, 99);
         const auto choice = dist_choice(urng);
 
-        if (choice < 45) // 45%
+        if (choice < 50) // 50%
             return std::make_shared<Read>(addr, pid);
-        else if (choice < 50) // 5%
+        else if (choice < 55) // 5%
             return std::make_shared<ReadAddrDp>(addr, pid);
-        else if (choice < 99) // 49%
+        else if (choice < 99) // 44%
             return std::make_shared<Write>(addr, pid);
         else if (choice < 100) // 1%
             return std::make_shared<ReadModifyWrite>(addr, pid);
