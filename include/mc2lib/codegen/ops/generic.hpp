@@ -378,7 +378,7 @@ struct RandomFactory {
     OperationPtr operator ()(URNG& urng) const
     {
         std::uniform_int_distribution<types::Addr> dist_addr(min_addr_,
-                                    max_addr_ - AssemblerState::MAX_INST_SIZE);
+                                    max_addr_ - AssemblerState::MAX_OP_SIZE);
         std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);
 
         // pid

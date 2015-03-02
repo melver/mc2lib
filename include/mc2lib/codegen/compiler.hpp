@@ -42,6 +42,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <unordered_map>
@@ -175,13 +176,13 @@ class MemOperation : public Operation {
 
 class AssemblerState {
   public:
-    static constexpr std::size_t MAX_INST_SIZE = 8;
-    static constexpr std::size_t MAX_INST_EVTS  = MAX_INST_SIZE / sizeof(types::WriteID);
-    static constexpr types::WriteID INIT_WRITE = 0x00;
+    static constexpr std::size_t MAX_OP_SIZE = sizeof(types::WriteID) * 2; // 1 Operation can at most emit 2 write Events
+    static constexpr std::size_t MAX_OP_EVTS = MAX_OP_SIZE / sizeof(types::WriteID);
+    static constexpr types::WriteID INIT_WRITE = std::numeric_limits<types::WriteID>::min();
     static constexpr types::WriteID MIN_WRITE = INIT_WRITE + 1;
-    static constexpr types::WriteID MAX_WRITE = 0xff - (MAX_INST_EVTS - 1);
+    static constexpr types::WriteID MAX_WRITE = std::numeric_limits<types::WriteID>::max() - (MAX_OP_EVTS - 1);
     static constexpr types::Poi MIN_READ = 0x8000000000000000ULL;
-    static constexpr types::Poi MAX_READ = 0xffffffffffffffffULL - (MAX_INST_EVTS - 1);
+    static constexpr types::Poi MAX_READ = 0xffffffffffffffffULL - (MAX_OP_EVTS - 1);
 
     explicit AssemblerState(mc::model14::ExecWitness *ew, mc::model14::Architecture *arch)
         : ew_(ew), arch_(arch)
@@ -205,7 +206,7 @@ class AssemblerState {
     make_event(types::Pid pid, mc::Event::Type type,
                types::Addr addr, std::size_t size, Func mkevt)
     {
-        static_assert(max_size <= MAX_INST_SIZE, "Invalid size!");
+        static_assert(max_size <= MAX_OP_SIZE, "Invalid size!");
         static_assert(sizeof(types::WriteID) <= max_size, "Invalid size!");
         static_assert(max_size % sizeof(types::WriteID) == 0, "Invalid size!");
         assert(size <= max_size);
@@ -258,7 +259,7 @@ class AssemblerState {
               types::Addr addr, const types::WriteID *from_id,
               std::size_t size = max_size)
     {
-        static_assert(max_size <= MAX_INST_SIZE, "Invalid size!");
+        static_assert(max_size <= MAX_OP_SIZE, "Invalid size!");
         static_assert(sizeof(types::WriteID) <= max_size, "Invalid size!");
         static_assert(max_size % sizeof(types::WriteID) == 0, "Invalid size!");
         assert(size <= max_size);
