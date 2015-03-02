@@ -104,7 +104,10 @@ class ElementSet {
 
     void erase(const Element& e, bool assert_exists = false)
     {
-        auto result = set_.erase(e);
+#ifndef NDEBUG
+        auto result =
+#endif
+        set_.erase(e);
         assert(!assert_exists || result != 0);
     }
 
