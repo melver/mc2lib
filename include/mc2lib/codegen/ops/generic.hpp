@@ -80,6 +80,57 @@ class Return : public Operation {
     { return true; }
 };
 
+class Delay : public Operation {
+  public:
+    explicit Delay(std::size_t length, types::Pid pid = -1)
+        : Operation(pid), length_(length), before_(nullptr)
+    {}
+
+    OperationPtr clone() const
+    {
+        return std::make_shared<Delay>(*this);
+    }
+
+    void reset()
+    {
+        before_ = nullptr;
+    }
+
+    bool enable_emit(AssemblerState *asms)
+    { return true; }
+
+    void insert_po(const Operation *before, AssemblerState *asms)
+    {
+        before_ = before;
+    }
+
+    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                            void *code, std::size_t len);
+
+    const mc::Event* last_event(const mc::Event *next_event,
+                                AssemblerState *asms) const
+    {
+        // Forward
+        if (before_ != nullptr) {
+            return before_->last_event(next_event, asms);
+        }
+
+        return nullptr;
+    }
+
+    bool update_from(types::InstPtr ip, int part, types::Addr addr,
+                     const types::WriteID *from_id, std::size_t size,
+                     AssemblerState *asms)
+    {
+        assert(false);
+        return false;
+    }
+
+  protected:
+    std::size_t length_;
+    const Operation *before_;
+};
+
 class Read : public MemOperation {
   public:
     explicit Read(types::Addr addr, types::Pid pid = -1)
@@ -106,8 +157,9 @@ class Read : public MemOperation {
 
         if (before != nullptr) {
             auto event_before = before->last_event(event_, asms);
-            assert(event_before != nullptr);
-            asms->ew()->po.insert(*event_before, *event_);
+            if (event_before != nullptr) {
+                asms->ew()->po.insert(*event_before, *event_);
+            }
         }
     }
 
@@ -209,8 +261,9 @@ class Write : public Read {
 
         if (before != nullptr) {
             auto event_before = before->last_event(event_, asms);
-            assert(event_before != nullptr);
-            asms->ew()->po.insert(*event_before, *event_);
+            if (event_before != nullptr) {
+                asms->ew()->po.insert(*event_before, *event_);
+            }
         }
     }
 
@@ -263,16 +316,15 @@ class ReadModifyWrite : public MemOperation {
 
         if (before != nullptr) {
             auto event_before = before->last_event(event_r_, asms);
-            assert(event_before != nullptr);
+            if (event_before != nullptr) {
+                asms->ew()->po.insert(*event_before, *event_r_);
 
-            asms->ew()->po.insert(*event_before, *event_r_);
-
-            // Implied fence before atomic
-            if (dynamic_cast<mc::model14::Arch_TSO*>(asms->arch()) != nullptr) {
-                auto arch_tso = dynamic_cast<mc::model14::Arch_TSO*>(asms->arch());
-                arch_tso->mfence.insert(*event_before, *event_r_);
+                if (dynamic_cast<mc::model14::Arch_TSO*>(asms->arch()) != nullptr) {
+                    // Implied fence before atomic
+                    auto arch_tso = dynamic_cast<mc::model14::Arch_TSO*>(asms->arch());
+                    arch_tso->mfence.insert(*event_before, *event_r_);
+                }
             }
-
         }
 
         asms->ew()->po.insert(*event_r_, *event_w_);
@@ -329,8 +381,8 @@ class ReadModifyWrite : public MemOperation {
     const mc::Event* last_event(const mc::Event *next_event,
                                 AssemblerState *asms) const
     {
-        // Implied fence after atomic
         if (dynamic_cast<mc::model14::Arch_TSO*>(asms->arch()) != nullptr) {
+            // Implied fence after atomic
             auto arch_tso = dynamic_cast<mc::model14::Arch_TSO*>(asms->arch());
             arch_tso->mfence.insert(*event_w_, *next_event);
         }
@@ -357,10 +409,10 @@ class ReadModifyWrite : public MemOperation {
 struct RandomFactory {
     explicit RandomFactory(types::Pid min_pid, types::Pid max_pid,
                            types::Addr min_addr, types::Addr max_addr,
-                           std::size_t stride = 1)
+                           std::size_t stride = 1, std::size_t max_delay = 50)
         : min_pid_(min_pid), max_pid_(max_pid),
           min_addr_(min_addr), max_addr_(max_addr),
-          stride_(stride)
+          stride_(stride), max_delay_(max_delay)
     {}
 
     void reset(types::Pid min_pid, types::Pid max_pid,
@@ -377,29 +429,41 @@ struct RandomFactory {
     template <class URNG>
     OperationPtr operator ()(URNG& urng) const
     {
+        std::uniform_int_distribution<std::size_t> dist_choice(0, 99);
+        std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);
         std::uniform_int_distribution<types::Addr> dist_addr(min_addr_,
                                     max_addr_ - AssemblerState::MAX_OP_SIZE);
-        std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);
+        std::uniform_int_distribution<std::size_t> dist_delay(1, max_delay_);
+
+        // select op
+        const auto choice = dist_choice(urng);
 
         // pid
         const auto pid = dist_pid(urng);
 
-        // addr
-        auto addr = dist_addr(urng);
-        addr -= addr % stride_;
+        // addr (lazy)
+        auto addr = [&]() {
+            auto result = dist_addr(urng);
+            result -= result % stride_;
+            return result;
+        };
 
-        // select op
-        std::uniform_int_distribution<std::size_t> dist_choice(0, 99);
-        const auto choice = dist_choice(urng);
+        // delay (lazy)
+        auto delay = [&dist_delay, &urng]() {
+            return dist_delay(urng);
+        };
 
-        if (choice < 50) // 50%
-            return std::make_shared<Read>(addr, pid);
-        else if (choice < 55) // 5%
-            return std::make_shared<ReadAddrDp>(addr, pid);
-        else if (choice < 99) // 44%
-            return std::make_shared<Write>(addr, pid);
-        else if (choice < 100) // 1%
-            return std::make_shared<ReadModifyWrite>(addr, pid);
+        if (choice < 50) { // 50%
+            return std::make_shared<Read>(addr(), pid);
+        } else if (choice < 55) { // 5%
+            return std::make_shared<ReadAddrDp>(addr(), pid);
+        } else if (choice < 98) { // 43%
+            return std::make_shared<Write>(addr(), pid);
+        } else if (choice < 99) { // 1%
+            return std::make_shared<ReadModifyWrite>(addr(), pid);
+        } else if (choice < 100) { // 1%
+            return std::make_shared<Delay>(delay(), pid);
+        }
 
         // should never get here
         assert(false);
@@ -421,12 +485,16 @@ struct RandomFactory {
     std::size_t stride() const
     { return stride_; }
 
+    std::size_t max_delay() const
+    { return max_delay_; }
+
   private:
     types::Pid min_pid_;
     types::Pid max_pid_;
     types::Addr min_addr_;
     types::Addr max_addr_;
     std::size_t stride_;
+    std::size_t max_delay_;
 };
 
 } /* namespace ops */

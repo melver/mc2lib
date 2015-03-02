@@ -53,6 +53,23 @@ Return::emit_X86_64(types::InstPtr start, AssemblerState *asms,
 }
 
 inline std::size_t
+Delay::emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                   void *code, std::size_t len)
+{
+    char *cnext = static_cast<char*>(code);
+
+    assert(len >= length_);
+    for (std::size_t i = 0; i < length_; ++i) {
+        // ASM> nop ;
+        *cnext++ = 0x90;
+    }
+
+    assert((cnext - static_cast<char*>(code)) ==
+            static_cast<std::ptrdiff_t>(length_));
+    return length_;
+}
+
+inline std::size_t
 Read::emit_X86_64(types::InstPtr start, AssemblerState *asms,
                   void *code, std::size_t len)
 {
