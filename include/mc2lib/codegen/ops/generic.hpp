@@ -153,7 +153,7 @@ class Read : public MemOperation {
 
     void insert_po(const Operation *before, AssemblerState *asms)
     {
-        event_ = asms->make_read<1>(pid(), mc::Event::Read, addr_)[0];
+        event_ = asms->make_read<sizeof(types::WriteID)>(pid(), mc::Event::Read, addr_)[0];
 
         if (before != nullptr) {
             auto event_before = before->last_event(event_, asms);
@@ -173,9 +173,9 @@ class Read : public MemOperation {
         assert(event_ != nullptr);
         assert(ip == at_);
         assert(addr == addr_);
-        assert(size == 1);
+        assert(size == sizeof(types::WriteID));
 
-        const mc::Event *from = asms->get_write<1>({event_}, addr_, from_id)[0];
+        const mc::Event *from = asms->get_write<sizeof(types::WriteID)>({event_}, addr_, from_id)[0];
 
         if (from_ != nullptr) {
             // If from_ == from, we still need to continue to try to erase and
@@ -257,7 +257,7 @@ class Write : public Read {
 
     void insert_po(const Operation *before, AssemblerState *asms)
     {
-        event_ = asms->make_write<1>(pid(), mc::Event::Write, addr_, &write_id_)[0];
+        event_ = asms->make_write<sizeof(types::WriteID)>(pid(), mc::Event::Write, addr_, &write_id_)[0];
 
         if (before != nullptr) {
             auto event_before = before->last_event(event_, asms);
@@ -311,8 +311,10 @@ class ReadModifyWrite : public MemOperation {
 
     void insert_po(const Operation *before, AssemblerState *asms)
     {
-        event_r_ = asms->make_read<1>(pid(), mc::Event::Read, addr_)[0];
-        event_w_ = asms->make_write<1>(pid(), mc::Event::Write, addr_, &write_id_)[0];
+        event_r_ = asms->make_read<sizeof(types::WriteID)>(
+                pid(), mc::Event::Read, addr_)[0];
+        event_w_ = asms->make_write<sizeof(types::WriteID)>(
+                pid(), mc::Event::Write, addr_, &write_id_)[0];
 
         if (before != nullptr) {
             auto event_before = before->last_event(event_r_, asms);
@@ -341,10 +343,10 @@ class ReadModifyWrite : public MemOperation {
         assert(event_w_ != nullptr);
         assert(ip == at_);
         assert(addr == addr_);
-        assert(size == 1);
+        assert(size == sizeof(types::WriteID));
 
         // This also alerts us if the read would be seeing the write's data.
-        auto from = asms->get_write<1>({event_w_}, addr_, from_id)[0];
+        auto from = asms->get_write<sizeof(types::WriteID)>({event_w_}, addr_, from_id)[0];
 
         auto part_event = event_r_;
         auto obs_rel = &asms->ew()->rf;
