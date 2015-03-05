@@ -603,7 +603,7 @@ BOOST_AUTO_TEST_CASE(SimpleGAAdd24)
 
 BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 {
-    std::default_random_engine urng(1235);
+    std::default_random_engine urng(1238);
 
     model14::ExecWitness ew;
     model14::Arch_TSO arch;
@@ -633,20 +633,20 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     types::WriteID wid = 0;
     // This test passing is dependent on the random number generator
     // implementation.
-    BOOST_CHECK(compiler.update_from(0x3a, 0, 0xccc5, &wid, 1)); // write 0xccc5
-    BOOST_CHECK(compiler.update_from(0xe6, 0, 0xccc5, &wid, 1)); // read  0xccc5
+    BOOST_CHECK(compiler.update_from(0x42, 0, 0xccc5, &wid, 1)); // write 0xccc5
+    BOOST_CHECK(compiler.update_from(0x62, 0, 0xccc5, &wid, 1)); // read  0xccc5
     BOOST_CHECK(!checker.sc_per_location());
 
-    wid = 0x21; // check replacement/update works
-    BOOST_CHECK(compiler.update_from(0xe6, 0, 0xccc5, &wid, 1)); // read  0xccc5
+    wid = 0x27; // check replacement/update works
+    BOOST_CHECK(compiler.update_from(0x62, 0, 0xccc5, &wid, 1)); // read  0xccc5
     BOOST_CHECK(checker.sc_per_location());
 
     // Check atomic works
     wid = 0;
-    BOOST_CHECK(compiler.update_from(0x27f, 0, 0xccc7, &wid, 1));
-    wid = 0x3c; // restart atomic
-    BOOST_CHECK(compiler.update_from(0x27f, 0, 0xccc7, &wid, 1));
-    BOOST_CHECK(compiler.update_from(0x27f, 1, 0xccc7, &wid, 1));
+    BOOST_CHECK(compiler.update_from(0xe9, 0, 0xccc1, &wid, 1));
+    wid = 0x28; // restart atomic
+    BOOST_CHECK(compiler.update_from(0xe9, 0, 0xccc1, &wid, 1));
+    BOOST_CHECK(compiler.update_from(0xe9, 1, 0xccc1, &wid, 1));
 #endif
 
 #if 0

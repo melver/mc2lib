@@ -403,6 +403,59 @@ class ReadModifyWrite : public MemOperation {
     types::InstPtr at_;
 };
 
+class CacheFlush : public MemOperation {
+  public:
+    explicit CacheFlush(types::Addr addr, types::Pid pid = -1)
+        : MemOperation(pid), addr_(addr), before_(nullptr)
+    {}
+
+    OperationPtr clone() const
+    {
+        return std::make_shared<CacheFlush>(*this);
+    }
+
+    void reset()
+    {
+        before_ = nullptr;
+    }
+
+    bool enable_emit(AssemblerState *asms)
+    { return true; }
+
+    void insert_po(const Operation *before, AssemblerState *asms)
+    {
+        before_ = before;
+    }
+
+    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                            void *code, std::size_t len);
+
+    const mc::Event* last_event(const mc::Event *next_event,
+                                AssemblerState *asms) const
+    {
+        // Forward
+        if (before_ != nullptr) {
+            return before_->last_event(next_event, asms);
+        }
+
+        return nullptr;
+    }
+
+    bool update_from(types::InstPtr ip, int part, types::Addr addr,
+                     const types::WriteID *from_id, std::size_t size,
+                     AssemblerState *asms)
+    {
+        return true;
+    }
+
+    types::Addr addr() const
+    { return addr_; }
+
+  protected:
+    types::Addr addr_;
+    const Operation *before_;
+};
+
 /**
  * RandomFactory.
  */
@@ -457,10 +510,12 @@ struct RandomFactory {
             return std::make_shared<Read>(addr(), pid);
         } else if (choice < 55) { // 5%
             return std::make_shared<ReadAddrDp>(addr(), pid);
-        } else if (choice < 98) { // 43%
+        } else if (choice < 97) { // 42%
             return std::make_shared<Write>(addr(), pid);
-        } else if (choice < 99) { // 1%
+        } else if (choice < 98) { // 1%
             return std::make_shared<ReadModifyWrite>(addr(), pid);
+        } else if (choice < 99) { // 1%
+            return std::make_shared<CacheFlush>(addr(), pid);
         } else if (choice < 100) { // 1%
             return std::make_shared<Delay>(delay(), pid);
         }

@@ -233,8 +233,8 @@ ReadModifyWrite::emit_X86_64(types::InstPtr start, AssemblerState *asms,
 
         // @7
     } else {
-        // ASM @2> mov addr_, %rdx
-        //     @c> lock xchg %al, (%rdx)
+        // ASM @2> mov addr_, %rdx ;
+        //     @c> lock xchg %al, (%rdx) ;
         expected_len = 15;
         assert(len >= expected_len);
         at_ = start + 0xc;
@@ -248,6 +248,43 @@ ReadModifyWrite::emit_X86_64(types::InstPtr start, AssemblerState *asms,
     }
 
     *cnext++ = 0xf0; *cnext++ = 0x86; *cnext++ = 0x02;
+
+    assert((cnext - static_cast<char*>(code)) ==
+            static_cast<std::ptrdiff_t>(expected_len));
+    return expected_len;
+}
+
+inline std::size_t
+CacheFlush::emit_X86_64(types::InstPtr start, AssemblerState *asms,
+                        void *code, std::size_t len)
+{
+    char *cnext = static_cast<char*>(code);
+    std::size_t expected_len = 0;
+
+    if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
+        // ASM @0> clflush addr_ ;
+        expected_len = 8;
+        assert(len >= expected_len);
+
+        // @0
+        *cnext++ = 0x0f; *cnext++ = 0xae;
+        *cnext++ = 0x3c; *cnext++ = 0x25;
+        *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
+        cnext += sizeof(std::uint32_t);
+    } else {
+        // ASM @0> mov addr_, %rdx ;
+        //     @a> clflush (%rdx) ;
+        expected_len = 13;
+        assert(len >= expected_len);
+
+        // @0
+        *cnext++ = 0x48; *cnext++ = 0xba;
+        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+        cnext += sizeof(std::uint64_t);
+
+        // @a
+        *cnext++ = 0x0f; *cnext++ = 0xae; *cnext++ = 0x3a;
+    }
 
     assert((cnext - static_cast<char*>(code)) ==
             static_cast<std::ptrdiff_t>(expected_len));
