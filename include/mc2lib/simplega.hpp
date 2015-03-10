@@ -407,7 +407,8 @@ class GenePool {
      */
     template <class URNG>
     void nextgen(URNG& urng, Selection *selection, std::size_t mates,
-                 std::size_t elite = 0, bool sort_selection = true)
+                 std::size_t elite = 0, bool sort_selection = false,
+                 std::size_t mate1_stride = 1, std::size_t mate2_stride = 1)
     {
         assert(selection->size() >= mates);
         assert(selection->size() >= elite);
@@ -422,12 +423,11 @@ class GenePool {
         const std::size_t target_population_size = target_population_size_ + replace;
 
         // Add offspring
-        for (std::size_t i = 0; i < mates; ++i) {
+        for (std::size_t i = 0; i < mates; i += mate1_stride) {
             const auto mate1 = (*selection)[i];
 
             // j = i: avoid mating 2 individuals twice
-            for (std::size_t j = i; j < mates; ++j) {
-                if (i == j) continue;
+            for (std::size_t j = i + 1; j < mates; j += mate2_stride) {
                 const auto mate2 = (*selection)[j];
 
                 crossover_mutate(urng,

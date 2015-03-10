@@ -581,7 +581,7 @@ BOOST_AUTO_TEST_CASE(SimpleGAAdd24)
 
     for (int i = 0; i<50; ++i) {
         auto tournament_population = pool.select_uniform(generator, tournament_size);
-        pool.nextgen(generator, &tournament_population, tournament_winners, elite);
+        pool.nextgen(generator, &tournament_population, tournament_winners, elite, true);
         BOOST_CHECK(pool.population_size() <= pool.target_population_size() + 1);
     }
 
