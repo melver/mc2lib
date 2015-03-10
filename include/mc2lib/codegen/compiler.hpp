@@ -438,7 +438,10 @@ class Compiler {
             return nullptr;
         }
 
-        auto e = --ip_to_op_.upper_bound(ip);
+        auto e = ip_to_op_.upper_bound(ip);
+        if (e != ip_to_op_.begin()) {
+            e--;
+        }
 
         if (!(e->first <= ip && ip < e->second.first)) {
             return nullptr;

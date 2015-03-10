@@ -620,9 +620,15 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 
     char code[1024];
 
-    BOOST_CHECK(compiler.emit(0, 0xffff, code, sizeof(code)) != 0);
+    std::size_t emit_len = compiler.emit(0, 0xffff, code, sizeof(code));
+    BOOST_CHECK(emit_len != 0);
+    BOOST_CHECK(compiler.ip_to_op(0xffff - 1) == nullptr);
+    BOOST_CHECK(compiler.ip_to_op(0xffff + emit_len) == nullptr);
+    BOOST_CHECK(compiler.ip_to_op(0x1234) == nullptr);
+    BOOST_CHECK(compiler.ip_to_op(0xffff) != nullptr);
+    BOOST_CHECK(compiler.ip_to_op(0xffff + emit_len - 1) != nullptr);
 
-    std::size_t emit_len = compiler.emit(1, 0, code, sizeof(code));
+    emit_len = compiler.emit(1, 0, code, sizeof(code));
     BOOST_CHECK(emit_len != 0);
 
 #if 1
