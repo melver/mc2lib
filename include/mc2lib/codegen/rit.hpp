@@ -73,7 +73,7 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
             if (used.find(idx) != used.end())
                 continue;
 
-            genome_[idx] = (*factory_)(urng_);
+            genome_[idx] = make_random();
 
             used.insert(idx);
             --selection_count;
@@ -85,6 +85,11 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
 
     void set_fitness(float fitness)
     { fitness_ = fitness; }
+
+    OperationPtr make_random() const
+    {
+        return (*factory_)(urng_);
+    }
 
     Threads threads()
     {
