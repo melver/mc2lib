@@ -231,7 +231,7 @@ class GenePool {
 
     explicit GenePool(std::size_t target_population_size = 80, float mutation_rate = 0.02f)
         : target_population_size_(target_population_size), mutation_rate_(mutation_rate),
-          generation_(0)
+          steps_(0)
     {
         // mutation rate is a percentage
         if (mutation_rate_ > 1.0f)
@@ -245,12 +245,12 @@ class GenePool {
 
     explicit GenePool(Population population, float mutation_rate = 0.02f)
         : target_population_size_(population.size()), mutation_rate_(mutation_rate),
-          generation_(0), population_(population)
+          steps_(0), population_(population)
     {}
 
     explicit GenePool(Selection selection, float mutation_rate = 0.02f)
         : target_population_size_(selection.size()), mutation_rate_(mutation_rate),
-          generation_(0)
+          steps_(0)
     {
         for (const auto& gptr : selection) {
             population_.push_back(*gptr);
@@ -292,8 +292,8 @@ class GenePool {
     std::size_t population_size() const
     { return population_.size(); }
 
-    std::size_t generation() const
-    { return generation_; }
+    std::size_t steps() const
+    { return steps_; }
 
     float avg_fitness() const
     {
@@ -409,9 +409,9 @@ class GenePool {
      * population (can e.g. be used for elitism).
      */
     template <class URNG>
-    void nextgen(URNG& urng, const Selection& selection,
-                 std::size_t mates, std::size_t keep = 0,
-                 std::size_t mate1_stride = 1, std::size_t mate2_stride = 1)
+    void step(URNG& urng, const Selection& selection,
+              std::size_t mates, std::size_t keep = 0,
+              std::size_t mate1_stride = 1, std::size_t mate2_stride = 1)
     {
         assert(selection.size() >= mates);
         assert(selection.size() >= keep);
@@ -466,13 +466,13 @@ target_reached:
         // The population might be larger than the target, if crossover
         // generates more than one offspring.
 
-        ++generation_;
+        ++steps_;
     }
 
   protected:
     std::size_t target_population_size_;
     float mutation_rate_;
-    std::size_t generation_;
+    std::size_t steps_;
     Population population_;
 };
 
