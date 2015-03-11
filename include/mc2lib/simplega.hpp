@@ -272,8 +272,11 @@ class GenePool {
         return oss.str();
     }
 
-    const std::list<GenomeT>& get() const
+    const Population& get() const
     { return population_; }
+
+    Population* getptr()
+    { return &population_; }
 
     float mutation_rate() const
     { return mutation_rate_; }
@@ -402,33 +405,29 @@ class GenePool {
      * individuals.
      *
      * The elements in selection also determine which individuals are to be
-     * removed from the population; selection[elite:] are removed from
-     * population.
+     * removed from the population; selection[keep:] are removed from
+     * population (can e.g. be used for elitism).
      */
     template <class URNG>
-    void nextgen(URNG& urng, Selection *selection, std::size_t mates,
-                 std::size_t elite = 0, bool sort_selection = false,
+    void nextgen(URNG& urng, const Selection& selection,
+                 std::size_t mates, std::size_t keep = 0,
                  std::size_t mate1_stride = 1, std::size_t mate2_stride = 1)
     {
-        assert(selection->size() >= mates);
-        assert(selection->size() >= elite);
+        assert(selection.size() >= mates);
+        assert(selection.size() >= keep);
 
-        if (sort_selection) {
-            selection_sort(selection);
-        }
-
-        std::size_t replace = selection->size() - elite;
+        std::size_t replace = selection.size() - keep;
         assert(replace > 0);
 
         const std::size_t target_population_size = target_population_size_ + replace;
 
         // Add offspring
         for (std::size_t i = 0; i < mates; i += mate1_stride) {
-            const auto mate1 = (*selection)[i];
+            const auto mate1 = selection[i];
 
             // j = i: avoid mating 2 individuals twice
             for (std::size_t j = i + 1; j < mates; j += mate2_stride) {
-                const auto mate2 = (*selection)[j];
+                const auto mate2 = selection[j];
 
                 crossover_mutate(urng,
                                  *mate1, *mate2,
@@ -441,18 +440,27 @@ class GenePool {
         }
 target_reached:
 
-        // Remove non-elite
-        std::size_t selection_start_idx = elite;
-        population_.remove_if([&](const GenomeT& val) {
-            if (!replace) return false;
-            for (std::size_t i = selection_start_idx; i < selection->size(); ++i) {
-                if (&val == (*selection)[i]) {
-                    --replace;
-                    return true;
+        // Remove selection[keep:]
+        auto selection_start = selection.begin();
+        std::advance(selection_start, keep);
+
+        for (auto it = population_.begin();
+                it != population_.end() && replace > 0; )
+        {
+            const GenomeT *val = &(*it);
+            auto match = std::find(selection_start, selection.end(), val);
+
+            if (match != selection.end()) {
+                if (match == selection_start) {
+                    ++selection_start;
                 }
+
+                it = population_.erase(it);
+                --replace;
+            } else {
+                ++it;
             }
-            return false;
-        });
+        }
 
         assert(population_.size() >= target_population_size_);
         // The population might be larger than the target, if crossover
