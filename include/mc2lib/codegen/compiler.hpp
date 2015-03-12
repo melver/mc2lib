@@ -70,6 +70,29 @@ typedef std::unordered_map<types::Pid, OperationSeq> Threads;
 typedef std::vector<const Operation*> OperationSeqConst;
 typedef OperationSeqConst::const_iterator OperationSeqConstIt;
 
+#if defined(__GNUC__) && (__GNUC__ == 4 && (__GNUC_MINOR__ == 6))
+    template <std::size_t max_size_bytes>
+    struct EventPtrs : public std::array<const mc::Event*, max_size_bytes/sizeof(types::WriteID)>
+    {
+        template<class... Ts>
+        EventPtrs(Ts... en)
+            : std::array<const mc::Event*, max_size_bytes/sizeof(types::WriteID)>({{ en ... }})
+        {}
+    };
+#else
+    // Only works for GCC > 4.6
+    template <std::size_t max_size_bytes>
+    using EventPtrs = std::array<const mc::Event*, max_size_bytes/sizeof(types::WriteID)>;
+#endif
+
+template<class... Ts>
+inline auto make_eventptrs(const mc::Event* e1, Ts... en)
+    -> EventPtrs<(1 + sizeof...(Ts)) * sizeof(types::WriteID)>
+{
+    EventPtrs<(1 + sizeof...(Ts)) * sizeof(types::WriteID)> es = { e1, en ... };
+    return es;
+}
+
 class Operation {
   public:
     explicit Operation(types::Pid pid)
@@ -205,21 +228,21 @@ class AssemblerState {
     bool exhausted() const
     { return last_write_id_ >= MAX_WRITE || last_read_id_ >= MAX_READ; }
 
-    template <std::size_t max_size, class Func>
-    std::array<const mc::Event*, max_size/sizeof(types::WriteID)>
+    template <std::size_t max_size_bytes, class Func>
+    EventPtrs<max_size_bytes>
     make_event(types::Pid pid, mc::Event::Type type,
                types::Addr addr, std::size_t size, Func mkevt)
     {
-        static_assert(max_size <= MAX_OP_SIZE, "Invalid size!");
-        static_assert(sizeof(types::WriteID) <= max_size, "Invalid size!");
-        static_assert(max_size % sizeof(types::WriteID) == 0, "Invalid size!");
-        assert(size <= max_size);
+        static_assert(max_size_bytes <= MAX_OP_SIZE, "Invalid size!");
+        static_assert(sizeof(types::WriteID) <= max_size_bytes, "Invalid size!");
+        static_assert(max_size_bytes % sizeof(types::WriteID) == 0, "Invalid size!");
+        assert(size <= max_size_bytes);
         assert(sizeof(types::WriteID) <= size);
         assert(size % sizeof(types::WriteID) == 0);
 
         assert(!exhausted());
 
-        std::array<const mc::Event*, max_size/sizeof(types::WriteID)> result;
+        EventPtrs<max_size_bytes> result;
 
         for (std::size_t i = 0; i < size/sizeof(types::WriteID); ++i) {
             result[i] = mkevt(i * sizeof(types::WriteID));
@@ -228,26 +251,28 @@ class AssemblerState {
         return result;
     }
 
-    template <std::size_t max_size>
-    std::array<const mc::Event*, max_size/sizeof(types::WriteID)>
+    template <std::size_t max_size_bytes = sizeof(types::WriteID)>
+    EventPtrs<max_size_bytes>
     make_read(types::Pid pid, mc::Event::Type type, types::Addr addr,
-              std::size_t size = max_size)
+              std::size_t size = max_size_bytes)
     {
-        return make_event<max_size>(pid, type, addr, size, [&](types::Addr offset) {
+        ++last_read_id_;
+        return make_event<max_size_bytes>(pid, type, addr, size, [&](types::Addr offset) {
             const mc::Event event =
-                mc::Event(type, addr + offset, mc::Iiid(pid, ++last_read_id_));
+                mc::Event(type, addr + offset, mc::Iiid(pid, last_read_id_));
 
             return &ew_->events.insert(event, true);
         });
     }
 
-    template <std::size_t max_size>
-    std::array<const mc::Event*, max_size/sizeof(types::WriteID)>
+    template <std::size_t max_size_bytes = sizeof(types::WriteID)>
+    EventPtrs<max_size_bytes>
     make_write(types::Pid pid, mc::Event::Type type, types::Addr addr,
-               types::WriteID *data, std::size_t size = max_size)
+               types::WriteID *data, std::size_t size = max_size_bytes)
     {
-        return make_event<max_size>(pid, type, addr, size, [&](types::Addr offset) {
-            const types::WriteID write_id = ++last_write_id_;
+        ++last_write_id_;
+        return make_event<max_size_bytes>(pid, type, addr, size, [&](types::Addr offset) {
+            const types::WriteID write_id = last_write_id_;
 
             const mc::Event event =
                 mc::Event(type, addr + offset, mc::Iiid(pid, write_id));
@@ -257,20 +282,20 @@ class AssemblerState {
         });
     }
 
-    template <std::size_t max_size>
-    std::array<const mc::Event*, max_size/sizeof(types::WriteID)>
-    get_write(const std::array<const mc::Event*, max_size/sizeof(types::WriteID)>& after,
+    template <std::size_t max_size_bytes = sizeof(types::WriteID)>
+    EventPtrs<max_size_bytes>
+    get_write(const EventPtrs<max_size_bytes>& after,
               types::Addr addr, const types::WriteID *from_id,
-              std::size_t size = max_size)
+              std::size_t size = max_size_bytes)
     {
-        static_assert(max_size <= MAX_OP_SIZE, "Invalid size!");
-        static_assert(sizeof(types::WriteID) <= max_size, "Invalid size!");
-        static_assert(max_size % sizeof(types::WriteID) == 0, "Invalid size!");
-        assert(size <= max_size);
+        static_assert(max_size_bytes <= MAX_OP_SIZE, "Invalid size!");
+        static_assert(sizeof(types::WriteID) <= max_size_bytes, "Invalid size!");
+        static_assert(max_size_bytes % sizeof(types::WriteID) == 0, "Invalid size!");
+        assert(size <= max_size_bytes);
         assert(sizeof(types::WriteID) <= size);
         assert(size % sizeof(types::WriteID) == 0);
 
-        std::array<const mc::Event*, max_size/sizeof(types::WriteID)> result;
+        EventPtrs<max_size_bytes> result;
 
         for (std::size_t i = 0; i < size/sizeof(types::WriteID); ++i) {
             WriteID_EventPtr::const_iterator write;
