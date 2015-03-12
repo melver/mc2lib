@@ -462,11 +462,15 @@ class CacheFlush : public MemOperation {
 struct RandomFactory {
     explicit RandomFactory(types::Pid min_pid, types::Pid max_pid,
                            types::Addr min_addr, types::Addr max_addr,
-                           std::size_t stride = 1, std::size_t max_delay = 50)
+                           std::size_t stride = sizeof(types::WriteID),
+                           std::size_t max_delay = 50)
         : min_pid_(min_pid), max_pid_(max_pid),
           min_addr_(min_addr), max_addr_(max_addr),
           stride_(stride), max_delay_(max_delay)
-    {}
+    {
+        assert(stride_ >= sizeof(types::WriteID));
+        assert(stride_ % sizeof(types::WriteID) == 0);
+    }
 
     void reset(types::Pid min_pid, types::Pid max_pid,
                types::Addr min_addr, types::Addr max_addr,
