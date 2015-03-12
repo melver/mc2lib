@@ -31,11 +31,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#define BOOST_TEST_DYN_LINK
-#define BOOST_TEST_MODULE Mc2LibTest
-#include <boost/test/unit_test.hpp>
-#include <iostream>
-
 #if 1
 #include <mc2lib/memconsistency.hpp>
 #include <mc2lib/simplega.hpp>
@@ -47,6 +42,11 @@
 #include "../include/mc2lib/codegen/ops.hpp"
 #include "../include/mc2lib/codegen/rit.hpp"
 #endif
+
+#define BOOST_TEST_DYN_LINK
+#define BOOST_TEST_MODULE Mc2LibTest
+#include <boost/test/unit_test.hpp>
+#include <iostream>
 
 using namespace mc2lib::codegen;
 using namespace mc2lib::memconsistency;

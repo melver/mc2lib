@@ -41,10 +41,11 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
+#include <sstream>
+#include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -284,20 +285,18 @@ class AssemblerState {
                     // previous test that has already been used in this test is
                     // low and doesn't necessarily cause a false positive, it is
                     // recommended that memory is 0'ed out for every new test.
-                    //
-                    std::cerr << __func__ << ": Invalid write!"
-                              << " A=" << std::hex << addr
-                              << " S=" << size;
+
+                    std::ostringstream oss;
+                    oss << __func__ << ": Invalid write!"
+                        << " A=" << std::hex << addr
+                        << " S=" << size;
 
                     if (write != writes_.end()) {
-                        std::cerr << ((write->second->addr != addr) ? " (addr mismatch)" : "")
-                                  << ((write->second->iiid == after[i]->iiid) ? " (same iiid)" : "");
+                        oss << ((write->second->addr != addr) ? " (addr mismatch)" : "")
+                            << ((write->second->iiid == after[i]->iiid) ? " (same iiid)" : "");
                     }
 
-                    std::cerr << std::endl;
-
-                    // When debugging, do not proceed.
-                    assert(false);
+                    throw std::logic_error(oss.str());
                 }
 
                 auto initial = mc::Event(mc::Event::Write, addr, mc::Iiid(-1, addr));
