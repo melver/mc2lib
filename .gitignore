@@ -2,3 +2,4 @@
 .clang_complete
 test
 apidoc
+compile_commands.json

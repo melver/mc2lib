@@ -66,7 +66,8 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
     {
         std::uniform_int_distribution<std::size_t> dist_idx(0, genome_.size() - 1);
         std::unordered_set<std::size_t> used;
-        std::size_t selection_count = (std::size_t)((float)genome_.size() * rate);
+        std::size_t selection_count =
+            static_cast<std::size_t>(static_cast<float>(genome_.size()) * rate);
 
         while (selection_count) {
             auto idx = dist_idx(urng_);

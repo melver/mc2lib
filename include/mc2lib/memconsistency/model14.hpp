@@ -66,9 +66,9 @@ class Architecture {
     virtual void clear()
     {}
 
-    virtual EventRel ppo(const ExecWitness&) const = 0;
-    virtual EventRel fences(const ExecWitness&) const = 0;
-    virtual EventRel prop(const ExecWitness&) const = 0;
+    virtual EventRel ppo(const ExecWitness& ew) const = 0;
+    virtual EventRel fences(const ExecWitness& ew) const = 0;
+    virtual EventRel prop(const ExecWitness& ew) const = 0;
 
     /*
      * Should return the mask of all types that are classed as read.
@@ -87,7 +87,7 @@ class Architecture {
      * addresses, but to the same cache-line! The well-formedness checks for
      * rf and co require this. This is an extension.
      */
-    virtual types::Addr addrToLine(types::Addr) const = 0;
+    virtual types::Addr addrToLine(types::Addr a) const = 0;
 };
 
 class ExecWitness {
@@ -196,7 +196,7 @@ class Checker {
   public:
     class Error : public std::exception {
       public:
-        Error(const char *w)
+        explicit Error(const char *w)
             : what_(w)
         {}
 
@@ -428,7 +428,7 @@ class Arch_TSO : public Architecture {
 
 class ArchProxy : public Architecture {
   public:
-    ArchProxy(Architecture *arch)
+    explicit ArchProxy(Architecture *arch)
        : arch_(arch), memoized_(false)
     {}
 

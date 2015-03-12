@@ -82,7 +82,7 @@ class Genome {
      *
      * @param g A raw vector of type T genes forming this new Genome.
      */
-    Genome(const std::vector<T>& g)
+    explicit Genome(const std::vector<T>& g)
         : genome_(g)
     {}
 

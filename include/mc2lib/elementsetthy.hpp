@@ -83,7 +83,7 @@ class ElementSet {
     ElementSet()
     {}
 
-    ElementSet(const Set& s)
+    explicit ElementSet(const Set& s)
         : set_(s)
     {}
 
@@ -280,7 +280,7 @@ class ElementRel {
         : props_(None)
     {}
 
-    ElementRel(const Relation& r)
+    explicit ElementRel(const Relation& r)
         : props_(None), rel_(r)
     {}
 
@@ -1017,7 +1017,7 @@ class ElementRelOp {
     ElementRelOp()
     {}
 
-    ElementRelOp(const std::vector<ElementRel<Ts>>& rels) :
+    explicit ElementRelOp(const std::vector<ElementRel<Ts>>& rels) :
         rels_(rels) {}
 
     virtual ~ElementRelOp()
@@ -1051,7 +1051,7 @@ class ElementRelSeq : public ElementRelOp<Ts> {
     ElementRelSeq()
     {}
 
-    ElementRelSeq(const std::vector<ElementRel<Ts>>& v)
+    explicit ElementRelSeq(const std::vector<ElementRel<Ts>>& v)
         : ElementRelOp<Ts>(v)
     {}
 
