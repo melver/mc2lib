@@ -64,7 +64,7 @@ class Return : public Operation {
     bool enable_emit(AssemblerState *asms)
     { return true; }
 
-    void insert_po(const Operation *before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
     {}
 
     std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
@@ -99,9 +99,9 @@ class Delay : public Operation {
     bool enable_emit(AssemblerState *asms)
     { return true; }
 
-    void insert_po(const Operation *before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
     {
-        before_ = before;
+        before_ = *before;
     }
 
     std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
@@ -151,12 +151,12 @@ class Read : public MemOperation {
     bool enable_emit(AssemblerState *asms)
     { return !asms->exhausted(); }
 
-    void insert_po(const Operation *before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
     {
         event_ = asms->make_read<sizeof(types::WriteID)>(pid(), mc::Event::Read, addr_)[0];
 
-        if (before != nullptr) {
-            auto event_before = before->last_event(event_, asms);
+        if (*before != nullptr) {
+            auto event_before = (*before)->last_event(event_, asms);
             if (event_before != nullptr) {
                 asms->ew()->po.insert(*event_before, *event_);
             }
@@ -230,8 +230,8 @@ class ReadAddrDp : public Read {
     // TODO: insert_po: if we start supporting an Arch which does not order
     // Read->Read, add a dependency-hb between this and the last Read -- this
     // assumes all Reads are reading into the same register, and this read
-    // computes the address with this one register. NOTE: asms->ew() can be
-    // used to traverse back po beyond the immediate neighbors.
+    // computes the address with this one register. NOTE: before can be used to
+    // traverse operations backwards before "before".
 
     std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
                             void *code, std::size_t len);
@@ -255,12 +255,12 @@ class Write : public Read {
         write_id_ = 0;
     }
 
-    void insert_po(const Operation *before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
     {
         event_ = asms->make_write<sizeof(types::WriteID)>(pid(), mc::Event::Write, addr_, &write_id_)[0];
 
-        if (before != nullptr) {
-            auto event_before = before->last_event(event_, asms);
+        if (*before != nullptr) {
+            auto event_before = (*before)->last_event(event_, asms);
             if (event_before != nullptr) {
                 asms->ew()->po.insert(*event_before, *event_);
             }
@@ -309,15 +309,15 @@ class ReadModifyWrite : public MemOperation {
     bool enable_emit(AssemblerState *asms)
     { return !asms->exhausted(); }
 
-    void insert_po(const Operation *before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
     {
         event_r_ = asms->make_read<sizeof(types::WriteID)>(
                 pid(), mc::Event::Read, addr_)[0];
         event_w_ = asms->make_write<sizeof(types::WriteID)>(
                 pid(), mc::Event::Write, addr_, &write_id_)[0];
 
-        if (before != nullptr) {
-            auto event_before = before->last_event(event_r_, asms);
+        if (*before != nullptr) {
+            auto event_before = (*before)->last_event(event_r_, asms);
             if (event_before != nullptr) {
                 asms->ew()->po.insert(*event_before, *event_r_);
 
@@ -424,9 +424,9 @@ class CacheFlush : public MemOperation {
     bool enable_emit(AssemblerState *asms)
     { return true; }
 
-    void insert_po(const Operation *before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
     {
-        before_ = before;
+        before_ = *before;
     }
 
     std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
