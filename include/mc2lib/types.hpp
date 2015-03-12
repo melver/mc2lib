@@ -34,6 +34,8 @@
 #ifndef MC2LIB_TYPES_HPP_
 #define MC2LIB_TYPES_HPP_
 
+#include <cstdint>
+
 namespace mc2lib {
 
     /**
@@ -55,7 +57,7 @@ namespace mc2lib {
                 typedef unsigned long long Pid;
                 typedef unsigned long long Poi;
                 typedef Addr InstPtr;
-                typedef uint8_t WriteID;
+                typedef std::uint8_t WriteID;
             };
 
         /**
