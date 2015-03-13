@@ -563,7 +563,7 @@ class ElementRel {
         if (path != nullptr) {
             FlagSet visiting;
 
-            bool result = R_impl(e1, &e2, &visited, &visiting);
+            bool result = R_search(e1, &e2, &visited, &visiting);
             if (result) {
                 get_path(path, &e1, &e2, &visiting);
             }
@@ -571,7 +571,7 @@ class ElementRel {
             return result;
         }
 
-        return R_impl(e1, &e2, &visited);
+        return R_search(e1, &e2, &visited);
     }
 
     /*
@@ -584,7 +584,7 @@ class ElementRel {
         ElementSet<Ts> visited;
 
         if (all_props(ReflexiveClosure) && in_on(e)) {
-            visited += e;
+            visited.insert(e);
         }
 
         if (!all_props(TransitiveClosure)) {
@@ -596,8 +596,8 @@ class ElementRel {
             return visited;
         }
 
-        if (!R_impl(e, &e, &visited, nullptr,
-                    None, SearchMode::RelatedVisitAll)) {
+        if (!R_search(e, &e, &visited, nullptr,
+                      None, SearchMode::RelatedVisitAll)) {
             if (!all_props(ReflexiveClosure)) {
                 visited -= e;
             }
@@ -750,7 +750,7 @@ class ElementRel {
     {
         ElementSet<Ts> es;
         for (const auto& tuples : rel_) {
-            es += tuples.first;
+            es.insert(tuples.first);
             es += tuples.second;
         }
         return es;
@@ -768,7 +768,7 @@ class ElementRel {
 
         ElementSet<Ts> es;
         for (const auto& tuples : rel_) {
-            es += tuples.first;
+            es.insert(tuples.first);
         }
 
         return es;
@@ -865,8 +865,8 @@ class ElementRel {
         FlagSet visiting;
 
         for (const auto& tuples : rel_) {
-            if (R_impl(tuples.first, nullptr, &visited, &visiting,
-                       local_props, SearchMode::FindCycle)) {
+            if (R_search(tuples.first, nullptr, &visited, &visiting,
+                         local_props, SearchMode::FindCycle)) {
 
                 if (cyclic != nullptr) {
                     get_path(cyclic, &tuples.first, nullptr, &visiting,
@@ -880,33 +880,24 @@ class ElementRel {
         return true;
     }
 
-    /*** SEARCH IMPLEMENTATION OF DIRECTED GRAPHS **
-     *
-     * Returns true if the two elements are ordered. If visit_all is set, all
-     * reachable nodes are visited; these are stored in visited (including
-     * the start node).
-     *
-     * If e2 == nullptr, returns true if a definite cycle has been detected;
-     * returning true here does not necessarily imply that e1 can reach itself.
-     *
-     * If e2 == nullptr and !visit_all, stops as soon as a cycle has been
-     * detected.
+    /**
+     * Directed graph search.
      */
-
-    /*
-     * Common setup.
-     */
-    bool R_impl(const Element& e1, const Element *e2,
-                ElementSet<Ts>* visited,
-                FlagSet* visiting = nullptr,
-                Properties local_props = None,
-                SearchMode mode = SearchMode::Related) const
+    bool R_search(const Element& e1, const Element *e2,
+                  ElementSet<Ts>* visited,
+                  FlagSet* visiting = nullptr,
+                  Properties local_props = None,
+                  SearchMode mode = SearchMode::Related) const
     {
         // We always require visited to be set.
         assert(visited != nullptr);
 
         // Merge call-specific props with global props.
         local_props |= props_;
+
+        const bool is_tran_cl = all_bitmask(local_props, TransitiveClosure);
+
+        R_impl search(this, visited, visiting, is_tran_cl, mode);
 
         if (e2 == nullptr) {
             // For the purpose of cycle detection, we are looking for e1->*e1.
@@ -917,81 +908,122 @@ class ElementRel {
 
             assert(mode == SearchMode::FindCycle);
 
-            if (all_bitmask(local_props, TransitiveClosure)) {
-                assert(visiting != nullptr);
-            }
-
             e2 = &e1;
+
+            if (is_tran_cl) {
+                assert(visiting != nullptr);
+                return search.dfs_rec_find_cycle(e1);
+            }
         } else {
             assert(mode != SearchMode::FindCycle);
         }
 
-        return R_dfs_rec(e1, *e2, visited, visiting, local_props, mode);
+        return search.dfs_rec(e1, *e2);
     }
 
-    /*
-     * Recursive DFS
-     */
-    bool R_dfs_rec(const Element& e1, const Element& e2,
-                   ElementSet<Ts>* visited,
-                   FlagSet* visiting,
-                   Properties local_props,
-                   SearchMode mode) const
-    {
-        const auto tuples = rel_.find(e1);
+    class R_impl {
+      public:
+        R_impl(const ElementRel *src, ElementSet<Ts>* visited,
+               FlagSet* visiting, bool is_tran_cl, SearchMode mode)
+            : src_(src)
+            , visited_(visited)
+            , visiting_(visiting)
+            , is_tran_cl_(is_tran_cl)
+            , mode_(mode)
+        {}
 
-        if (tuples == rel_.end()) {
-            return false;
-        }
+        bool dfs_rec(const Element& e1, const Element& e2) const
+        {
+            const auto tuples = src_->raw().find(e1);
 
-        if (visiting != nullptr) {
-            (*visiting)[e1] = true;
-        }
+            if (tuples == src_->raw().end()) {
+                return false;
+            }
 
-        bool result = false;
-        (*visited) += e1;
+            if (visiting_ != nullptr) {
+                (*visiting_)[e1] = true;
+            }
 
-        for (const auto& e : tuples->second.get()) {
-            if (e == e2) {
-                if (mode == SearchMode::RelatedVisitAll) {
-                    result = true;
-                } else {
-                    return true;
+            bool result = false;
+            visited_->insert(e1);
+
+            for (const auto& e : tuples->second.get()) {
+                if (e == e2) {
+                    if (mode_ == SearchMode::RelatedVisitAll) {
+                        result = true;
+                    } else {
+                        return true;
+                    }
+                }
+
+                if (is_tran_cl_) {
+                    if (!visited_->contains(e)) {
+                        if (dfs_rec(e, e2)) {
+                            if (mode_ == SearchMode::RelatedVisitAll) {
+                                result = true;
+                            } else {
+                                return true;
+                            }
+                        }
+
+                        // There might not be an edge e -> e2, but we must update
+                        // the visited set regardless -- this is only relevant, as
+                        // the caller might expect the complete set of visited
+                        // nodes if mode == RelatedVisitAll.
+                        visited_->insert(e);
+                    } else {
+                        //assert(mode_ != SearchMode::FindCycle);
+                    }
                 }
             }
 
-            if (all_bitmask(local_props, TransitiveClosure)) {
-                if (!visited->contains(e)) {
-                    if (R_dfs_rec(e, e2, visited, visiting,
-                                  local_props, mode)) {
-                        if (mode == SearchMode::RelatedVisitAll) {
-                            result = true;
-                        } else {
-                            return true;
-                        }
-                    }
+            if (visiting_ != nullptr) {
+                (*visiting_)[e1] = false;
+            }
 
-                    // There might not be an edge e -> e2, but we must update
-                    // the visited set regardless -- this is only relevant, as
-                    // the caller should only expect the complete set of
-                    // visited nodes is visit_all == true.
-                    (*visited) += e;
-                } else if(mode == SearchMode::FindCycle) {
-                    const auto se = visiting->find(e);
-                    if (se != visiting->end() && se->second) {
+            return result;
+        }
+
+        bool dfs_rec_find_cycle(const Element& start) const
+        {
+            //assert(is_tran_cl_);
+            //assert(mode_ == SearchMode::FindCycle);
+            //assert(visiting_ != nullptr);
+
+            const auto tuples = src_->raw().find(start);
+
+            if (tuples == src_->raw().end()) {
+                return false;
+            }
+
+            (*visiting_)[start] = true;
+            visited_->insert(start);
+
+            for (const auto& e : tuples->second.get()) {
+                if (!visited_->contains(e)) {
+                    if (dfs_rec_find_cycle(e)) {
+                        return true;
+                    }
+                } else {
+                    const auto se = visiting_->find(e);
+                    if (se != visiting_->end() && se->second) {
                         // Found a backedge --> cycle!
                         return true;
                     }
                 }
             }
+
+            (*visiting_)[start] = false;
+            return false;
         }
 
-        if (visiting != nullptr) {
-            (*visiting)[e1] = false;
-        }
-
-        return result;
-    }
+      private:
+        const ElementRel* src_;
+        ElementSet<Ts>* visited_;
+        FlagSet* visiting_;
+        bool is_tran_cl_;
+        SearchMode mode_;
+    };
 
   protected:
     Properties props_;
