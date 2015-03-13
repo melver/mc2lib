@@ -52,25 +52,26 @@ namespace memconsistency {
 class Iiid {
   public:
     struct Hash {
-        typedef std::hash<unsigned long long>::result_type result_type;
+        typedef std::hash<types::Poi>::result_type result_type;
         result_type operator()(const Iiid& k) const
         {
-            return std::hash<unsigned long long>()(k.pid ^ k.poi);
+            return std::hash<types::Poi>()(k.poi);
         }
     };
 
     Iiid() : pid(0), poi(0)
     {}
 
-    Iiid(types::Pid pid_, types::Poi poi_) :
-        pid(pid_), poi(poi_)
+    Iiid(types::Pid pid_, types::Poi poi_)
+        : pid(pid_)
+        , poi(poi_)
     {}
 
     operator std::string() const
     {
         std::ostringstream oss;
         oss << "P" << std::setfill('0') << std::setw(2) << pid
-            << ": " << std::setfill('0') << std::setw(16) << std::hex << poi;
+            << ": " << std::setfill('0') << std::setw(sizeof(types::Poi) * 2) << std::hex << poi;
         return oss.str();
     }
 
@@ -120,28 +121,32 @@ class Event {
         }
     };
 
+    typedef std::uint32_t TypeMask;
+
     enum Type {
-        None    = 0x0,
+        None    = 0x00000000,
 
-        Read    = 0x1,
+        Read    = 0x00000001,
 
-        Write   = 0x2,
+        Write   = 0x00000002,
 
-        Acquire = 0x4,
+        Acquire = 0x00000004,
 
-        Release = 0x8,
+        Release = 0x00000008,
 
         MemoryOperation = Read | Write | Acquire | Release
     };
 
-    typedef int TypeMask;
 
     Event()
-        : type(None), addr(0)
+        : addr(0)
+        , type(None)
     {}
 
     Event(TypeMask type_, types::Addr addr_, Iiid iiid_)
-        : type(type_), addr(addr_), iiid(iiid_)
+        : addr(addr_)
+        , type(type_)
+        , iiid(iiid_)
     {}
 
     operator std::string() const
@@ -213,8 +218,8 @@ class Event {
     }
 
   public:
-    TypeMask type;
     types::Addr addr;
+    TypeMask type;
     Iiid iiid;
 };
 

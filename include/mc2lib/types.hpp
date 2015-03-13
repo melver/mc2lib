@@ -53,9 +53,9 @@ namespace mc2lib {
          */
         template <bool use_specialized>
             struct Types {
-                typedef unsigned long long Addr;
-                typedef unsigned long long Pid;
-                typedef unsigned long long Poi;
+                typedef std::uint64_t Addr;
+                typedef std::uint16_t Pid;
+                typedef std::uint16_t Poi;
                 typedef Addr InstPtr;
                 typedef std::uint8_t WriteID;
             };

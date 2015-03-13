@@ -205,11 +205,17 @@ class AssemblerState {
   public:
     static constexpr std::size_t MAX_OP_SIZE = sizeof(types::WriteID) * 2; // 1 Operation can at most emit 2 write Events
     static constexpr std::size_t MAX_OP_EVTS = MAX_OP_SIZE / sizeof(types::WriteID);
+
+    static constexpr types::Poi MIN_READ = static_cast<types::Poi>(1) << (sizeof(types::Poi) * 8 - 1);
+    static constexpr types::Poi MAX_READ = std::numeric_limits<types::Poi>::max() - (MAX_OP_EVTS - 1);
+
     static constexpr types::WriteID INIT_WRITE = std::numeric_limits<types::WriteID>::min();
     static constexpr types::WriteID MIN_WRITE = INIT_WRITE + 1;
-    static constexpr types::WriteID MAX_WRITE = std::numeric_limits<types::WriteID>::max() - (MAX_OP_EVTS - 1);
-    static constexpr types::Poi MIN_READ = 0x8000000000000000ULL;
-    static constexpr types::Poi MAX_READ = 0xffffffffffffffffULL - (MAX_OP_EVTS - 1);
+    static constexpr types::WriteID MAX_WRITE =
+        (std::numeric_limits<types::WriteID>::max() < MIN_READ
+         ? std::numeric_limits<types::WriteID>::max() : MIN_READ - 1) - (MAX_OP_EVTS - 1);
+
+    static_assert(MIN_READ > MAX_WRITE, "Invalid read/write ID limits!");
 
     explicit AssemblerState(mc::model14::ExecWitness *ew, mc::model14::Architecture *arch)
         : ew_(ew), arch_(arch)
