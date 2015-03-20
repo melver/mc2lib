@@ -79,15 +79,6 @@ class Architecture {
      * Should return the mask of all types that are classed as write.
      */
     virtual Event::TypeMask eventTypeWrite() const = 0;
-
-    /*
-     * How we deal with address to cache-line/tag conversion.
-     *
-     * This permits having a relations with events that are to different
-     * addresses, but to the same cache-line! The well-formedness checks for
-     * rf and co require this. This is an extension.
-     */
-    virtual types::Addr addrToLine(types::Addr a) const = 0;
 };
 
 class ExecWitness {
@@ -225,7 +216,7 @@ class Checker {
 
             for (const auto& e : tuples.second.get()) {
                 if (   !e.any_type(arch_->eventTypeRead())
-                    || arch_->addrToLine(tuples.first.addr) != arch_->addrToLine(e.addr))
+                    || tuples.first.addr != e.addr)
                 {
                     throw Error("WF_RF_NOT_SAME_LOC");
                 }
@@ -248,7 +239,7 @@ class Checker {
             addrs.insert(tuples.first.addr);
 
             for (const auto& e : tuples.second.get()) {
-                if (arch_->addrToLine(tuples.first.addr) != arch_->addrToLine(e.addr)) {
+                if (tuples.first.addr != e.addr) {
                     throw Error("WF_CO_NOT_SAME_LOC");
                 }
             }
@@ -363,11 +354,6 @@ class Arch_SC : public Architecture {
     {
         return Event::Write;
     }
-
-    types::Addr addrToLine(types::Addr a) const
-    {
-        return a;
-    }
 };
 
 class Arch_TSO : public Architecture {
@@ -415,11 +401,6 @@ class Arch_TSO : public Architecture {
     Event::TypeMask eventTypeWrite() const
     {
         return Event::Write;
-    }
-
-    types::Addr addrToLine(types::Addr a) const
-    {
-        return a;
     }
 
   public:
@@ -473,11 +454,6 @@ class ArchProxy : public Architecture {
     Event::TypeMask eventTypeWrite() const
     {
         return arch_->eventTypeWrite();
-    }
-
-    types::Addr addrToLine(types::Addr a) const
-    {
-        return arch_->addrToLine(a);
     }
 
   protected:
