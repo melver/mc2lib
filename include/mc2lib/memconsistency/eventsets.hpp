@@ -37,6 +37,7 @@
 #include "../elementsetthy.hpp"
 #include "../types.hpp"
 
+#include <exception>
 #include <iomanip>
 #include <sstream>
 #include <string>
@@ -45,7 +46,7 @@ namespace mc2lib {
 
 /**
  * @namespace mc2lib::memconsistency
- * @brief Various frameworks for expressing memory consistency model semantics.
+ * @brief Various formal models for expressing memory consistency semantics.
  */
 namespace memconsistency {
 
@@ -226,6 +227,19 @@ class Event {
 typedef elementsetthy::ElementSet<elementsetthy::Types<Event>> EventSet;
 typedef elementsetthy::ElementRel<elementsetthy::Types<Event>> EventRel;
 typedef elementsetthy::ElementRelSeq<elementsetthy::Types<Event>> EventRelSeq;
+
+class Error : public std::exception {
+  public:
+    explicit Error(const char *w)
+        : what_(w)
+    {}
+
+    const char* what() const noexcept
+    { return what_; }
+
+  private:
+    const char *what_;
+};
 
 } /* namespace memconsistency */
 } /* namespace mc2lib */

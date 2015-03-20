@@ -36,7 +36,7 @@
 
 #include "eventsets.hpp"
 
-#include <exception>
+#include <memory>
 
 namespace mc2lib {
 namespace memconsistency {
@@ -55,6 +55,7 @@ namespace memconsistency {
 namespace model12 {
 
 class ExecWitness;
+class Checker;
 
 class Architecture {
   public:
@@ -63,6 +64,11 @@ class Architecture {
 
     virtual void clear()
     {}
+
+    /*
+     * Creates a checker compatible with this Architecture.
+     */
+    virtual std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const = 0;
 
     virtual EventRel ppo(const ExecWitness& ew) const = 0;
     virtual EventRel grf(const ExecWitness& ew) const = 0;
@@ -185,19 +191,6 @@ class ExecWitness {
 
 class Checker {
   public:
-    class Error : public std::exception {
-      public:
-        explicit Error(const char *w)
-            : what_(w)
-        {}
-
-        const char* what() const noexcept
-        { return what_; }
-
-      private:
-        const char *what_;
-    };
-
     Checker(const Architecture *arch, const ExecWitness *exec)
         : arch_(arch), exec_(exec)
     {}
@@ -308,6 +301,11 @@ class Checker {
 
 class Arch_SC : public Architecture {
   public:
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    {
+        return std::unique_ptr<Checker>(new Checker(this, exec));
+    }
+
     EventRel ppo(const ExecWitness& ew) const
     {
         assert(ew.po.transitive());
@@ -337,6 +335,11 @@ class Arch_SC : public Architecture {
 
 class Arch_TSO : public Architecture {
   public:
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    {
+        return std::unique_ptr<Checker>(new Checker(this, exec));
+    }
+
     void clear()
     {
         mfence.clear();
@@ -396,6 +399,11 @@ class ArchProxy : public Architecture {
     {
         arch_->clear();
         memoized_ = false;
+    }
+
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    {
+        return arch_->make_checker(exec);
     }
 
     void memoize(const ExecWitness& ew)

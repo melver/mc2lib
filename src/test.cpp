@@ -408,34 +408,34 @@ BOOST_AUTO_TEST_CASE(Model12Empty)
 {
     model12::ExecWitness ew;
     model12::Arch_SC sc;
-    model12::Checker c(&sc, &ew);
+    auto c = sc.make_checker(&ew);
 
-    BOOST_CHECK_NO_THROW(c.wf());
-    BOOST_CHECK(c.uniproc());
-    BOOST_CHECK(c.thin());
-    BOOST_CHECK(c.check_exec());
-    BOOST_CHECK_NO_THROW(c.valid_exec());
+    BOOST_CHECK_NO_THROW(c->wf());
+    BOOST_CHECK(c->uniproc());
+    BOOST_CHECK(c->thin());
+    BOOST_CHECK(c->check_exec());
+    BOOST_CHECK_NO_THROW(c->valid_exec());
 }
 
 BOOST_AUTO_TEST_CASE(Model14Empty)
 {
     model14::ExecWitness ew;
     model14::Arch_SC sc;
-    model14::Checker c(&sc, &ew);
+    auto c = sc.make_checker(&ew);
 
-    BOOST_CHECK_NO_THROW(c.wf());
-    BOOST_CHECK(c.sc_per_location());
-    BOOST_CHECK(c.no_thin_air());
-    BOOST_CHECK(c.observation());
-    BOOST_CHECK(c.propagation());
-    BOOST_CHECK_NO_THROW(c.valid_exec());
+    BOOST_CHECK_NO_THROW(c->wf());
+    BOOST_CHECK(c->sc_per_location());
+    BOOST_CHECK(c->no_thin_air());
+    BOOST_CHECK(c->observation());
+    BOOST_CHECK(c->propagation());
+    BOOST_CHECK_NO_THROW(c->valid_exec());
 }
 
 BOOST_AUTO_TEST_CASE(Model12DekkerValidSC)
 {
     model12::ExecWitness ew;
     model12::Arch_SC sc;
-    model12::Checker c(&sc, &ew);
+    auto c = sc.make_checker(&ew);
 
     Event Ix = Event(Event::Write, 10, Iiid(-1, 0));
     Event Iy = Event(Event::Write, 20, Iiid(-1, 1));
@@ -456,11 +456,11 @@ BOOST_AUTO_TEST_CASE(Model12DekkerValidSC)
     ew.rf.insert(Wx0, Rx1);
     ew.rf.insert(Wy1, Ry0);
 
-    BOOST_CHECK_NO_THROW(c.wf());
-    BOOST_CHECK(c.uniproc());
-    BOOST_CHECK(c.thin());
-    BOOST_CHECK(c.check_exec());
-    BOOST_CHECK_NO_THROW(c.valid_exec());
+    BOOST_CHECK_NO_THROW(c->wf());
+    BOOST_CHECK(c->uniproc());
+    BOOST_CHECK(c->thin());
+    BOOST_CHECK(c->check_exec());
+    BOOST_CHECK_NO_THROW(c->valid_exec());
 }
 
 BOOST_AUTO_TEST_CASE(Model14DekkerInvalidSCValidTSO)
@@ -468,8 +468,8 @@ BOOST_AUTO_TEST_CASE(Model14DekkerInvalidSCValidTSO)
     model14::ExecWitness ew;
     model14::Arch_SC sc;
     model14::Arch_TSO tso;
-    model14::Checker c_sc(&sc, &ew);
-    model14::Checker c_tso(&tso, &ew);
+    auto c_sc = sc.make_checker(&ew);
+    auto c_tso = tso.make_checker(&ew);
 
     Event Ix = Event(Event::Write, 10, Iiid(-1, 0));
     Event Iy = Event(Event::Write, 20, Iiid(-1, 1));
@@ -490,22 +490,22 @@ BOOST_AUTO_TEST_CASE(Model14DekkerInvalidSCValidTSO)
     ew.rf.insert(Ix, Rx1);
     ew.rf.insert(Iy, Ry0);
 
-    BOOST_CHECK_NO_THROW(c_sc.wf());
-    BOOST_CHECK(c_sc.sc_per_location());
-    BOOST_CHECK(c_sc.no_thin_air());
-    BOOST_CHECK(c_sc.observation());
-    BOOST_CHECK(!c_sc.propagation());
-    BOOST_CHECK_EXCEPTION(c_sc.valid_exec(), model14::Checker::Error,
-            [](const model14::Checker::Error& e) {
+    BOOST_CHECK_NO_THROW(c_sc->wf());
+    BOOST_CHECK(c_sc->sc_per_location());
+    BOOST_CHECK(c_sc->no_thin_air());
+    BOOST_CHECK(c_sc->observation());
+    BOOST_CHECK(!c_sc->propagation());
+    BOOST_CHECK_EXCEPTION(c_sc->valid_exec(), Error,
+            [](const Error& e) {
                 return std::string("PROPAGATION") == e.what();
             });
 
-    BOOST_CHECK_NO_THROW(c_tso.wf());
-    BOOST_CHECK(c_tso.sc_per_location());
-    BOOST_CHECK(c_tso.no_thin_air());
-    BOOST_CHECK(c_tso.observation());
-    BOOST_CHECK(c_tso.propagation());
-    BOOST_CHECK_NO_THROW(c_tso.valid_exec());
+    BOOST_CHECK_NO_THROW(c_tso->wf());
+    BOOST_CHECK(c_tso->sc_per_location());
+    BOOST_CHECK(c_tso->no_thin_air());
+    BOOST_CHECK(c_tso->observation());
+    BOOST_CHECK(c_tso->propagation());
+    BOOST_CHECK_NO_THROW(c_tso->valid_exec());
 }
 
 class GenomeAdd : public Genome<float> {
@@ -633,7 +633,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     BOOST_CHECK(emit_len != 0);
 
 #if 1
-    mc::model14::Checker checker(&arch, &ew);
+    auto checker = arch.make_checker(&ew);
     ew.po.set_props(mc::EventRel::TransitiveClosure);
     ew.co.set_props(mc::EventRel::TransitiveClosure);
 
@@ -642,11 +642,11 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     // implementation.
     BOOST_CHECK(compiler.update_from(0x42, 0, 0xccc5, &wid, 1)); // write 0xccc5
     BOOST_CHECK(compiler.update_from(0x62, 0, 0xccc5, &wid, 1)); // read  0xccc5
-    BOOST_CHECK(!checker.sc_per_location());
+    BOOST_CHECK(!checker->sc_per_location());
 
     wid = 0x27; // check replacement/update works
     BOOST_CHECK(compiler.update_from(0x62, 0, 0xccc5, &wid, 1)); // read  0xccc5
-    BOOST_CHECK(checker.sc_per_location());
+    BOOST_CHECK(checker->sc_per_location());
 
     // Check atomic works
     wid = 0;
