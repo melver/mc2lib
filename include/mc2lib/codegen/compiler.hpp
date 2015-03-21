@@ -93,6 +93,13 @@ inline auto make_eventptrs(const mc::Event* e1, Ts... en)
     return es;
 }
 
+/**
+ * Base class for backend implementations.
+ */
+struct Backend {
+    virtual ~Backend() {}
+};
+
 class Operation {
   public:
     explicit Operation(types::Pid pid)
@@ -133,9 +140,9 @@ class Operation {
     virtual void insert_po(OperationSeqConstIt before, AssemblerState *asms) = 0;
 
     /**
-     * Emit X86-64 machine code; fill in architecture-dependent ordering
-     * relations.
+     * Emit machine code.
      *
+     * @param backend Architecture backend.
      * @param start Instruction pointer to first instruction when executing.
      * @param[in,out] asms Pointer to AssemblerState instance of calling Compiler.
      * @param[out] code Pointer to memory to be copied into.
@@ -143,13 +150,8 @@ class Operation {
      *
      * @return Size of emitted code.
      */
-    virtual std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                                    void *code, std::size_t len)
-    {
-        // Provide default (nop), as not all operations may be implementable on
-        // all architectures.
-        return 0;
-    }
+    virtual std::size_t emit(const Backend *backend, types::InstPtr start,
+                             AssemblerState *asms, void *code, std::size_t len) = 0;
 
     /**
      * Accessor for last event generated. Also use to insert additional
@@ -416,7 +418,7 @@ class Compiler {
 
         // Generate code and architecture-specific ordering relations.
         // Must be called *after* insert_po!
-        const std::size_t op_len = backend_(op, base, &asms_, code, len);
+        const std::size_t op_len = op->emit(&backend_, base, &asms_, code, len);
         assert(op_len != 0);
 
         // Base IP must be unique!
@@ -503,15 +505,6 @@ class Compiler {
     // Each processor executes unique code, hence IP must be unique.  Only
     // stores the start IP of Op-sequence
     InstPtr_Op ip_to_op_;
-};
-
-struct Backend_X86_64 {
-    std::size_t operator ()(Operation *op,
-                            types::InstPtr start, AssemblerState *asms,
-                            void *code, std::size_t len) const
-    {
-        return op->emit_X86_64(start, asms, code, len);
-    }
 };
 
 template <class T>

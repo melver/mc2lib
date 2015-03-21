@@ -42,9 +42,30 @@ namespace mc2lib {
 namespace codegen {
 namespace ops {
 
+struct Backend_X86_64 : BackendGeneric {
+    virtual std::size_t Return(void *code, std::size_t len) const;
+
+    virtual std::size_t Delay(std::size_t length, void *code, std::size_t len) const;
+
+    virtual std::size_t Read(types::Addr addr, types::InstPtr start, void *code,
+                             std::size_t len, types::InstPtr *at) const;
+
+    virtual std::size_t ReadAddrDp(types::Addr addr, types::InstPtr start,
+                                   void *code, std::size_t len, types::InstPtr *at) const;
+
+    virtual std::size_t Write(types::Addr addr, types::WriteID write_id,
+                              types::InstPtr start, void *code, std::size_t len,
+                              types::InstPtr *at) const;
+
+    virtual std::size_t ReadModifyWrite(types::Addr addr, types::WriteID write_id,
+                                        types::InstPtr start, void *code, std::size_t len,
+                                        types::InstPtr *at) const;
+
+    virtual std::size_t CacheFlush(types::Addr addr, void *code, std::size_t len) const;
+};
+
 inline std::size_t
-Return::emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                    void *code, std::size_t len)
+Backend_X86_64::Return(void *code, std::size_t len) const
 {
     assert(len >= 1);
     // ASM> retq ;
@@ -53,40 +74,39 @@ Return::emit_X86_64(types::InstPtr start, AssemblerState *asms,
 }
 
 inline std::size_t
-Delay::emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                   void *code, std::size_t len)
+Backend_X86_64::Delay(std::size_t length, void *code, std::size_t len) const
 {
     char *cnext = static_cast<char*>(code);
 
-    assert(len >= length_);
-    for (std::size_t i = 0; i < length_; ++i) {
+    assert(len >= length);
+    for (std::size_t i = 0; i < length; ++i) {
         // ASM> nop ;
         *cnext++ = 0x90;
     }
 
     assert((cnext - static_cast<char*>(code)) ==
-            static_cast<std::ptrdiff_t>(length_));
-    return length_;
+            static_cast<std::ptrdiff_t>(length));
+    return length;
 }
 
 inline std::size_t
-Read::emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                  void *code, std::size_t len)
+Backend_X86_64::Read(types::Addr addr, types::InstPtr start,
+                     void *code, std::size_t len, types::InstPtr *at) const
 {
     char *cnext = static_cast<char*>(code);
     std::size_t expected_len = 0;
 
-    if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
+    if (addr <= static_cast<types::Addr>(0xffffffff)) {
         switch (sizeof(types::WriteID)) {
             case 1:
-                // ASM @0> movzbl addr_, %eax ;
+                // ASM @0> movzbl addr, %eax ;
                 expected_len = 8; assert(len >= expected_len);
-                at_ = start;
+                *at = start;
 
                 // @0
                 *cnext++ = 0x0f; *cnext++ = 0xb6;
                 *cnext++ = 0x04; *cnext++ = 0x25;
-                *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
+                *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr);
                 cnext += sizeof(std::uint32_t);
                 break;
 
@@ -96,18 +116,18 @@ Read::emit_X86_64(types::InstPtr start, AssemblerState *asms,
     } else {
         switch (sizeof(types::WriteID)) {
             case 1:
-                // ASM @0> movabs addr_, %al ;
+                // ASM @0> movabs addr, %al ;
                 expected_len = 9; assert(len >= expected_len);
-                at_ = start;
+                *at = start;
 
                 // @0
                 *cnext++ = 0xa0;
                 break;
 
             case 2:
-                // ASM @0> movabs addr_, %ax ;
+                // ASM @0> movabs addr, %ax ;
                 expected_len = 10; assert(len >= expected_len);
-                at_ = start;
+                *at = start;
 
                 // @0
                 *cnext++ = 0x66; *cnext++ = 0xa1;
@@ -117,7 +137,7 @@ Read::emit_X86_64(types::InstPtr start, AssemblerState *asms,
                 assert(false);
         }
 
-        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr);
         cnext += sizeof(std::uint64_t);
     }
 
@@ -127,8 +147,8 @@ Read::emit_X86_64(types::InstPtr start, AssemblerState *asms,
 }
 
 inline std::size_t
-ReadAddrDp::emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                        void *code, std::size_t len)
+Backend_X86_64::ReadAddrDp(types::Addr addr, types::InstPtr start,
+                           void *code, std::size_t len, types::InstPtr *at) const
 {
     char *cnext = static_cast<char*>(code);
     std::size_t expected_len = 0;
@@ -139,17 +159,17 @@ ReadAddrDp::emit_X86_64(types::InstPtr start, AssemblerState *asms,
     // @0
     *cnext++ = 0x48; *cnext++ = 0x31; *cnext++ = 0xc0;
 
-    if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
+    if (addr <= static_cast<types::Addr>(0xffffffff)) {
         switch (sizeof(types::WriteID)) {
             case 1:
-                // ASM @3> movzbl addr_(%rax), %eax ;
+                // ASM @3> movzbl addr(%rax), %eax ;
                 expected_len = 10; assert(len >= expected_len);
-                at_ = start + 3;
+                *at = start + 3;
 
                 // @3
                 *cnext++ = 0x0f; *cnext++ = 0xb6;
                 *cnext++ = 0x80;
-                *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
+                *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr);
                 cnext += sizeof(std::uint32_t);
                 break;
 
@@ -157,14 +177,14 @@ ReadAddrDp::emit_X86_64(types::InstPtr start, AssemblerState *asms,
                 assert(false);
         }
     } else {
-        // ASM @03> movabs addr_, %rdx ;
+        // ASM @03> movabs addr, %rdx ;
         //     @0d> add %rdx, %rax ;
         expected_len = 19; assert(len >= expected_len);
-        at_ = start + 0x10;
+        *at = start + 0x10;
 
         // @03
         *cnext++ = 0x48; *cnext++ = 0xba;
-        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr);
         cnext += sizeof(std::uint64_t);
 
         // @0d
@@ -194,29 +214,29 @@ ReadAddrDp::emit_X86_64(types::InstPtr start, AssemblerState *asms,
 }
 
 inline std::size_t
-Write::emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                   void *code, std::size_t len)
+Backend_X86_64::Write(types::Addr addr, types::WriteID write_id, types::InstPtr start,
+                      void *code, std::size_t len, types::InstPtr *at) const
 {
     char *cnext = static_cast<char*>(code);
     std::size_t expected_len = 0;
 
-    assert(write_id_ != 0);
+    assert(write_id != 0);
 
-    if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
+    if (addr <= static_cast<types::Addr>(0xffffffff)) {
         switch (sizeof(types::WriteID)) {
             case 1:
-                // ASM @0> movb write_id_, addr_ ;
+                // ASM @0> movb write_id, addr ;
                 expected_len = 8; assert(len >= expected_len);
-                at_ = start;
+                *at = start;
 
                 // @0
                 *cnext++ = 0xc6; *cnext++ = 0x04;
                 *cnext++ = 0x25;
 
-                *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
+                *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr);
                 cnext += sizeof(std::uint32_t);
 
-                *reinterpret_cast<types::WriteID*>(cnext) = write_id_;
+                *reinterpret_cast<types::WriteID*>(cnext) = write_id;
                 cnext += sizeof(types::WriteID);
                 break;
 
@@ -226,37 +246,37 @@ Write::emit_X86_64(types::InstPtr start, AssemblerState *asms,
     } else {
         switch (sizeof(types::WriteID)) {
             case 1:
-                // ASM @0> movabs addr_, %rax    ;
-                //     @a> movb write_id_, (%rax) ;
+                // ASM @0> movabs addr, %rax    ;
+                //     @a> movb write_id, (%rax) ;
                 expected_len = 13; assert(len >= expected_len);
-                at_ = start + 0xa;
+                *at = start + 0xa;
 
                 // @0
                 *cnext++ = 0x48; *cnext++ = 0xb8;
-                *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+                *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr);
                 cnext += sizeof(std::uint64_t);
 
                 // @a
                 *cnext++ = 0xc6; *cnext++ = 0x00;
-                *reinterpret_cast<types::WriteID*>(cnext) = write_id_;
+                *reinterpret_cast<types::WriteID*>(cnext) = write_id;
                 cnext += sizeof(types::WriteID);
                 break;
 
             case 2:
-                // ASM @0> movabs addr_, %rax ;
-                //     @a> mov write_id_, %edx ;
+                // ASM @0> movabs addr, %rax ;
+                //     @a> mov write_id, %edx ;
                 //     @f> mov %dx, (%rax) ;
                 expected_len = 18; assert(len >= expected_len);
-                at_ = start + 0xf;
+                *at = start + 0xf;
 
                 // @0
                 *cnext++ = 0x48; *cnext++ = 0xb8;
-                *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+                *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr);
                 cnext += sizeof(std::uint64_t);
 
                 // @a
                 *cnext++ = 0xba;
-                *reinterpret_cast<std::uint32_t*>(cnext) = write_id_;
+                *reinterpret_cast<std::uint32_t*>(cnext) = write_id;
                 cnext += sizeof(std::uint32_t);
 
                 // @f
@@ -274,32 +294,32 @@ Write::emit_X86_64(types::InstPtr start, AssemblerState *asms,
 }
 
 inline std::size_t
-ReadModifyWrite::emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                             void *code, std::size_t len)
+Backend_X86_64::ReadModifyWrite(types::Addr addr, types::WriteID write_id, types::InstPtr start,
+                                void *code, std::size_t len, types::InstPtr *at) const
 {
     char *cnext = static_cast<char*>(code);
     std::size_t expected_len = 0;
 
-    assert(write_id_ != 0);
+    assert(write_id != 0);
 
     switch (sizeof(types::WriteID)) {
         case 1:
-            // ASM @0> mov write_id_, %al
+            // ASM @0> mov write_id, %al
             expected_len = 2; assert(len >= expected_len);
 
             // @0
             *cnext++ = 0xb0;
-            *reinterpret_cast<types::WriteID*>(cnext) = write_id_;
+            *reinterpret_cast<types::WriteID*>(cnext) = write_id;
             cnext += sizeof(types::WriteID);
             break;
 
         case 2:
-            // ASM @0> mov write_id_, %eax
+            // ASM @0> mov write_id, %eax
             expected_len = 5; assert(len >= expected_len);
 
             // @0
             *cnext++ = 0xb8;
-            *reinterpret_cast<std::uint32_t*>(cnext) = write_id_;
+            *reinterpret_cast<std::uint32_t*>(cnext) = write_id;
             cnext += sizeof(std::uint32_t);
             break;
 
@@ -307,17 +327,17 @@ ReadModifyWrite::emit_X86_64(types::InstPtr start, AssemblerState *asms,
             assert(false);
     }
 
-    if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
+    if (addr <= static_cast<types::Addr>(0xffffffff)) {
         switch (sizeof(types::WriteID)) {
             case 1:
-                // ASM @2> mov addr_, %edx
+                // ASM @2> mov addr, %edx
                 //     @7> lock xchg %al, (%rdx)
                 expected_len = 10; assert(len >= expected_len);
-                at_ = start + 0x7;
+                *at = start + 0x7;
 
                 // @2
                 *cnext++ = 0xba;
-                *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
+                *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr);
                 cnext += sizeof(std::uint32_t);
 
                 // @7
@@ -330,14 +350,14 @@ ReadModifyWrite::emit_X86_64(types::InstPtr start, AssemblerState *asms,
     } else {
         switch (sizeof(types::WriteID)) {
             case 1:
-                // ASM @2> movabs addr_, %rdx ;
+                // ASM @2> movabs addr, %rdx ;
                 //     @c> lock xchg %al, (%rdx) ;
                 expected_len = 15; assert(len >= expected_len);
-                at_ = start + 0xc;
+                *at = start + 0xc;
 
                 // @2
                 *cnext++ = 0x48; *cnext++ = 0xba;
-                *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+                *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr);
                 cnext += sizeof(std::uint64_t);
 
                 // @c
@@ -345,14 +365,14 @@ ReadModifyWrite::emit_X86_64(types::InstPtr start, AssemblerState *asms,
                 break;
 
             case 2:
-                // ASM @5> movabs addr_, %rdx ;
+                // ASM @5> movabs addr, %rdx ;
                 //     @f> lock xchg %ax, (%rdx) ;
                 expected_len = 19; assert(len >= expected_len);
-                at_ = start + 0xf;
+                *at = start + 0xf;
 
                 // @2
                 *cnext++ = 0x48; *cnext++ = 0xba;
-                *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+                *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr);
                 cnext += sizeof(std::uint64_t);
 
                 // @c
@@ -370,29 +390,28 @@ ReadModifyWrite::emit_X86_64(types::InstPtr start, AssemblerState *asms,
 }
 
 inline std::size_t
-CacheFlush::emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                        void *code, std::size_t len)
+Backend_X86_64::CacheFlush(types::Addr addr, void *code, std::size_t len) const
 {
     char *cnext = static_cast<char*>(code);
     std::size_t expected_len = 0;
 
-    if (addr_ <= static_cast<types::Addr>(0xffffffff)) {
-        // ASM @0> clflush addr_ ;
+    if (addr <= static_cast<types::Addr>(0xffffffff)) {
+        // ASM @0> clflush addr ;
         expected_len = 8; assert(len >= expected_len);
 
         // @0
         *cnext++ = 0x0f; *cnext++ = 0xae;
         *cnext++ = 0x3c; *cnext++ = 0x25;
-        *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr_);
+        *reinterpret_cast<std::uint32_t*>(cnext) = static_cast<std::uint32_t>(addr);
         cnext += sizeof(std::uint32_t);
     } else {
-        // ASM @0> mov addr_, %rdx ;
+        // ASM @0> mov addr, %rdx ;
         //     @a> clflush (%rdx) ;
         expected_len = 13; assert(len >= expected_len);
 
         // @0
         *cnext++ = 0x48; *cnext++ = 0xba;
-        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr_);
+        *reinterpret_cast<std::uint64_t*>(cnext) = static_cast<std::uint64_t>(addr);
         cnext += sizeof(std::uint64_t);
 
         // @a

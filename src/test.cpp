@@ -34,12 +34,12 @@
 #if 1
 #include <mc2lib/memconsistency.hpp>
 #include <mc2lib/simplega.hpp>
-#include <mc2lib/codegen/ops.hpp>
+#include <mc2lib/codegen/ops/x86_64.hpp>
 #include <mc2lib/codegen/rit.hpp>
 #else
 #include "../include/mc2lib/memconsistency.hpp"
 #include "../include/mc2lib/simplega.hpp"
-#include "../include/mc2lib/codegen/ops.hpp"
+#include "../include/mc2lib/codegen/ops/x86_64.hpp"
 #include "../include/mc2lib/codegen/rit.hpp"
 #endif
 
@@ -617,7 +617,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     BOOST_CHECK_EQUAL(threads.size(), 2);
     BOOST_CHECK_EQUAL(threads_size(threads), rit.get().size());
 
-    Compiler<Backend_X86_64> compiler(&arch, &ew,  &threads);
+    Compiler<ops::Backend_X86_64> compiler(&arch, &ew,  &threads);
 
     char code[1024];
 
@@ -671,7 +671,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux)
     model14::ExecWitness ew;
     model14::Arch_TSO arch;
 
-    Compiler<Backend_X86_64> compiler(&arch, &ew);
+    Compiler<ops::Backend_X86_64> compiler(&arch, &ew);
 
     unsigned char test_mem[] = {
         0x03, 0x14, 0x25, 0x36, 0x47, 0x58, 0x69, 0x7a, 0x8b, 0x9c,

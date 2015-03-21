@@ -48,6 +48,28 @@ namespace codegen {
  */
 namespace ops {
 
+struct BackendGeneric : Backend {
+    virtual std::size_t Return(void *code, std::size_t len) const = 0;
+
+    virtual std::size_t Delay(std::size_t length, void *code, std::size_t len) const = 0;
+
+    virtual std::size_t Read(types::Addr addr, types::InstPtr start, void *code,
+                             std::size_t len, types::InstPtr *at) const = 0;
+
+    virtual std::size_t ReadAddrDp(types::Addr addr, types::InstPtr start,
+                                   void *code, std::size_t len, types::InstPtr *at) const = 0;
+
+    virtual std::size_t Write(types::Addr addr, types::WriteID write_id,
+                              types::InstPtr start, void *code, std::size_t len,
+                              types::InstPtr *at) const = 0;
+
+    virtual std::size_t ReadModifyWrite(types::Addr addr, types::WriteID write_id,
+                                        types::InstPtr start, void *code, std::size_t len,
+                                        types::InstPtr *at) const = 0;
+
+    virtual std::size_t CacheFlush(types::Addr addr, void *code, std::size_t len) const = 0;
+};
+
 class Return : public Operation {
   public:
     explicit Return(types::Pid pid = -1)
@@ -67,8 +89,12 @@ class Return : public Operation {
     void insert_po(OperationSeqConstIt before, AssemblerState *asms)
     {}
 
-    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                            void *code, std::size_t len);
+    std::size_t emit(const Backend *backend, types::InstPtr start,
+                     AssemblerState *asms, void *code, std::size_t len)
+    {
+        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
+        return backend_generic->Return(code, len);
+    }
 
     const mc::Event* last_event(const mc::Event *next_event,
                                 AssemblerState *asms) const
@@ -104,8 +130,12 @@ class Delay : public Operation {
         before_ = *before;
     }
 
-    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                            void *code, std::size_t len);
+    std::size_t emit(const Backend *backend, types::InstPtr start,
+                     AssemblerState *asms, void *code, std::size_t len)
+    {
+        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
+        return backend_generic->Delay(length_, code, len);
+    }
 
     const mc::Event* last_event(const mc::Event *next_event,
                                 AssemblerState *asms) const
@@ -163,8 +193,12 @@ class Read : public MemOperation {
         }
     }
 
-    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                            void *code, std::size_t len);
+    std::size_t emit(const Backend *backend, types::InstPtr start,
+                     AssemblerState *asms, void *code, std::size_t len)
+    {
+        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
+        return backend_generic->Read(addr_, start, code, len, &at_);
+    }
 
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
@@ -233,8 +267,12 @@ class ReadAddrDp : public Read {
     // computes the address with this one register. NOTE: before can be used to
     // traverse operations backwards before "before".
 
-    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                            void *code, std::size_t len);
+    std::size_t emit(const Backend *backend, types::InstPtr start,
+                     AssemblerState *asms, void *code, std::size_t len)
+    {
+        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
+        return backend_generic->ReadAddrDp(addr_, start, code, len, &at_);
+    }
 };
 
 class Write : public Read {
@@ -267,8 +305,12 @@ class Write : public Read {
         }
     }
 
-    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                            void *code, std::size_t len);
+    std::size_t emit(const Backend *backend, types::InstPtr start,
+                     AssemblerState *asms, void *code, std::size_t len)
+    {
+        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
+        return backend_generic->Write(addr_, write_id_, start, code, len, &at_);
+    }
 
   protected:
     virtual void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
@@ -330,8 +372,12 @@ class ReadModifyWrite : public MemOperation {
         asms->ew()->po.insert(*event_r_, *event_w_);
     }
 
-    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                            void *code, std::size_t len);
+    std::size_t emit(const Backend *backend, types::InstPtr start,
+                     AssemblerState *asms, void *code, std::size_t len)
+    {
+        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
+        return backend_generic->ReadModifyWrite(addr_, write_id_, start, code, len, &at_);
+    }
 
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
@@ -427,8 +473,12 @@ class CacheFlush : public MemOperation {
         before_ = *before;
     }
 
-    std::size_t emit_X86_64(types::InstPtr start, AssemblerState *asms,
-                            void *code, std::size_t len);
+    std::size_t emit(const Backend *backend, types::InstPtr start,
+                     AssemblerState *asms, void *code, std::size_t len)
+    {
+        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
+        return backend_generic->CacheFlush(addr_, code, len);
+    }
 
     const mc::Event* last_event(const mc::Event *next_event,
                                 AssemblerState *asms) const
