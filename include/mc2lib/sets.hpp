@@ -31,8 +31,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MC2LIB_ELEMENTSETTHY_HPP_
-#define MC2LIB_ELEMENTSETTHY_HPP_
+#ifndef MC2LIB_SETS_HPP_
+#define MC2LIB_SETS_HPP_
 
 #include <cassert>
 #include <cstddef>
@@ -43,10 +43,10 @@
 namespace mc2lib {
 
 /**
- * @namespace mc2lib::elementsetthy
+ * @namespace mc2lib::sets
  * @brief Sets and maps exposed in a restricted set of set theory.
  */
-namespace elementsetthy {
+namespace sets {
 
 /**
  * Checks that a bit mask has all given bits set.
@@ -75,22 +75,22 @@ inline bool any_bitmask(unsigned mask, unsigned any)
 }
 
 template <class Ts>
-class ElementSet {
+class Set {
   public:
     typedef typename Ts::Element Element;
-    typedef typename Ts::Set Set;
+    typedef typename Ts::SetContainer Container;
 
-    ElementSet()
+    Set()
     {}
 
-    explicit ElementSet(const Set& s)
+    explicit Set(const Container& s)
         : set_(s)
     {}
 
-    const Set& get() const
+    const Container& get() const
     { return set_; }
 
-    bool operator==(const ElementSet& rhs) const
+    bool operator==(const Set& rhs) const
     {
         return set_ == rhs.set_;
     }
@@ -112,9 +112,9 @@ class ElementSet {
     }
 
     template <class FilterFunc>
-    ElementSet filter(FilterFunc filterFunc) const
+    Set filter(FilterFunc filterFunc) const
     {
-        ElementSet es;
+        Set es;
 
         for (const auto& e : set_) {
             if (filterFunc(e)) {
@@ -136,19 +136,19 @@ class ElementSet {
     /*
      * Set union.
      */
-    ElementSet& operator+=(const Element& rhs)
+    Set& operator+=(const Element& rhs)
     {
         insert(rhs);
         return *this;
     }
 
-    ElementSet operator+(const Element& rhs) const
+    Set operator+(const Element& rhs) const
     {
-        ElementSet es = *this;
+        Set es = *this;
         return es += rhs;
     }
 
-    ElementSet& operator+=(const ElementSet& rhs)
+    Set& operator+=(const Set& rhs)
     {
         if (this != &rhs) {
             set_.insert(rhs.set_.begin(), rhs.set_.end());
@@ -157,28 +157,28 @@ class ElementSet {
         return *this;
     }
 
-    ElementSet operator+(const ElementSet& rhs) const
+    Set operator+(const Set& rhs) const
     {
-        ElementSet es = *this;
+        Set es = *this;
         return es += rhs;
     }
 
     /*
      * Set difference.
      */
-    ElementSet& operator-=(const Element& rhs)
+    Set& operator-=(const Element& rhs)
     {
         erase(rhs);
         return *this;
     }
 
-    ElementSet operator-(const Element& rhs) const
+    Set operator-(const Element& rhs) const
     {
-        ElementSet es = *this;
+        Set es = *this;
         return es -= rhs;
     }
 
-    ElementSet& operator-=(const ElementSet& rhs)
+    Set& operator-=(const Set& rhs)
     {
         if (this == &rhs) {
             clear();
@@ -194,18 +194,18 @@ class ElementSet {
         return *this;
     }
 
-    ElementSet operator-(const ElementSet& rhs) const
+    Set operator-(const Set& rhs) const
     {
-        ElementSet es = *this;
+        Set es = *this;
         return es -= rhs;
     }
 
     /*
      * Set intersection
      */
-    ElementSet operator&(const ElementSet& rhs) const
+    Set operator&(const Set& rhs) const
     {
-        ElementSet es;
+        Set es;
 
         for (const auto& e : rhs.get()) {
             if (contains(e)) {
@@ -216,7 +216,7 @@ class ElementSet {
         return es;
     }
 
-    ElementSet& operator&=(const ElementSet& rhs)
+    Set& operator&=(const Set& rhs)
     {
         if (this != &rhs) {
             *this = rhs & *this;
@@ -231,7 +231,7 @@ class ElementSet {
     bool empty() const
     { return set_.empty(); }
 
-    bool subseteq(const ElementSet& es) const
+    bool subseteq(const Set& es) const
     {
         if (size() > es.size()) return false;
 
@@ -244,21 +244,21 @@ class ElementSet {
         return true;
     }
 
-    bool subset(const ElementSet& es) const
+    bool subset(const Set& es) const
     {
         return size() < es.size() && subseteq(es);
     }
 
   protected:
-     Set set_;
+     Container set_;
 };
 
 template <class Ts>
-class ElementRel {
+class Relation {
   public:
     typedef typename Ts::Element Element;
 
-    typedef typename Ts::template Map<ElementSet<Ts>> Relation;
+    typedef typename Ts::template MapContainer<Set<Ts>> Container;
 
     typedef std::pair<Element, Element> Tuple;
 
@@ -276,36 +276,36 @@ class ElementRel {
     };
     typedef unsigned Properties;
 
-    ElementRel()
+    Relation()
         : props_(None)
     {}
 
-    explicit ElementRel(const Relation& r)
+    explicit Relation(const Container& r)
         : props_(None), rel_(r)
     {}
 
     /*
      * Avoid accessing rel_ directly. Uses of raw should be well justified.
      */
-    const Relation& raw() const
+    const Container& raw() const
     { return rel_; }
 
     Properties props() const
     { return props_; }
 
-    ElementRel& set_props(Properties props)
+    Relation& set_props(Properties props)
     {
         props_ = props;
         return *this;
     }
 
-    ElementRel& add_props(Properties props)
+    Relation& add_props(Properties props)
     {
         props_ |= props;
         return *this;
     }
 
-    ElementRel& unset_props(Properties props)
+    Relation& unset_props(Properties props)
     {
         props_ &= ~props;
         return *this;
@@ -333,7 +333,7 @@ class ElementRel {
         rel_[e1].insert(e2, assert_unique);
     }
 
-    void insert(const Element& e1, const ElementSet<Ts>& e2s)
+    void insert(const Element& e1, const Set<Ts>& e2s)
     {
         if (e2s.empty()) return;
         rel_[e1] += e2s;
@@ -351,7 +351,7 @@ class ElementRel {
         }
     }
 
-    void erase(const Element& e1, const ElementSet<Ts>& e2s)
+    void erase(const Element& e1, const Set<Ts>& e2s)
     {
         if (contains__(e1)) {
             rel_[e1] -= e2s;
@@ -398,13 +398,13 @@ class ElementRel {
      * Provide eval() for evaluated view of the relation (with properties
      * evaluated).
      */
-    ElementRel eval() const
+    Relation eval() const
     {
         if (!props()) {
             return *this;
         }
 
-        ElementRel result;
+        Relation result;
 
         for_each([&result](const Element& e1, const Element& e2) {
             result.insert(e1, e2);
@@ -414,9 +414,9 @@ class ElementRel {
     }
 
     template <class FilterFunc>
-    ElementRel filter(FilterFunc filterFunc) const
+    Relation filter(FilterFunc filterFunc) const
     {
-        ElementRel result;
+        Relation result;
 
         for_each([&filterFunc, &result](const Element& e1, const Element& e2) {
             if (filterFunc(e1, e2)) {
@@ -427,9 +427,9 @@ class ElementRel {
         return result;
     }
 
-    ElementRel inverse() const
+    Relation inverse() const
     {
-        ElementRel result;
+        Relation result;
 
         for_each([&result](const Element& e1, const Element& e2) {
             result.insert(e2, e1);
@@ -441,7 +441,7 @@ class ElementRel {
     /*
      * Relation union.
      */
-    ElementRel& operator+=(const ElementRel& rhs)
+    Relation& operator+=(const Relation& rhs)
     {
         if (rhs.props()) {
             const auto rhs_domain = rhs.domain();
@@ -457,28 +457,28 @@ class ElementRel {
         return *this;
     }
 
-    ElementRel operator+(const ElementRel& rhs) const
+    Relation operator+(const Relation& rhs) const
     {
-        ElementRel er = *this;
+        Relation er = *this;
         return er += rhs;
     }
 
-    ElementRel& operator+=(const Tuple& rhs)
+    Relation& operator+=(const Tuple& rhs)
     {
         insert(rhs.first, rhs.second);
         return *this;
     }
 
-    ElementRel operator+(const Tuple& rhs) const
+    Relation operator+(const Tuple& rhs) const
     {
-        ElementRel er = *this;
+        Relation er = *this;
         return er += rhs;
     }
 
     /*
      * Relation difference.
      */
-    ElementRel& operator-=(const ElementRel& rhs)
+    Relation& operator-=(const Relation& rhs)
     {
         if (rhs.props()) {
             const auto rhs_domain = rhs.domain();
@@ -494,24 +494,24 @@ class ElementRel {
         return *this;
     }
 
-    ElementRel operator-(const ElementRel& rhs) const
+    Relation operator-(const Relation& rhs) const
     {
-        ElementRel er = *this;
+        Relation er = *this;
         return er -= rhs;
     }
 
     /*
      * Relation intersection
      */
-    ElementRel operator&(const ElementRel& rhs) const
+    Relation operator&(const Relation& rhs) const
     {
-        ElementRel es;
+        Relation es;
 
         const auto this_domain = domain();
         for (const auto& e : this_domain.get()) {
             const auto this_reachable = reachable(e);
             const auto rhs_reachable = rhs.reachable(e);
-            ElementSet<Ts> intersect = this_reachable & rhs_reachable;
+            Set<Ts> intersect = this_reachable & rhs_reachable;
             if (!intersect.empty()) {
                 es.rel_[e] = intersect;
             }
@@ -520,7 +520,7 @@ class ElementRel {
         return es;
     }
 
-    ElementRel& operator&=(const ElementRel& rhs)
+    Relation& operator&=(const Relation& rhs)
     {
         *this = rhs & *this;
         return *this;
@@ -536,7 +536,7 @@ class ElementRel {
         return rel_.empty();
     }
 
-    bool operator==(const ElementRel& rhs) const
+    bool operator==(const Relation& rhs) const
     {
         return (props() ? eval() : *this).rel_ ==
                (rhs.props() ? rhs.eval() : rhs).rel_;
@@ -558,7 +558,7 @@ class ElementRel {
             }
         }
 
-        ElementSet<Ts> visited;
+        Set<Ts> visited;
 
         if (path != nullptr) {
             FlagSet visiting;
@@ -579,9 +579,9 @@ class ElementRel {
      * itself, but includes start if start can reach itself (e.g. through
      * cycle).
      */
-    ElementSet<Ts> reachable(const Element& e) const
+    Set<Ts> reachable(const Element& e) const
     {
-        ElementSet<Ts> visited;
+        Set<Ts> visited;
 
         if (all_props(ReflexiveClosure) && in_on(e)) {
             visited.insert(e);
@@ -644,7 +644,7 @@ class ElementRel {
     /*
      * ∀(x,y) ∈ on×on, x→y ∨ y→x
      */
-    bool total_on(const ElementSet<Ts>& on) const
+    bool total_on(const Set<Ts>& on) const
     {
         for (const auto& e1 : on.get()) {
             for (const auto& e2 : on.get()) {
@@ -660,7 +660,7 @@ class ElementRel {
     /*
      * ∀(x,y) ∈ on×on, x→y ∨ y→x ∨ x=y
      */
-    bool connex_on(const ElementSet<Ts>& on) const
+    bool connex_on(const Set<Ts>& on) const
     {
         for (const auto& e1 : on.get()) {
             for (const auto& e2 : on.get()) {
@@ -673,7 +673,7 @@ class ElementRel {
         return true;
     }
 
-    bool weak_partial_order(const ElementSet<Ts>& on) const
+    bool weak_partial_order(const Set<Ts>& on) const
     {
         // (domain ∪ range) in on
         for (const auto& tuples : rel_) {
@@ -685,12 +685,12 @@ class ElementRel {
         return transitive() && !irreflexive();
     }
 
-    bool weak_total_order(const ElementSet<Ts>& on) const
+    bool weak_total_order(const Set<Ts>& on) const
     {
         return weak_partial_order(on) && total_on(on);
     }
 
-    bool strict_partial_order(const ElementSet<Ts>& on) const
+    bool strict_partial_order(const Set<Ts>& on) const
     {
         // (domain ∪ range) in on
         for (const auto& tuples : rel_) {
@@ -702,7 +702,7 @@ class ElementRel {
         return transitive() && irreflexive();
     }
 
-    bool strict_total_order(const ElementSet<Ts>& on) const
+    bool strict_total_order(const Set<Ts>& on) const
     {
         return strict_partial_order(on) && connex_on(on);
     }
@@ -746,9 +746,9 @@ class ElementRel {
         return false;
     }
 
-    ElementSet<Ts> on() const
+    Set<Ts> on() const
     {
-        ElementSet<Ts> es;
+        Set<Ts> es;
         for (const auto& tuples : rel_) {
             es.insert(tuples.first);
             es += tuples.second;
@@ -756,7 +756,7 @@ class ElementRel {
         return es;
     }
 
-    ElementSet<Ts> domain() const
+    Set<Ts> domain() const
     {
         if (all_props(ReflexiveClosure)) {
             // By the fact that the reflexive closure is
@@ -766,7 +766,7 @@ class ElementRel {
             return on();
         }
 
-        ElementSet<Ts> es;
+        Set<Ts> es;
         for (const auto& tuples : rel_) {
             es.insert(tuples.first);
         }
@@ -774,14 +774,14 @@ class ElementRel {
         return es;
     }
 
-    ElementSet<Ts> range() const
+    Set<Ts> range() const
     {
         if (all_props(ReflexiveClosure)) {
             // See above.
             return on();
         }
 
-        ElementSet<Ts> es;
+        Set<Ts> es;
         for (const auto& tuples : rel_) {
             es += reachable(tuples.first);
         }
@@ -789,7 +789,7 @@ class ElementRel {
     }
 
   protected:
-    typedef typename Ts::template Map<bool> FlagSet;
+    typedef typename Ts::template MapContainer<bool> FlagSet;
 
     enum class SearchMode {
         Related,
@@ -811,7 +811,7 @@ class ElementRel {
         (*visiting)[*start] = false;
 
         while (start != nullptr) {
-            const ElementSet<Ts>& next = rel_.find(*start)->second;
+            const Set<Ts>& next = rel_.find(*start)->second;
             start = nullptr;
 
             for (const auto& e : next.get()) {
@@ -825,7 +825,7 @@ class ElementRel {
             }
         }
 
-        const ElementSet<Ts>& next = rel_.find(out->back())->second;
+        const Set<Ts>& next = rel_.find(out->back())->second;
         if (mode == SearchMode::FindCycle) {
             assert(end == nullptr);
 
@@ -861,7 +861,7 @@ class ElementRel {
             return false;
         }
 
-        ElementSet<Ts> visited;
+        Set<Ts> visited;
         FlagSet visiting;
 
         for (const auto& tuples : rel_) {
@@ -884,7 +884,7 @@ class ElementRel {
      * Directed graph search.
      */
     bool R_search(const Element& e1, const Element *e2,
-                  ElementSet<Ts>* visited,
+                  Set<Ts>* visited,
                   FlagSet* visiting = nullptr,
                   Properties local_props = None,
                   SearchMode mode = SearchMode::Related) const
@@ -923,7 +923,7 @@ class ElementRel {
 
     class R_impl {
       public:
-        R_impl(const ElementRel *src, ElementSet<Ts>* visited,
+        R_impl(const Relation *src, Set<Ts>* visited,
                FlagSet* visiting, bool is_tran_cl, SearchMode mode)
             : src_(src)
             , visited_(visited)
@@ -1018,8 +1018,8 @@ class ElementRel {
         }
 
       private:
-        const ElementRel* src_;
-        ElementSet<Ts>* visited_;
+        const Relation* src_;
+        Set<Ts>* visited_;
         FlagSet* visiting_;
         bool is_tran_cl_;
         SearchMode mode_;
@@ -1027,14 +1027,14 @@ class ElementRel {
 
   protected:
     Properties props_;
-    Relation rel_;
+    Container rel_;
 };
 
 template <class Ts>
-inline ElementRel<Ts> operator*(const ElementSet<Ts>& lhs,
-                                const ElementSet<Ts>& rhs)
+inline Relation<Ts> operator*(const Set<Ts>& lhs,
+                                const Set<Ts>& rhs)
 {
-    ElementRel<Ts> er;
+    Relation<Ts> er;
     for (const auto& e1 : lhs.get()) {
         for (const auto& e2 : rhs.get()) {
             er.insert(e1, e2);
@@ -1044,77 +1044,77 @@ inline ElementRel<Ts> operator*(const ElementSet<Ts>& lhs,
 }
 
 template <class Ts>
-class ElementRelOp {
+class RelationOp {
   public:
-    ElementRelOp()
+    RelationOp()
     {}
 
-    explicit ElementRelOp(const std::vector<ElementRel<Ts>>& rels) :
+    explicit RelationOp(const std::vector<Relation<Ts>>& rels) :
         rels_(rels) {}
 
-    virtual ~ElementRelOp()
+    virtual ~RelationOp()
     {}
 
-    virtual ElementRel<Ts> eval_inplace() = 0;
+    virtual Relation<Ts> eval_inplace() = 0;
 
-    virtual ElementRel<Ts> eval() const = 0;
+    virtual Relation<Ts> eval() const = 0;
 
   protected:
-    void add(const ElementRel<Ts>& er)
+    void add(const Relation<Ts>& er)
     {
         rels_.push_back(er);
     }
 
-    void add(const std::vector<ElementRel<Ts>>& rels)
+    void add(const std::vector<Relation<Ts>>& rels)
     {
         rels_.reserve(rels_.size() + rels.size());
         rels_.insert(rels_.end(), rels.begin(), rels.end());
     }
 
   protected:
-    std::vector<ElementRel<Ts>> rels_;
+    std::vector<Relation<Ts>> rels_;
 };
 
 template <class Ts>
-class ElementRelSeq : public ElementRelOp<Ts> {
+class RelationSeq : public RelationOp<Ts> {
   public:
     typedef typename Ts::Element Element;
 
-    ElementRelSeq()
+    RelationSeq()
     {}
 
-    explicit ElementRelSeq(const std::vector<ElementRel<Ts>>& v)
-        : ElementRelOp<Ts>(v)
+    explicit RelationSeq(const std::vector<Relation<Ts>>& v)
+        : RelationOp<Ts>(v)
     {}
 
-    ElementRelSeq& operator+=(const ElementRelSeq& rhs)
+    RelationSeq& operator+=(const RelationSeq& rhs)
     {
         add(rhs.rels_);
         return *this;
     }
 
-    ElementRelSeq operator+(const ElementRelSeq& rhs) const
+    RelationSeq operator+(const RelationSeq& rhs) const
     {
-        ElementRelSeq ers = *this;
+        RelationSeq ers = *this;
         return ers += rhs;
     }
 
-    ElementRelSeq& operator+=(const ElementRel<Ts>& rhs)
+    RelationSeq& operator+=(const Relation<Ts>& rhs)
     {
         this->add(rhs);
         return *this;
     }
 
-    ElementRelSeq operator+(const ElementRel<Ts>& rhs) const
+    RelationSeq operator+(const Relation<Ts>& rhs) const
     {
-        ElementRelSeq ers = *this;
+        RelationSeq ers = *this;
         return ers += rhs;
     }
 
-    ElementRel<Ts> eval_inplace()
+    Relation<Ts> eval_inplace()
     {
         if (this->rels_.empty()) {
-            return ElementRel<Ts>();
+            return Relation<Ts>();
         }
 
         while (this->rels_.size() > 1) {
@@ -1122,7 +1122,7 @@ class ElementRelSeq : public ElementRelOp<Ts> {
             const auto first = this->rels_[from_idx];
             const auto last = this->rels_.back();
 
-            ElementRel<Ts> er;
+            Relation<Ts> er;
 
             first.for_each([&er, &last](const Element& e1, const Element& e2) {
                 if (last.in_domain(e2)) {
@@ -1137,12 +1137,12 @@ class ElementRelSeq : public ElementRelOp<Ts> {
         return this->rels_.back();
     }
 
-    ElementRel<Ts> eval() const
+    Relation<Ts> eval() const
     {
-        ElementRel<Ts> er;
+        Relation<Ts> er;
 
         if (this->rels_.empty()) {
-            return ElementRel<Ts>();
+            return Relation<Ts>();
         }
 
         const auto potential_domain = this->rels_.front().domain();
@@ -1160,7 +1160,7 @@ class ElementRelSeq : public ElementRelOp<Ts> {
     }
 
     bool R(const Element& e1, const Element& e2,
-           typename ElementRel<Ts>::Path *path = nullptr, std::size_t seq = 0) const
+           typename Relation<Ts>::Path *path = nullptr, std::size_t seq = 0) const
     {
         if (this->rels_.empty()) {
             return false;
@@ -1172,7 +1172,7 @@ class ElementRelSeq : public ElementRelOp<Ts> {
             const auto& rel = this->rels_[seq];
             std::size_t path_size = 0;
 
-            const ElementSet<Ts> reach = rel.reachable(e1);
+            const Set<Ts> reach = rel.reachable(e1);
             for (const auto& e : reach.get()) {
                 if (path != nullptr) {
                     path_size = path->size();
@@ -1197,7 +1197,7 @@ class ElementRelSeq : public ElementRelOp<Ts> {
         return this->rels_[seq].R(e1, e2, path);
     }
 
-    bool irreflexive(typename ElementRel<Ts>::Path *cyclic = nullptr) const
+    bool irreflexive(typename Relation<Ts>::Path *cyclic = nullptr) const
     {
         if (this->rels_.empty()) {
             return true;
@@ -1218,22 +1218,22 @@ template <class E>
 struct Types {
     typedef E Element;
 
-    typedef std::unordered_set<Element, typename Element::Hash> Set;
+    typedef std::unordered_set<Element, typename Element::Hash> SetContainer;
 
 #if defined(__GNUC__) && (__GNUC__ == 4 && (__GNUC_MINOR__ == 6))
     template <class T>
-    class Map : public std::unordered_map<Element, T, typename Element::Hash>
+    class MapContainer : public std::unordered_map<Element, T, typename Element::Hash>
     {};
 #else
     // Only works for GCC > 4.6
     template <class T>
-    using Map = std::unordered_map<Element, T, typename Element::Hash>;
+    using MapContainer = std::unordered_map<Element, T, typename Element::Hash>;
 #endif
 };
 
-} /* namespace elementsetthy */
+} /* namespace sets */
 } /* namespace mc2lib */
 
-#endif /* MC2LIB_ELEMENTSETTHY_HPP_ */
+#endif /* MC2LIB_SETS_HPP_ */
 
 /* vim: set ts=4 sts=4 sw=4 et : */

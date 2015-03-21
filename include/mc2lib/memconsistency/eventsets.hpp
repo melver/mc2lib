@@ -34,7 +34,7 @@
 #ifndef MC2LIB_MEMCONSISTENCY_EVENTSETS_HPP_
 #define MC2LIB_MEMCONSISTENCY_EVENTSETS_HPP_
 
-#include "../elementsetthy.hpp"
+#include "../sets.hpp"
 #include "../types.hpp"
 
 #include <exception>
@@ -224,9 +224,9 @@ class Event {
     Iiid iiid;
 };
 
-typedef elementsetthy::ElementSet<elementsetthy::Types<Event>> EventSet;
-typedef elementsetthy::ElementRel<elementsetthy::Types<Event>> EventRel;
-typedef elementsetthy::ElementRelSeq<elementsetthy::Types<Event>> EventRelSeq;
+typedef sets::Set<sets::Types<Event>> EventSet;
+typedef sets::Relation<sets::Types<Event>> EventRel;
+typedef sets::RelationSeq<sets::Types<Event>> EventRelSeq;
 
 class Error : public std::exception {
   public:
