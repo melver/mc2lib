@@ -34,6 +34,7 @@
 #ifndef MC2LIB_MEMCONSISTENCY_EVENTSETS_HPP_
 #define MC2LIB_MEMCONSISTENCY_EVENTSETS_HPP_
 
+#include "../config.hpp"
 #include "../sets.hpp"
 #include "../types.hpp"
 
@@ -234,7 +235,7 @@ class Error : public std::exception {
         : what_(w)
     {}
 
-    const char* what() const noexcept
+    const char* what() const noexcept override
     { return what_; }
 
   private:

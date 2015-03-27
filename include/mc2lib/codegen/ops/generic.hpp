@@ -34,6 +34,7 @@
 #ifndef MC2LIB_CODEGEN_OPS_GENERIC_HPP_
 #define MC2LIB_CODEGEN_OPS_GENERIC_HPP_
 
+#include "../../config.hpp"
 #include "../compiler.hpp"
 
 #include <algorithm>
@@ -76,33 +77,33 @@ class Return : public Operation {
         : Operation(pid)
     {}
 
-    OperationPtr clone() const
+    OperationPtr clone() const override
     {
         return std::make_shared<Return>(*this);
     }
 
-    void reset() {}
+    void reset() override {}
 
-    bool enable_emit(AssemblerState *asms)
+    bool enable_emit(AssemblerState *asms) override
     { return true; }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
     {}
 
     std::size_t emit(const Backend *backend, types::InstPtr start,
-                     AssemblerState *asms, void *code, std::size_t len)
+                     AssemblerState *asms, void *code, std::size_t len) override
     {
         auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
         return backend_generic->Return(code, len);
     }
 
     const mc::Event* last_event(const mc::Event *next_event,
-                                AssemblerState *asms) const
+                                AssemblerState *asms) const override
     { return nullptr; }
 
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
-                     AssemblerState *asms)
+                     AssemblerState *asms) override
     { return true; }
 };
 
@@ -112,33 +113,33 @@ class Delay : public Operation {
         : Operation(pid), length_(length), before_(nullptr)
     {}
 
-    OperationPtr clone() const
+    OperationPtr clone() const override
     {
         return std::make_shared<Delay>(*this);
     }
 
-    void reset()
+    void reset() override
     {
         before_ = nullptr;
     }
 
-    bool enable_emit(AssemblerState *asms)
+    bool enable_emit(AssemblerState *asms) override
     { return true; }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
     {
         before_ = *before;
     }
 
     std::size_t emit(const Backend *backend, types::InstPtr start,
-                     AssemblerState *asms, void *code, std::size_t len)
+                     AssemblerState *asms, void *code, std::size_t len) override
     {
         auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
         return backend_generic->Delay(length_, code, len);
     }
 
     const mc::Event* last_event(const mc::Event *next_event,
-                                AssemblerState *asms) const
+                                AssemblerState *asms) const override
     {
         // Forward
         if (before_ != nullptr) {
@@ -150,7 +151,7 @@ class Delay : public Operation {
 
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
-                     AssemblerState *asms)
+                     AssemblerState *asms) override
     {
         assert(false);
         return false;
@@ -167,21 +168,21 @@ class Read : public MemOperation {
         : MemOperation(pid), addr_(addr), event_(nullptr), from_(nullptr)
     {}
 
-    OperationPtr clone() const
+    OperationPtr clone() const override
     {
         return std::make_shared<Read>(*this);
     }
 
-    void reset()
+    void reset() override
     {
         event_ = nullptr;
         from_ = nullptr;
     }
 
-    bool enable_emit(AssemblerState *asms)
+    bool enable_emit(AssemblerState *asms) override
     { return !asms->exhausted(); }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
     {
         event_ = asms->make_read(pid(), mc::Event::Read, addr_)[0];
 
@@ -194,7 +195,7 @@ class Read : public MemOperation {
     }
 
     std::size_t emit(const Backend *backend, types::InstPtr start,
-                     AssemblerState *asms, void *code, std::size_t len)
+                     AssemblerState *asms, void *code, std::size_t len) override
     {
         auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
         return backend_generic->Read(addr_, start, code, len, &at_);
@@ -202,7 +203,7 @@ class Read : public MemOperation {
 
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
-                     AssemblerState *asms)
+                     AssemblerState *asms) override
     {
         assert(event_ != nullptr);
         assert(ip == at_);
@@ -225,10 +226,10 @@ class Read : public MemOperation {
     }
 
     const mc::Event* last_event(const mc::Event *next_event,
-                                AssemblerState *asms) const
+                                AssemblerState *asms) const override
     { return event_; }
 
-    types::Addr addr() const
+    types::Addr addr() const override
     { return addr_; }
 
   protected:
@@ -256,7 +257,7 @@ class ReadAddrDp : public Read {
         : Read(addr, pid)
     {}
 
-    OperationPtr clone() const
+    OperationPtr clone() const override
     {
         return std::make_shared<ReadAddrDp>(*this);
     }
@@ -268,7 +269,7 @@ class ReadAddrDp : public Read {
     // traverse operations backwards before "before".
 
     std::size_t emit(const Backend *backend, types::InstPtr start,
-                     AssemblerState *asms, void *code, std::size_t len)
+                     AssemblerState *asms, void *code, std::size_t len) override
     {
         auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
         return backend_generic->ReadAddrDp(addr_, start, code, len, &at_);
@@ -281,19 +282,19 @@ class Write : public Read {
         : Read(addr, pid), write_id_(0)
     {}
 
-    OperationPtr clone() const
+    OperationPtr clone() const override
     {
         return std::make_shared<Write>(*this);
     }
 
-    void reset()
+    void reset() override
     {
         event_ = nullptr;
         from_ = nullptr;
         write_id_ = 0;
     }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
     {
         event_ = asms->make_write(pid(), mc::Event::Write, addr_, &write_id_)[0];
 
@@ -306,21 +307,21 @@ class Write : public Read {
     }
 
     std::size_t emit(const Backend *backend, types::InstPtr start,
-                     AssemblerState *asms, void *code, std::size_t len)
+                     AssemblerState *asms, void *code, std::size_t len) override
     {
         auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
         return backend_generic->Write(addr_, write_id_, start, code, len, &at_);
     }
 
   protected:
-    virtual void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
-                                    mc::model14::ExecWitness *ew)
+    void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
+                            mc::model14::ExecWitness *ew) override
     {
         ew->co.insert(*e1, *e2);
     }
 
-    virtual void erase_from_helper(const mc::Event *e1, const mc::Event *e2,
-                                   mc::model14::ExecWitness *ew)
+    void erase_from_helper(const mc::Event *e1, const mc::Event *e2,
+                           mc::model14::ExecWitness *ew) override
     {
         ew->co.erase(*e1, *e2);
     }
@@ -334,12 +335,12 @@ class ReadModifyWrite : public MemOperation {
         : MemOperation(pid), addr_(addr), last_part_(-1)
     {}
 
-    OperationPtr clone() const
+    OperationPtr clone() const override
     {
         return std::make_shared<ReadModifyWrite>(*this);
     }
 
-    void reset()
+    void reset() override
     {
         last_part_ = -1;
         event_r_ = nullptr;
@@ -348,10 +349,10 @@ class ReadModifyWrite : public MemOperation {
         write_id_ = 0;
     }
 
-    bool enable_emit(AssemblerState *asms)
+    bool enable_emit(AssemblerState *asms) override
     { return !asms->exhausted(); }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
     {
         event_r_ = asms->make_read(pid(), mc::Event::Read, addr_)[0];
         event_w_ = asms->make_write(pid(), mc::Event::Write, addr_, &write_id_)[0];
@@ -373,7 +374,7 @@ class ReadModifyWrite : public MemOperation {
     }
 
     std::size_t emit(const Backend *backend, types::InstPtr start,
-                     AssemblerState *asms, void *code, std::size_t len)
+                     AssemblerState *asms, void *code, std::size_t len) override
     {
         auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
         return backend_generic->ReadModifyWrite(addr_, write_id_, start, code, len, &at_);
@@ -381,7 +382,7 @@ class ReadModifyWrite : public MemOperation {
 
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
-                     AssemblerState *asms)
+                     AssemblerState *asms) override
     {
         assert(event_r_ != nullptr);
         assert(event_w_ != nullptr);
@@ -425,7 +426,7 @@ class ReadModifyWrite : public MemOperation {
     }
 
     const mc::Event* last_event(const mc::Event *next_event,
-                                AssemblerState *asms) const
+                                AssemblerState *asms) const override
     {
         if (dynamic_cast<mc::model14::Arch_TSO*>(asms->arch()) != nullptr) {
             // Implied fence after atomic
@@ -436,7 +437,7 @@ class ReadModifyWrite : public MemOperation {
         return event_w_;
     }
 
-    types::Addr addr() const
+    types::Addr addr() const override
     { return addr_; }
 
   protected:
@@ -455,33 +456,33 @@ class CacheFlush : public MemOperation {
         : MemOperation(pid), addr_(addr), before_(nullptr)
     {}
 
-    OperationPtr clone() const
+    OperationPtr clone() const override
     {
         return std::make_shared<CacheFlush>(*this);
     }
 
-    void reset()
+    void reset() override
     {
         before_ = nullptr;
     }
 
-    bool enable_emit(AssemblerState *asms)
+    bool enable_emit(AssemblerState *asms) override
     { return true; }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms)
+    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
     {
         before_ = *before;
     }
 
     std::size_t emit(const Backend *backend, types::InstPtr start,
-                     AssemblerState *asms, void *code, std::size_t len)
+                     AssemblerState *asms, void *code, std::size_t len) override
     {
         auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
         return backend_generic->CacheFlush(addr_, code, len);
     }
 
     const mc::Event* last_event(const mc::Event *next_event,
-                                AssemblerState *asms) const
+                                AssemblerState *asms) const override
     {
         // Forward
         if (before_ != nullptr) {
@@ -493,12 +494,12 @@ class CacheFlush : public MemOperation {
 
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
-                     AssemblerState *asms)
+                     AssemblerState *asms) override
     {
         return true;
     }
 
-    types::Addr addr() const
+    types::Addr addr() const override
     { return addr_; }
 
   protected:

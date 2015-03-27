@@ -234,10 +234,11 @@ class GenePool {
           steps_(0)
     {
         // mutation rate is a percentage
-        if (mutation_rate_ > 1.0f)
+        if (mutation_rate_ > 1.0f) {
             mutation_rate_ = 1.0f;
-        else if (mutation_rate_ < 0.0f)
+        } else if (mutation_rate_ < 0.0f) {
             mutation_rate_ = 0.0f;
+        }
 
         // Initialize with defaults (e.g. random)
         population_.resize(target_population_size_);
@@ -356,8 +357,9 @@ class GenePool {
 
         while (result.size() < count) {
             std::size_t idx = dist(urng);
-            if (used.find(idx) != used.end())
+            if (used.find(idx) != used.end()) {
                 continue;
+            }
 
             auto it = population_.begin();
             std::advance(it, idx);
@@ -434,8 +436,9 @@ class GenePool {
                                  mutation_rate_,
                                  &population_);
 
-                if (population_.size() >= target_population_size)
+                if (population_.size() >= target_population_size) {
                     goto target_reached;
+                }
             }
         }
 target_reached:

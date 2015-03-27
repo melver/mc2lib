@@ -298,17 +298,21 @@ class Checker {
     {
         wf();
 
-        if (!sc_per_location(cyclic))
+        if (!sc_per_location(cyclic)) {
             throw Error("SC_PER_LOCATION");
+        }
 
-        if (!no_thin_air(cyclic))
+        if (!no_thin_air(cyclic)) {
             throw Error("NO_THIN_AIR");
+        }
 
-        if (!observation(cyclic))
+        if (!observation(cyclic)) {
             throw Error("OBSERVATION");
+        }
 
-        if (!propagation(cyclic))
+        if (!propagation(cyclic)) {
             throw Error("PROPAGATION");
+        }
     }
 
   protected:
@@ -322,33 +326,33 @@ class Checker {
 
 class Arch_SC : public Architecture {
   public:
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const override
     {
         return std::unique_ptr<Checker>(new Checker(this, exec));
     }
 
-    EventRel ppo(const ExecWitness& ew) const
+    EventRel ppo(const ExecWitness& ew) const override
     {
         assert(ew.po.transitive());
         return ew.po.eval();
     }
 
-    EventRel fences(const ExecWitness& ew) const
+    EventRel fences(const ExecWitness& ew) const override
     {
         return EventRel();
     }
 
-    EventRel prop(const ExecWitness& ew) const
+    EventRel prop(const ExecWitness& ew) const override
     {
         return ppo(ew) + fences(ew) + ew.rf + ew.fr();
     }
 
-    Event::TypeMask eventTypeRead() const
+    Event::TypeMask eventTypeRead() const override
     {
         return Event::Read;
     }
 
-    Event::TypeMask eventTypeWrite() const
+    Event::TypeMask eventTypeWrite() const override
     {
         return Event::Write;
     }
@@ -356,17 +360,17 @@ class Arch_SC : public Architecture {
 
 class Arch_TSO : public Architecture {
   public:
-    void clear()
+    void clear() override
     {
         mfence.clear();
     }
 
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const override
     {
         return std::unique_ptr<Checker>(new Checker(this, exec));
     }
 
-    EventRel ppo(const ExecWitness& ew) const
+    EventRel ppo(const ExecWitness& ew) const override
     {
         assert(ew.po.transitive());
         return ew.po.filter([](const Event& e1, const Event& e2)
@@ -374,7 +378,7 @@ class Arch_TSO : public Architecture {
                                   || !e2.all_type(Event::Read); });
     }
 
-    EventRel fences(const ExecWitness& ew) const
+    EventRel fences(const ExecWitness& ew) const override
     {
         if (mfence.empty()) {
             return mfence;
@@ -391,17 +395,17 @@ class Arch_TSO : public Architecture {
         return EventRelSeq({postar, mfence, postar}).eval_inplace();
     }
 
-    EventRel prop(const ExecWitness& ew) const
+    EventRel prop(const ExecWitness& ew) const override
     {
         return ppo(ew) + fences(ew) + ew.rfe() + ew.fr();
     }
 
-    Event::TypeMask eventTypeRead() const
+    Event::TypeMask eventTypeRead() const override
     {
         return Event::Read;
     }
 
-    Event::TypeMask eventTypeWrite() const
+    Event::TypeMask eventTypeWrite() const override
     {
         return Event::Write;
     }
@@ -416,13 +420,13 @@ class ArchProxy : public Architecture {
        : arch_(arch), memoized_(false)
     {}
 
-    void clear()
+    void clear() override
     {
         arch_->clear();
         memoized_ = false;
     }
 
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const override
     {
         return arch_->make_checker(exec);
     }
@@ -436,30 +440,30 @@ class ArchProxy : public Architecture {
         memoized_ = true;
     }
 
-    EventRel ppo(const ExecWitness& ew) const
+    EventRel ppo(const ExecWitness& ew) const override
     {
         assert(memoized_);
         return ppo_;
     }
 
-    EventRel fences(const ExecWitness& ew) const
+    EventRel fences(const ExecWitness& ew) const override
     {
         assert(memoized_);
         return fences_;
     }
 
-    EventRel prop(const ExecWitness& ew) const
+    EventRel prop(const ExecWitness& ew) const override
     {
         assert(memoized_);
         return prop_;
     }
 
-    Event::TypeMask eventTypeRead() const
+    Event::TypeMask eventTypeRead() const override
     {
         return arch_->eventTypeRead();
     }
 
-    Event::TypeMask eventTypeWrite() const
+    Event::TypeMask eventTypeWrite() const override
     {
         return arch_->eventTypeWrite();
     }

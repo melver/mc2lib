@@ -34,6 +34,7 @@
 #ifndef MC2LIB_CODEGEN_RIT_HPP_
 #define MC2LIB_CODEGEN_RIT_HPP_
 
+#include "../config.hpp"
 #include "../simplega.hpp"
 #include "compiler.hpp"
 
@@ -66,7 +67,7 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
         , fitness_(0.0f)
     {}
 
-    void mutate(float rate)
+    void mutate(float rate) override
     {
         std::uniform_int_distribution<std::size_t> dist_idx(0, genome_.size() - 1);
         std::unordered_set<std::size_t> used;
@@ -75,8 +76,9 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
 
         while (selection_count) {
             auto idx = dist_idx(urng_);
-            if (used.find(idx) != used.end())
+            if (used.find(idx) != used.end()) {
                 continue;
+            }
 
             genome_[idx] = make_random();
 
@@ -85,7 +87,7 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
         }
     }
 
-    float fitness() const
+    float fitness() const override
     { return fitness_; }
 
     void set_fitness(float fitness)

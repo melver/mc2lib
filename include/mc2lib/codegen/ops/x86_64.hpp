@@ -43,25 +43,25 @@ namespace codegen {
 namespace ops {
 
 struct Backend_X86_64 : BackendGeneric {
-    virtual std::size_t Return(void *code, std::size_t len) const;
+    std::size_t Return(void *code, std::size_t len) const override;
 
-    virtual std::size_t Delay(std::size_t length, void *code, std::size_t len) const;
+    std::size_t Delay(std::size_t length, void *code, std::size_t len) const override;
 
-    virtual std::size_t Read(types::Addr addr, types::InstPtr start, void *code,
-                             std::size_t len, types::InstPtr *at) const;
+    std::size_t Read(types::Addr addr, types::InstPtr start, void *code,
+                             std::size_t len, types::InstPtr *at) const override;
 
-    virtual std::size_t ReadAddrDp(types::Addr addr, types::InstPtr start,
-                                   void *code, std::size_t len, types::InstPtr *at) const;
+    std::size_t ReadAddrDp(types::Addr addr, types::InstPtr start,
+                                   void *code, std::size_t len, types::InstPtr *at) const override;
 
-    virtual std::size_t Write(types::Addr addr, types::WriteID write_id,
+    std::size_t Write(types::Addr addr, types::WriteID write_id,
                               types::InstPtr start, void *code, std::size_t len,
-                              types::InstPtr *at) const;
+                              types::InstPtr *at) const override;
 
-    virtual std::size_t ReadModifyWrite(types::Addr addr, types::WriteID write_id,
+    std::size_t ReadModifyWrite(types::Addr addr, types::WriteID write_id,
                                         types::InstPtr start, void *code, std::size_t len,
-                                        types::InstPtr *at) const;
+                                        types::InstPtr *at) const override;
 
-    virtual std::size_t CacheFlush(types::Addr addr, void *code, std::size_t len) const;
+    std::size_t CacheFlush(types::Addr addr, void *code, std::size_t len) const override;
 };
 
 inline std::size_t

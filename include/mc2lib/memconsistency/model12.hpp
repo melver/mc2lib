@@ -280,14 +280,17 @@ class Checker {
     {
         wf();
 
-        if (!uniproc(cyclic))
+        if (!uniproc(cyclic)) {
             throw Error("UNIPROC");
+        }
 
-        if (!thin(cyclic))
+        if (!thin(cyclic)) {
             throw Error("THIN");
+        }
 
-        if (!check_exec(cyclic))
+        if (!check_exec(cyclic)) {
             throw Error("CHECK_EXEC");
+        }
     }
 
   protected:
@@ -301,33 +304,33 @@ class Checker {
 
 class Arch_SC : public Architecture {
   public:
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const override
     {
         return std::unique_ptr<Checker>(new Checker(this, exec));
     }
 
-    EventRel ppo(const ExecWitness& ew) const
+    EventRel ppo(const ExecWitness& ew) const override
     {
         assert(ew.po.transitive());
         return ew.po;
     }
 
-    EventRel grf(const ExecWitness& ew) const
+    EventRel grf(const ExecWitness& ew) const override
     {
         return ew.rf;
     }
 
-    EventRel ab(const ExecWitness& ew) const
+    EventRel ab(const ExecWitness& ew) const override
     {
         return EventRel();
     }
 
-    Event::TypeMask eventTypeRead() const
+    Event::TypeMask eventTypeRead() const override
     {
         return Event::Read;
     }
 
-    Event::TypeMask eventTypeWrite() const
+    Event::TypeMask eventTypeWrite() const override
     {
         return Event::Write;
     }
@@ -335,17 +338,17 @@ class Arch_SC : public Architecture {
 
 class Arch_TSO : public Architecture {
   public:
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const override
     {
         return std::unique_ptr<Checker>(new Checker(this, exec));
     }
 
-    void clear()
+    void clear() override
     {
         mfence.clear();
     }
 
-    EventRel ppo(const ExecWitness& ew) const
+    EventRel ppo(const ExecWitness& ew) const override
     {
         assert(ew.po.transitive());
         return ew.po.filter([](const Event& e1, const Event& e2)
@@ -353,12 +356,12 @@ class Arch_TSO : public Architecture {
                                   || !e2.all_type(Event::Read); });
     }
 
-    EventRel grf(const ExecWitness& ew) const
+    EventRel grf(const ExecWitness& ew) const override
     {
         return ew.rfe();
     }
 
-    EventRel ab(const ExecWitness& ew) const
+    EventRel ab(const ExecWitness& ew) const override
     {
         if (mfence.empty()) {
             return mfence;
@@ -375,12 +378,12 @@ class Arch_TSO : public Architecture {
         return EventRelSeq({postar, mfence, postar}).eval_inplace();
     }
 
-    Event::TypeMask eventTypeRead() const
+    Event::TypeMask eventTypeRead() const override
     {
         return Event::Read;
     }
 
-    Event::TypeMask eventTypeWrite() const
+    Event::TypeMask eventTypeWrite() const override
     {
         return Event::Write;
     }
@@ -395,13 +398,13 @@ class ArchProxy : public Architecture {
        : arch_(arch), memoized_(false)
     {}
 
-    void clear()
+    void clear() override
     {
         arch_->clear();
         memoized_ = false;
     }
 
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const override
     {
         return arch_->make_checker(exec);
     }
@@ -415,30 +418,30 @@ class ArchProxy : public Architecture {
         memoized_ = true;
     }
 
-    EventRel ppo(const ExecWitness& ew) const
+    EventRel ppo(const ExecWitness& ew) const override
     {
         assert(memoized_);
         return ppo_;
     }
 
-    EventRel grf(const ExecWitness& ew) const
+    EventRel grf(const ExecWitness& ew) const override
     {
         assert(memoized_);
         return grf_;
     }
 
-    EventRel ab(const ExecWitness& ew) const
+    EventRel ab(const ExecWitness& ew) const override
     {
         assert(memoized_);
         return ab_;
     }
 
-    Event::TypeMask eventTypeRead() const
+    Event::TypeMask eventTypeRead() const override
     {
         return arch_->eventTypeRead();
     }
 
-    Event::TypeMask eventTypeWrite() const
+    Event::TypeMask eventTypeWrite() const override
     {
         return arch_->eventTypeWrite();
     }

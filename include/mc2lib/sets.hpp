@@ -34,6 +34,8 @@
 #ifndef MC2LIB_SETS_HPP_
 #define MC2LIB_SETS_HPP_
 
+#include "config.hpp"
+
 #include <cassert>
 #include <cstddef>
 #include <unordered_map>
@@ -1111,7 +1113,7 @@ class RelationSeq : public RelationOp<Ts> {
         return ers += rhs;
     }
 
-    Relation<Ts> eval_inplace()
+    Relation<Ts> eval_inplace() override
     {
         if (this->rels_.empty()) {
             return Relation<Ts>();
@@ -1137,7 +1139,7 @@ class RelationSeq : public RelationOp<Ts> {
         return this->rels_.back();
     }
 
-    Relation<Ts> eval() const
+    Relation<Ts> eval() const override
     {
         Relation<Ts> er;
 

@@ -513,7 +513,7 @@ class GenomeAdd : public Genome<float> {
     GenomeAdd()
     {
         genome_.resize(5);
-        mutate(1.0f);
+        mutate_impl(1.0f);
     }
 
     GenomeAdd(const GenomeAdd& parent1, const GenomeAdd& parent2,
@@ -521,26 +521,12 @@ class GenomeAdd : public Genome<float> {
         : Genome<float>(g)
     {}
 
-    void mutate(float rate)
+    void mutate(float rate) override
     {
-        std::uniform_int_distribution<std::size_t> dist_idx(0, genome_.size() - 1);
-        std::uniform_real_distribution<float> dist_mut(-2.0f, 2.0f);
-        std::unordered_set<std::size_t> used;
-        std::size_t selection_count = (std::size_t)((float)genome_.size() * rate);
-
-        while (selection_count) {
-            auto idx = dist_idx(*generator_ptr);
-            if (used.find(idx) != used.end())
-                continue;
-
-            genome_[idx] += dist_mut(*generator_ptr);
-
-            used.insert(idx);
-            --selection_count;
-        }
+        mutate_impl(rate);
     };
 
-    float fitness() const
+    float fitness() const override
     {
         float total = 0.0;
         for (const auto& f : genome_) {
@@ -548,22 +534,45 @@ class GenomeAdd : public Genome<float> {
         }
 
         // restrict size
-        if (genome_.size() > 10)
+        if (genome_.size() > 10) {
             return 999.0f;
+        }
 
         // want to get sum closest to 24.
         return (24 - total) * (24 - total);
     }
 
-    bool operator<(const GenomeAdd& rhs) const
+    bool operator<(const Genome& rhs) const override
     {
         return fitness() < rhs.fitness();
     }
 
-    operator float() const
+    operator float() const override
     {
         return 1000.f - fitness();
     }
+
+  private:
+    void mutate_impl(float rate)
+    {
+        std::uniform_int_distribution<std::size_t> dist_idx(0, genome_.size() - 1);
+        std::uniform_real_distribution<float> dist_mut(-2.0f, 2.0f);
+        std::unordered_set<std::size_t> used;
+        std::size_t selection_count =
+            static_cast<std::size_t>(static_cast<float>(genome_.size()) * rate);
+
+        while (selection_count) {
+            auto idx = dist_idx(*generator_ptr);
+            if (used.find(idx) != used.end()) {
+                continue;
+            }
+
+            genome_[idx] += dist_mut(*generator_ptr);
+
+            used.insert(idx);
+            --selection_count;
+        }
+    };
 };
 
 BOOST_AUTO_TEST_CASE(SimpleGAAdd24)
@@ -684,10 +693,10 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux)
     };
 
     const std::size_t MAX_CODE_SIZE = 4096;
-    char *code = (char*)mmap(NULL, MAX_CODE_SIZE,
-                             PROT_READ | PROT_WRITE | PROT_EXEC,
-                             MAP_ANONYMOUS | MAP_PRIVATE,
-                             0, 0);
+    char *code = reinterpret_cast<char*>(mmap(NULL, MAX_CODE_SIZE,
+                                              PROT_READ | PROT_WRITE | PROT_EXEC,
+                                              MAP_ANONYMOUS | MAP_PRIVATE,
+                                              0, 0));
     memset(code, 0x90, MAX_CODE_SIZE);
 
     std::size_t emit_len = 0;
@@ -696,7 +705,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux)
                                   MAX_CODE_SIZE - emit_len, nullptr);
     }
 
-    unsigned char (*func)() = (unsigned char (*)()) code;
+    unsigned char (*func)() = reinterpret_cast<unsigned char (*)()>(code);
     unsigned result = func();
 
     BOOST_CHECK_EQUAL(result, test_mem[0xf]);
