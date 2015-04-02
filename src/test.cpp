@@ -297,9 +297,11 @@ BOOST_AUTO_TEST_CASE(EventRelSeqR)
     BOOST_CHECK(ers.irreflexive());
 
     const EventRel evald = ers.eval();
-    const EventRel evald_inplace = ers.eval_inplace();
+    auto ers_copy = ers;
+    const EventRel evald_inplace = ers_copy.eval_clear();
     BOOST_CHECK(evald == evald_inplace);
 
+    ers.eval_inplace();
     // Should be same result after eval_inplace
     BOOST_CHECK(ers.R(start, end));
     BOOST_CHECK(ers.R(start, e1));

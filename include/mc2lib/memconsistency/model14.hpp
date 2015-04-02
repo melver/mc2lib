@@ -392,7 +392,7 @@ class Arch_TSO : public Architecture {
                     return e1.all_type(Event::Write) || e2.all_type(Event::Read);
                 }).set_props(EventRel::ReflexiveClosure);
 
-        return EventRelSeq({postar, mfence, postar}).eval_inplace();
+        return EventRelSeq({postar, mfence, postar}).eval_clear();
     }
 
     EventRel prop(const ExecWitness& ew) const override

@@ -386,6 +386,7 @@ class Relation {
     Func for_each(Func func) const
     {
         const auto dom = domain();
+
         for (const auto& e1 : dom.get()) {
             const auto reach = reachable(e1);
             for (const auto& e2 : reach.get()) {
@@ -514,6 +515,7 @@ class Relation {
             const auto this_reachable = reachable(e);
             const auto rhs_reachable = rhs.reachable(e);
             Set<Ts> intersect = this_reachable & rhs_reachable;
+
             if (!intersect.empty()) {
                 es.rel_[e] = intersect;
             }
@@ -1057,9 +1059,30 @@ class RelationOp {
     virtual ~RelationOp()
     {}
 
-    virtual Relation<Ts> eval_inplace() = 0;
+    virtual RelationOp& eval_inplace() = 0;
 
     virtual Relation<Ts> eval() const = 0;
+
+    void clear()
+    { rels_.clear(); }
+
+    /**
+     * Optimized for move.
+     */
+    Relation<Ts> eval_clear()
+    {
+        if (rels_.empty()) {
+            // Already cleared
+            return Relation<Ts>();
+        }
+
+        eval_inplace();
+        assert(rels_.size() == 1);
+
+        auto result = std::move(rels_.back());
+        rels_.clear();
+        return result;
+    }
 
   protected:
     void add(const Relation<Ts>& er)
@@ -1113,16 +1136,12 @@ class RelationSeq : public RelationOp<Ts> {
         return ers += rhs;
     }
 
-    Relation<Ts> eval_inplace() override
+    RelationOp<Ts>& eval_inplace() override
     {
-        if (this->rels_.empty()) {
-            return Relation<Ts>();
-        }
-
         while (this->rels_.size() > 1) {
             std::size_t from_idx = this->rels_.size() - 2;
-            const auto first = this->rels_[from_idx];
-            const auto last = this->rels_.back();
+            const auto& first = this->rels_[from_idx];
+            const auto& last = this->rels_.back();
 
             Relation<Ts> er;
 
@@ -1136,7 +1155,7 @@ class RelationSeq : public RelationOp<Ts> {
             this->rels_.push_back(std::move(er));
         }
 
-        return this->rels_.back();
+        return *this;
     }
 
     Relation<Ts> eval() const override
@@ -1145,6 +1164,8 @@ class RelationSeq : public RelationOp<Ts> {
 
         if (this->rels_.empty()) {
             return Relation<Ts>();
+        } else if (this->rels_.size() == 1) {
+            return this->rels_.back();
         }
 
         const auto potential_domain = this->rels_.front().domain();
