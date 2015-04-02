@@ -208,16 +208,16 @@ class AssemblerState {
     static constexpr std::size_t MAX_OP_SIZE = sizeof(types::WriteID) * 2; // 1 Operation can at most emit 2 write Events
     static constexpr std::size_t MAX_OP_EVTS = MAX_OP_SIZE / sizeof(types::WriteID);
 
-    static constexpr types::Poi MIN_READ = static_cast<types::Poi>(1) << (sizeof(types::Poi) * 8 - 1);
-    static constexpr types::Poi MAX_READ = std::numeric_limits<types::Poi>::max() - (MAX_OP_EVTS - 1);
+    static constexpr types::Poi MIN_OTHER = static_cast<types::Poi>(1) << (sizeof(types::Poi) * 8 - 1);
+    static constexpr types::Poi MAX_OTHER = std::numeric_limits<types::Poi>::max() - (MAX_OP_EVTS - 1);
 
     static constexpr types::WriteID INIT_WRITE = std::numeric_limits<types::WriteID>::min();
     static constexpr types::WriteID MIN_WRITE = INIT_WRITE + 1;
     static constexpr types::WriteID MAX_WRITE =
-        (std::numeric_limits<types::WriteID>::max() < MIN_READ
-         ? std::numeric_limits<types::WriteID>::max() : MIN_READ - 1) - (MAX_OP_EVTS - 1);
+        (std::numeric_limits<types::WriteID>::max() < MIN_OTHER
+         ? std::numeric_limits<types::WriteID>::max() : MIN_OTHER - 1) - (MAX_OP_EVTS - 1);
 
-    static_assert(MIN_READ > MAX_WRITE, "Invalid read/write ID limits!");
+    static_assert(MIN_OTHER > MAX_WRITE, "Invalid read/write ID limits!");
 
     explicit AssemblerState(mc::model14::ExecWitness *ew, mc::model14::Architecture *arch)
         : ew_(ew), arch_(arch)
@@ -226,7 +226,7 @@ class AssemblerState {
     void reset()
     {
         last_write_id_ = MIN_WRITE - 1;
-        last_read_id_ = MIN_READ - 1;
+        last_other_id = MIN_OTHER - 1;
 
         writes_.clear();
         ew_->clear();
@@ -234,7 +234,7 @@ class AssemblerState {
     }
 
     bool exhausted() const
-    { return last_write_id_ >= MAX_WRITE || last_read_id_ >= MAX_READ; }
+    { return last_write_id_ >= MAX_WRITE || last_other_id >= MAX_OTHER; }
 
     template <std::size_t max_size_bytes, class Func>
     EventPtrs<max_size_bytes>
@@ -259,15 +259,20 @@ class AssemblerState {
         return result;
     }
 
+    mc::Event make_other(types::Pid pid, mc::Event::Type type, types::Addr addr)
+    {
+        return mc::Event(type, addr, mc::Iiid(pid, ++last_other_id));
+    }
+
     template <std::size_t max_size_bytes = sizeof(types::WriteID)>
     EventPtrs<max_size_bytes>
     make_read(types::Pid pid, mc::Event::Type type, types::Addr addr,
               std::size_t size = max_size_bytes)
     {
-        ++last_read_id_;
+        ++last_other_id;
         return make_event<max_size_bytes>(pid, type, addr, size, [&](types::Addr offset) {
             const mc::Event event =
-                mc::Event(type, addr + offset, mc::Iiid(pid, last_read_id_));
+                mc::Event(type, addr + offset, mc::Iiid(pid, last_other_id));
 
             return &ew_->events.insert(event, true);
         });
@@ -363,7 +368,7 @@ class AssemblerState {
     WriteID_EventPtr writes_;
 
     types::WriteID last_write_id_;
-    types::Poi last_read_id_;
+    types::Poi last_other_id;
 };
 
 template <class Backend>
