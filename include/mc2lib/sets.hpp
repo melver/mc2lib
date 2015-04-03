@@ -138,19 +138,7 @@ class Set {
     /*
      * Set union.
      */
-    Set& operator+=(const Element& rhs)
-    {
-        insert(rhs);
-        return *this;
-    }
-
-    Set operator+(const Element& rhs) const
-    {
-        Set es = *this;
-        return es += rhs;
-    }
-
-    Set& operator+=(const Set& rhs)
+    Set& operator|=(const Set& rhs)
     {
         if (this != &rhs) {
             set_.insert(rhs.set_.begin(), rhs.set_.end());
@@ -159,10 +147,10 @@ class Set {
         return *this;
     }
 
-    Set operator+(const Set& rhs) const
+    Set operator|(const Set& rhs) const
     {
         Set es = *this;
-        return es += rhs;
+        return es |= rhs;
     }
 
     /*
@@ -338,7 +326,7 @@ class Relation {
     void insert(const Element& e1, const Set<Ts>& e2s)
     {
         if (e2s.empty()) return;
-        rel_[e1] += e2s;
+        rel_[e1] |= e2s;
     }
 
     void erase(const Element& e1, const Element& e2, bool assert_exists = false)
@@ -444,38 +432,38 @@ class Relation {
     /*
      * Relation union.
      */
-    Relation& operator+=(const Relation& rhs)
+    Relation& operator|=(const Relation& rhs)
     {
         if (rhs.props()) {
             const auto rhs_domain = rhs.domain();
             for (const auto& e : rhs_domain.get()) {
-                rel_[e] += rhs.reachable(e);
+                rel_[e] |= rhs.reachable(e);
             }
         } else {
             for (const auto& tuples : rhs.raw()) {
-                rel_[tuples.first] += tuples.second;
+                rel_[tuples.first] |= tuples.second;
             }
         }
 
         return *this;
     }
 
-    Relation operator+(const Relation& rhs) const
+    Relation operator|(const Relation& rhs) const
     {
         Relation er = *this;
-        return er += rhs;
+        return er |= rhs;
     }
 
-    Relation& operator+=(const Tuple& rhs)
+    Relation& operator|=(const Tuple& rhs)
     {
         insert(rhs.first, rhs.second);
         return *this;
     }
 
-    Relation operator+(const Tuple& rhs) const
+    Relation operator|(const Tuple& rhs) const
     {
         Relation er = *this;
-        return er += rhs;
+        return er |= rhs;
     }
 
     /*
@@ -594,7 +582,7 @@ class Relation {
         if (!all_props(TransitiveClosure)) {
             const auto tuples = rel_.find(e);
             if (tuples != rel_.end()) {
-                visited += tuples->second;
+                visited |= tuples->second;
             }
 
             return visited;
@@ -755,7 +743,7 @@ class Relation {
         Set<Ts> es;
         for (const auto& tuples : rel_) {
             es.insert(tuples.first);
-            es += tuples.second;
+            es |= tuples.second;
         }
         return es;
     }
@@ -787,7 +775,7 @@ class Relation {
 
         Set<Ts> es;
         for (const auto& tuples : rel_) {
-            es += reachable(tuples.first);
+            es |= reachable(tuples.first);
         }
         return es;
     }

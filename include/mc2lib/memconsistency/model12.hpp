@@ -158,7 +158,7 @@ class ExecWitness {
 
     EventRel com() const
     {
-        return rf + ws + fr();
+        return rf | ws | fr();
     }
 
     EventRel po_loc() const
@@ -169,7 +169,7 @@ class ExecWitness {
 
     EventRel ghb(const Architecture& arch) const
     {
-        return ws + fr() + arch.ppo(*this) + arch.grf(*this) + arch.ab(*this);
+        return ws | fr() | arch.ppo(*this) | arch.grf(*this) | arch.ab(*this);
     }
 
     void clear()
@@ -219,7 +219,7 @@ class Checker {
                 if (reads.contains(e)) {
                     throw Error("WF_RF_MULTI_SOURCE");
                 }
-                reads += e;
+                reads.insert(e);
             }
         }
     }
@@ -264,12 +264,12 @@ class Checker {
 
     virtual bool uniproc(EventRel::Path *cyclic = nullptr) const
     {
-        return (exec_->com() + exec_->po_loc()).acyclic(cyclic);
+        return (exec_->com() | exec_->po_loc()).acyclic(cyclic);
     }
 
     virtual bool thin(EventRel::Path *cyclic = nullptr) const
     {
-        return (exec_->rf + exec_->dp).acyclic(cyclic);
+        return (exec_->rf | exec_->dp).acyclic(cyclic);
     }
 
     virtual bool check_exec(EventRel::Path *cyclic = nullptr) const

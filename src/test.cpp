@@ -76,6 +76,7 @@ BOOST_AUTO_TEST_CASE(SimpleSet)
     BOOST_CHECK(!s.subset(s));
     BOOST_CHECK(s.subseteq(s));
     BOOST_CHECK(s == (s * s).range());
+    BOOST_CHECK((s | s) == s);
 }
 
 BOOST_AUTO_TEST_CASE(CycleDetectionUnionNo)
@@ -99,12 +100,12 @@ BOOST_AUTO_TEST_CASE(CycleDetectionUnionNo)
 
     BOOST_CHECK(er1.transitive());
     BOOST_CHECK(er2.transitive());
-    BOOST_CHECK((er1+er2).acyclic());
-    er1 += er2;
+    BOOST_CHECK((er1|er2).acyclic());
+    er1 |= er2;
     BOOST_CHECK_EQUAL(er1.size(), 6);
 
     er2.set_props(EventRel::TransitiveClosure);
-    BOOST_CHECK((EventRel()+er2).acyclic());
+    BOOST_CHECK((EventRel()|er2).acyclic());
 }
 
 BOOST_AUTO_TEST_CASE(CycleDetectionYes)
@@ -126,7 +127,7 @@ BOOST_AUTO_TEST_CASE(CycleDetectionYes)
     er_.insert(e2, nextevt());
     er_.insert(e2, nextevt());
     er_.insert(e2, nextevt());
-    er += er_;
+    er |= er_;
 
     BOOST_CHECK(!er.acyclic());
 
@@ -447,7 +448,7 @@ BOOST_AUTO_TEST_CASE(Model12DekkerValidSC)
     Event Ry0 = Event(Event::Read, 20, Iiid(0, 55));
     Event Rx1 = Event(Event::Read, 10, Iiid(1, 22));
 
-    ew.events += EventSet({Ix, Iy, Wx0, Wy1, Ry0, Rx1});
+    ew.events |= EventSet({Ix, Iy, Wx0, Wy1, Ry0, Rx1});
 
     ew.po.insert(Wx0, Ry0);
     ew.po.insert(Wy1, Rx1);
@@ -481,7 +482,7 @@ BOOST_AUTO_TEST_CASE(Model14DekkerInvalidSCValidTSO)
     Event Ry0 = Event(Event::Read, 20, Iiid(0, 55));
     Event Rx1 = Event(Event::Read, 10, Iiid(1, 22));
 
-    ew.events += EventSet({Ix, Iy, Wx0, Wy1, Ry0, Rx1});
+    ew.events |= EventSet({Ix, Iy, Wx0, Wy1, Ry0, Rx1});
 
     ew.po.insert(Wx0, Ry0);
     ew.po.insert(Wy1, Rx1);

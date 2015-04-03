@@ -160,7 +160,7 @@ class ExecWitness {
 
     EventRel com() const
     {
-        return rf + co + fr();
+        return rf | co | fr();
     }
 
     EventRel po_loc() const
@@ -171,7 +171,7 @@ class ExecWitness {
 
     EventRel hb(const Architecture& arch) const
     {
-        return rfe() + arch.ppo(*this) + arch.fences(*this);
+        return rfe() | arch.ppo(*this) | arch.fences(*this);
     }
 
     void clear()
@@ -219,7 +219,7 @@ class Checker {
                 if (reads.contains(e)) {
                     throw Error("WF_RF_MULTI_SOURCE");
                 }
-                reads += e;
+                reads.insert(e);
             }
         }
     }
@@ -264,7 +264,7 @@ class Checker {
 
     virtual bool sc_per_location(EventRel::Path *cyclic = nullptr) const
     {
-        return (exec_->com() + exec_->po_loc()).acyclic(cyclic);
+        return (exec_->com() | exec_->po_loc()).acyclic(cyclic);
     }
 
     virtual bool no_thin_air(EventRel::Path *cyclic = nullptr) const
@@ -292,7 +292,7 @@ class Checker {
 
     virtual bool propagation(EventRel::Path *cyclic = nullptr) const
     {
-        return (exec_->co + arch_->prop(*exec_)).acyclic(cyclic);
+        return (exec_->co | arch_->prop(*exec_)).acyclic(cyclic);
     }
 
     virtual void valid_exec(EventRel::Path *cyclic = nullptr) const
@@ -346,7 +346,7 @@ class Arch_SC : public Architecture {
 
     EventRel prop(const ExecWitness& ew) const override
     {
-        return ppo(ew) + fences(ew) + ew.rf + ew.fr();
+        return ppo(ew) | fences(ew) | ew.rf | ew.fr();
     }
 
     Event::TypeMask eventTypeRead() const override
@@ -400,7 +400,7 @@ class Arch_TSO : public Architecture {
 
     EventRel prop(const ExecWitness& ew) const override
     {
-        return ppo(ew) + fences(ew) + ew.rfe() + ew.fr();
+        return ppo(ew) | fences(ew) | ew.rfe() | ew.fr();
     }
 
     Event::TypeMask eventTypeRead() const override
