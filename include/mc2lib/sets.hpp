@@ -40,6 +40,7 @@
 #include <cstddef>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace mc2lib {
@@ -116,15 +117,15 @@ class Set {
     template <class FilterFunc>
     Set filter(FilterFunc filterFunc) const
     {
-        Set es;
+        Set res;
 
         for (const auto& e : set_) {
             if (filterFunc(e)) {
-                es.insert(e);
+                res.insert(e);
             }
         }
 
-        return es;
+        return res;
     }
 
     void clear()
@@ -147,27 +148,9 @@ class Set {
         return *this;
     }
 
-    Set operator|(const Set& rhs) const
-    {
-        Set es = *this;
-        return es |= rhs;
-    }
-
     /*
      * Set difference.
      */
-    Set& operator-=(const Element& rhs)
-    {
-        erase(rhs);
-        return *this;
-    }
-
-    Set operator-(const Element& rhs) const
-    {
-        Set es = *this;
-        return es -= rhs;
-    }
-
     Set& operator-=(const Set& rhs)
     {
         if (this == &rhs) {
@@ -184,32 +167,20 @@ class Set {
         return *this;
     }
 
-    Set operator-(const Set& rhs) const
-    {
-        Set es = *this;
-        return es -= rhs;
-    }
-
     /*
      * Set intersection
      */
-    Set operator&(const Set& rhs) const
-    {
-        Set es;
-
-        for (const auto& e : rhs.get()) {
-            if (contains(e)) {
-                es.insert(e);
-            }
-        }
-
-        return es;
-    }
-
     Set& operator&=(const Set& rhs)
     {
         if (this != &rhs) {
-            *this = rhs & *this;
+            for (auto it = set_.begin(); it != set_.end();) {
+                if (!rhs.contains(*it)) {
+                    it = set_.erase(it);
+                    continue;
+                }
+
+                it++;
+            }
         }
 
         return *this;
@@ -221,12 +192,12 @@ class Set {
     bool empty() const
     { return set_.empty(); }
 
-    bool subseteq(const Set& es) const
+    bool subseteq(const Set& s) const
     {
-        if (size() > es.size()) return false;
+        if (size() > s.size()) return false;
 
         for (const auto& e : set_) {
-            if (!es.contains(e)) {
+            if (!s.contains(e)) {
                 return false;
             }
         }
@@ -234,14 +205,105 @@ class Set {
         return true;
     }
 
-    bool subset(const Set& es) const
+    bool subset(const Set& s) const
     {
-        return size() < es.size() && subseteq(es);
+        return size() < s.size() && subseteq(s);
     }
 
   protected:
      Container set_;
 };
+
+template <class Ts>
+inline Set<Ts> operator|(const Set<Ts>& lhs, const Set<Ts>& rhs)
+{
+    Set<Ts> res = lhs;
+    return res |= rhs;
+}
+
+template <class Ts>
+inline Set<Ts> operator|(Set<Ts>&& lhs, const Set<Ts>& rhs)
+{
+    lhs |= rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator|(const Set<Ts>& lhs, Set<Ts>&& rhs)
+{
+    rhs |= lhs;
+    return std::move(rhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator|(Set<Ts>&& lhs, Set<Ts>&& rhs)
+{
+    lhs |= rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator-(const Set<Ts>& lhs, const Set<Ts>& rhs)
+{
+    Set<Ts> res = lhs;
+    return res -= rhs;
+}
+
+template <class Ts>
+inline Set<Ts> operator-(Set<Ts>&& lhs, const Set<Ts>& rhs)
+{
+    lhs -= rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator-(const Set<Ts>& lhs, Set<Ts>&& rhs)
+{
+    Set<Ts> res = lhs;
+    return res -= rhs;
+}
+
+template <class Ts>
+inline Set<Ts> operator-(Set<Ts>&& lhs, Set<Ts>&& rhs)
+{
+    lhs -= rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator&(const Set<Ts>& lhs, const Set<Ts>& rhs)
+{
+    Set<Ts> res;
+
+    for (const auto& e : rhs.get()) {
+        if (lhs.contains(e)) {
+            res.insert(e);
+        }
+    }
+
+    return res;
+}
+
+template <class Ts>
+inline Set<Ts> operator&(Set<Ts>&& lhs, const Set<Ts>& rhs)
+{
+    lhs &= rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator&(const Set<Ts>& lhs, Set<Ts>&& rhs)
+{
+    rhs &= lhs;
+    return std::move(rhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator&(Set<Ts>&& lhs, Set<Ts>&& rhs)
+{
+    lhs &= rhs;
+    return std::move(lhs);
+}
 
 template <class Ts>
 class Relation {
@@ -256,10 +318,12 @@ class Relation {
 
     /*
      * Lazy operators as properties.
+     *
+     * All inplace operators (e.g. |=) evaluate the current relation in place
+     * and clear properties.
      */
     enum Property {
         None              = 0x0,
-
         TransitiveClosure = 0x1,
         ReflexiveClosure  = 0x2,
         ReflexiveTransitiveClosure = TransitiveClosure | ReflexiveClosure
@@ -391,7 +455,7 @@ class Relation {
      */
     Relation eval() const
     {
-        if (!props()) {
+        if (props() == None) {
             return *this;
         }
 
@@ -402,6 +466,23 @@ class Relation {
         });
 
         return result;
+    }
+
+    Relation& eval_inplace()
+    {
+        if (props() == None) {
+            return *this;
+        }
+
+        Relation result;
+
+        for_each([&result](const Element& e1, const Element& e2) {
+            result.insert(e1, e2);
+        });
+
+        clear_props();
+        rel_ = std::move(result.rel_);
+        return *this;
     }
 
     template <class FilterFunc>
@@ -434,6 +515,8 @@ class Relation {
      */
     Relation& operator|=(const Relation& rhs)
     {
+        eval_inplace();
+
         if (rhs.props()) {
             const auto rhs_domain = rhs.domain();
             for (const auto& e : rhs_domain.get()) {
@@ -448,29 +531,13 @@ class Relation {
         return *this;
     }
 
-    Relation operator|(const Relation& rhs) const
-    {
-        Relation er = *this;
-        return er |= rhs;
-    }
-
-    Relation& operator|=(const Tuple& rhs)
-    {
-        insert(rhs.first, rhs.second);
-        return *this;
-    }
-
-    Relation operator|(const Tuple& rhs) const
-    {
-        Relation er = *this;
-        return er |= rhs;
-    }
-
     /*
      * Relation difference.
      */
     Relation& operator-=(const Relation& rhs)
     {
+        eval_inplace();
+
         if (rhs.props()) {
             const auto rhs_domain = rhs.domain();
             for (const auto& e : rhs_domain.get()) {
@@ -485,36 +552,24 @@ class Relation {
         return *this;
     }
 
-    Relation operator-(const Relation& rhs) const
-    {
-        Relation er = *this;
-        return er -= rhs;
-    }
-
     /*
      * Relation intersection
      */
-    Relation operator&(const Relation& rhs) const
-    {
-        Relation es;
-
-        const auto this_domain = domain();
-        for (const auto& e : this_domain.get()) {
-            const auto this_reachable = reachable(e);
-            const auto rhs_reachable = rhs.reachable(e);
-            Set<Ts> intersect = this_reachable & rhs_reachable;
-
-            if (!intersect.empty()) {
-                es.rel_[e] = intersect;
-            }
-        }
-
-        return es;
-    }
-
     Relation& operator&=(const Relation& rhs)
     {
-        *this = rhs & *this;
+        eval_inplace();
+
+        for (auto it = rel_.begin(); it != rel_.end();) {
+            it->second &= rhs.reachable(it->first);
+
+            if (it->second.empty()) {
+                it = rel_.erase(it);
+                continue;
+            }
+
+            it++;
+        }
+
         return *this;
     }
 
@@ -591,7 +646,7 @@ class Relation {
         if (!R_search(e, &e, &visited, nullptr,
                       None, SearchMode::RelatedVisitAll)) {
             if (!all_props(ReflexiveClosure)) {
-                visited -= e;
+                visited.erase(e);
             }
         }
 
@@ -740,12 +795,12 @@ class Relation {
 
     Set<Ts> on() const
     {
-        Set<Ts> es;
+        Set<Ts> res;
         for (const auto& tuples : rel_) {
-            es.insert(tuples.first);
-            es |= tuples.second;
+            res.insert(tuples.first);
+            res |= tuples.second;
         }
-        return es;
+        return res;
     }
 
     Set<Ts> domain() const
@@ -758,12 +813,12 @@ class Relation {
             return on();
         }
 
-        Set<Ts> es;
+        Set<Ts> res;
         for (const auto& tuples : rel_) {
-            es.insert(tuples.first);
+            res.insert(tuples.first);
         }
 
-        return es;
+        return res;
     }
 
     Set<Ts> range() const
@@ -773,11 +828,12 @@ class Relation {
             return on();
         }
 
-        Set<Ts> es;
+        Set<Ts> res;
         for (const auto& tuples : rel_) {
-            es |= reachable(tuples.first);
+            res |= reachable(tuples.first);
         }
-        return es;
+
+        return res;
     }
 
   protected:
@@ -1023,29 +1079,135 @@ class Relation {
 };
 
 template <class Ts>
-inline Relation<Ts> operator*(const Set<Ts>& lhs,
-                                const Set<Ts>& rhs)
+inline Relation<Ts> operator*(const Set<Ts>& lhs, const Set<Ts>& rhs)
 {
-    Relation<Ts> er;
+    Relation<Ts> res;
+
     for (const auto& e1 : lhs.get()) {
         for (const auto& e2 : rhs.get()) {
-            er.insert(e1, e2);
+            res.insert(e1, e2);
         }
     }
-    return er;
+
+    return res;
 }
 
+template <class Ts>
+inline Relation<Ts> operator|(const Relation<Ts>& lhs, const Relation<Ts>& rhs)
+{
+    Relation<Ts> res = lhs;
+    return res |= rhs;
+}
+
+template <class Ts>
+inline Relation<Ts> operator|(Relation<Ts>&& lhs, const Relation<Ts>& rhs)
+{
+    lhs |= rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline Relation<Ts> operator|(const Relation<Ts>& lhs, Relation<Ts>&& rhs)
+{
+    rhs |= lhs;
+    return std::move(rhs);
+}
+
+template <class Ts>
+inline Relation<Ts> operator|(Relation<Ts>&& lhs, Relation<Ts>&& rhs)
+{
+    lhs |= rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline Relation<Ts> operator-(const Relation<Ts>& lhs, const Relation<Ts>& rhs)
+{
+    Relation<Ts> res = lhs;
+    return res -= rhs;
+}
+
+template <class Ts>
+inline Relation<Ts> operator-(Relation<Ts>&& lhs, const Relation<Ts>& rhs)
+{
+    lhs -= rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline Relation<Ts> operator-(const Relation<Ts>& lhs, Relation<Ts>&& rhs)
+{
+    Relation<Ts> res = lhs;
+    return res -= rhs;
+}
+
+template <class Ts>
+inline Relation<Ts> operator-(Relation<Ts>&& lhs, Relation<Ts>&& rhs)
+{
+    lhs -= rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline Relation<Ts> operator&(const Relation<Ts>& lhs, const Relation<Ts>& rhs)
+{
+    Relation<Ts> res;
+
+    const auto lhs_domain = lhs.domain();
+    for (const auto& e : lhs_domain.get()) {
+        Set<Ts> intersect = lhs.reachable(e) & rhs.reachable(e);
+
+        if (!intersect.empty()) {
+            res.insert(e, intersect);
+        }
+    }
+
+    return res;
+}
+
+template <class Ts>
+inline Relation<Ts> operator&(Relation<Ts>&& lhs, const Relation<Ts>& rhs)
+{
+    lhs &= rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline Relation<Ts> operator&(const Relation<Ts>& lhs, Relation<Ts>&& rhs)
+{
+    rhs &= lhs;
+    return std::move(rhs);
+}
+
+template <class Ts>
+inline Relation<Ts> operator&(Relation<Ts>&& lhs, Relation<Ts>&& rhs)
+{
+    lhs &= rhs;
+    return std::move(lhs);
+}
+
+/**
+ * No derived class shall define a destructor!
+ */
 template <class Ts>
 class RelationOp {
   public:
     RelationOp()
     {}
 
-    explicit RelationOp(const std::vector<Relation<Ts>>& rels) :
-        rels_(rels) {}
-
-    virtual ~RelationOp()
+    explicit RelationOp(const std::vector<Relation<Ts>>& rels)
+        : rels_(rels)
     {}
+
+    explicit RelationOp(std::vector<Relation<Ts>>&& rels)
+        : rels_(std::move(rels))
+    {}
+
+    /*//virtual ~RelationOp()
+     *
+     * No destructor, so compiler can implicitly create move constructor and
+     * assignment operators.
+    */
 
     virtual RelationOp& eval_inplace() = 0;
 
@@ -1078,6 +1240,11 @@ class RelationOp {
         rels_.push_back(er);
     }
 
+    void add(Relation<Ts>&& er)
+    {
+        rels_.push_back(std::move(er));
+    }
+
     void add(const std::vector<Relation<Ts>>& rels)
     {
         rels_.reserve(rels_.size() + rels.size());
@@ -1100,17 +1267,9 @@ class RelationSeq : public RelationOp<Ts> {
         : RelationOp<Ts>(v)
     {}
 
-    RelationSeq& operator+=(const RelationSeq& rhs)
-    {
-        add(rhs.rels_);
-        return *this;
-    }
-
-    RelationSeq operator+(const RelationSeq& rhs) const
-    {
-        RelationSeq ers = *this;
-        return ers += rhs;
-    }
+    explicit RelationSeq(std::vector<Relation<Ts>>&& v)
+        : RelationOp<Ts>(std::move(v))
+    {}
 
     RelationSeq& operator+=(const Relation<Ts>& rhs)
     {
@@ -1118,10 +1277,16 @@ class RelationSeq : public RelationOp<Ts> {
         return *this;
     }
 
-    RelationSeq operator+(const Relation<Ts>& rhs) const
+    RelationSeq& operator+=(Relation<Ts>&& rhs)
     {
-        RelationSeq ers = *this;
-        return ers += rhs;
+        this->add(std::move(rhs));
+        return *this;
+    }
+
+    RelationSeq& operator+=(const RelationSeq& rhs)
+    {
+        this->add(rhs.rels_);
+        return *this;
     }
 
     RelationOp<Ts>& eval_inplace() override
@@ -1224,6 +1389,62 @@ class RelationSeq : public RelationOp<Ts> {
         return true;
     }
 };
+
+template <class Ts>
+inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs, const Relation<Ts>& rhs)
+{
+    RelationSeq<Ts> res = lhs;
+    return res += rhs;
+}
+
+template <class Ts>
+inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, const Relation<Ts>& rhs)
+{
+    lhs += rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs, Relation<Ts>&& rhs)
+{
+    RelationSeq<Ts> res = lhs;
+    return res += std::move(rhs);
+}
+
+template <class Ts>
+inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, Relation<Ts>&& rhs)
+{
+    lhs += std::move(rhs);
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs, const RelationSeq<Ts>& rhs)
+{
+    RelationSeq<Ts> res = lhs;
+    return res += rhs;
+}
+
+template <class Ts>
+inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, const RelationSeq<Ts>& rhs)
+{
+    lhs += rhs;
+    return std::move(lhs);
+}
+
+template <class Ts>
+inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs, RelationSeq<Ts>&& rhs)
+{
+    RelationSeq<Ts> res = lhs;
+    return res += rhs;
+}
+
+template <class Ts>
+inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, RelationSeq<Ts>&& rhs)
+{
+    lhs += rhs;
+    return std::move(lhs);
+}
 
 template <class E>
 struct Types {

@@ -232,13 +232,19 @@ BOOST_AUTO_TEST_CASE(EventRelIntersect)
     er.insert(e1, e2 = nextevt());
     er.insert(e1, e2 = nextevt());
     er.insert(e1, e2 = nextevt());
+    er.insert(e1, e1);
 
     EventRel d;
     d.insert(e1, e2);
     d.insert(e1, nextevt());
     d.insert(e1, nextevt());
+    BOOST_CHECK_EQUAL((d & er).size(), 1);
+
+    d.set_props(EventRel::ReflexiveClosure);
     d &= er;
-    BOOST_CHECK_EQUAL(d.size(), 1);
+    BOOST_CHECK(!d.props());
+    BOOST_CHECK_EQUAL(d.size(), 2);
+
     BOOST_CHECK(d.domain().subset(er.domain()));
 }
 
@@ -284,7 +290,7 @@ BOOST_AUTO_TEST_CASE(EventRelSeqR)
 
     er = EventRel();
     er.insert(e2, e1 = nextevt());
-    ers += er;
+    ers += EventRel(er);
 
     er = EventRel();
     er.insert(e1, end = e2 = nextevt());
