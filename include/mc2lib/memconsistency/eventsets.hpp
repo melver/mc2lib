@@ -128,6 +128,8 @@ class Event {
     enum Type {
         None    = 0x00000000,
 
+        // Memory operations:
+
         Read    = 0x00000001,
 
         Write   = 0x00000002,
@@ -136,7 +138,20 @@ class Event {
 
         Release = 0x00000008,
 
-        MemoryOperation = Read | Write | Acquire | Release
+        MemoryOperation = Read | Write | Acquire | Release,
+
+        // Auxiliary attributes:
+
+        RegInAddr   = 0x00000010,
+
+        RegInData   = 0x00000020,
+
+        RegOut      = 0x00000040,
+
+        Branch      = 0x00000080,
+
+        // For user declared attributes
+        NEXT = 0x00000100
     };
 
 
@@ -158,10 +173,8 @@ class Event {
 
         std::ostringstream memtype;
 
-        if (!type) {
+        if (type == None) {
             memtype << "None";
-        } else if (all_type(MemoryOperation)) {
-            memtype << "MemoryOperation";
         } else {
             bool found_type = false;
 
@@ -182,6 +195,27 @@ class Event {
 
             if (all_type(Release)) {
                 memtype << (found_type ? "|" : "") << "Release";
+                found_type = true;
+            }
+
+            if (all_type(RegInAddr)) {
+                memtype << (found_type ? "|" : "") << "RegInAddr";
+                found_type = true;
+            }
+
+            if (all_type(RegInData)) {
+                memtype << (found_type ? "|" : "") << "RegInData";
+                found_type = true;
+            }
+
+            if (all_type(RegOut)) {
+                memtype << (found_type ? "|" : "") << "RegOut";
+                found_type = true;
+            }
+
+            if (all_type(Branch)) {
+                memtype << (found_type ? "|" : "") << "Branch";
+                found_type = true;
             }
         }
 

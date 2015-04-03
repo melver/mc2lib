@@ -88,6 +88,75 @@ class Architecture {
     virtual Event::TypeMask eventTypeWrite() const = 0;
 };
 
+class ArchProxy : public Architecture {
+  public:
+    explicit ArchProxy(Architecture *arch)
+       : arch_(arch), memoized_(false)
+    {}
+
+    void clear() override
+    {
+        arch_->clear();
+        memoized_ = false;
+    }
+
+    std::unique_ptr<Checker> make_checker(const Architecture *arch,
+                                          const ExecWitness *exec) const override
+    {
+        return arch_->make_checker(arch, exec);
+    }
+
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    {
+        return make_checker(this, exec);
+    }
+
+    void memoize(const ExecWitness& ew)
+    {
+        ppo_ = arch_->ppo(ew);
+        fences_ = arch_->fences(ew);
+        prop_ = arch_->prop(ew);
+
+        memoized_ = true;
+    }
+
+    EventRel ppo(const ExecWitness& ew) const override
+    {
+        assert(memoized_);
+        return ppo_;
+    }
+
+    EventRel fences(const ExecWitness& ew) const override
+    {
+        assert(memoized_);
+        return fences_;
+    }
+
+    EventRel prop(const ExecWitness& ew) const override
+    {
+        assert(memoized_);
+        return prop_;
+    }
+
+    Event::TypeMask eventTypeRead() const override
+    {
+        return arch_->eventTypeRead();
+    }
+
+    Event::TypeMask eventTypeWrite() const override
+    {
+        return arch_->eventTypeWrite();
+    }
+
+  protected:
+   Architecture *arch_;
+   bool memoized_;
+
+   EventRel ppo_;
+   EventRel fences_;
+   EventRel prop_;
+};
+
 class ExecWitness {
   public:
 
@@ -284,6 +353,8 @@ class Checker {
         bool r = EventRelSeq({exec_->fre(), prop, hbstar.eval()}).irreflexive();
 
         if (!r && cyclic != nullptr) {
+            // However, here we want hbstar unevald, as otherwise the graph is
+            // too collapsed.
             EventRelSeq({exec_->fre(), prop, hbstar}).irreflexive(cyclic);
         }
 
@@ -417,73 +488,155 @@ class Arch_TSO : public Architecture {
     EventRel mfence;
 };
 
-class ArchProxy : public Architecture {
+/**
+ * ARMv7 as defined in [1]
+ */
+class Arch_ARMv7 : public Architecture {
   public:
-    explicit ArchProxy(Architecture *arch)
-       : arch_(arch), memoized_(false)
-    {}
+    Arch_ARMv7()
+    {
+        dd_reg.set_props(EventRel::ReflexiveTransitiveClosure);
+    }
 
     void clear() override
     {
-        arch_->clear();
-        memoized_ = false;
+        dd_reg.clear();
+        dsb.clear();
+        dmb.clear();
+        dsb_st.clear();
+        dmb_st.clear();
+        isb.clear();
     }
 
     std::unique_ptr<Checker> make_checker(const Architecture *arch,
                                           const ExecWitness *exec) const override
     {
-        return arch_->make_checker(arch, exec);
-    }
-
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
-    {
-        return make_checker(this, exec);
-    }
-
-    void memoize(const ExecWitness& ew)
-    {
-        ppo_ = arch_->ppo(ew);
-        fences_ = arch_->fences(ew);
-        prop_ = arch_->prop(ew);
-
-        memoized_ = true;
+        return std::unique_ptr<Checker>(new Checker(arch, exec));
     }
 
     EventRel ppo(const ExecWitness& ew) const override
     {
-        assert(memoized_);
-        return ppo_;
+        assert(ew.po.transitive());
+        assert(dd_reg.subseteq(ew.po)); // TODO: comment this once verified.
+
+        // 1. Obtain dependencies
+        //
+        EventRel addr, data, ctrl_part;
+        dd_reg.for_each(
+            [&addr, &data, &ctrl_part, this](const Event& e1, const Event& e2)
+        {
+            if (!e1.any_type(eventTypeRead())) {
+                return;
+            }
+
+            if (e2.any_type(Event::MemoryOperation)) {
+                if (e2.all_type(Event::RegInAddr)) {
+                    addr.insert(e1, e2);
+                }
+
+                if (e2.all_type(Event::RegInData)) {
+                    data.insert(e1, e2);
+                }
+            }
+
+            if (e2.all_type(Event::Branch)) {
+                ctrl_part.insert(e1, e2);
+            }
+        });
+
+        EventRel ctrl = EventRelSeq({ctrl_part, ew.po}).eval_clear();
+        EventRel ctrl_cfence = EventRelSeq({ctrl_part, isb}).eval_clear();
+
+        // 2. Compute helper relations
+        //
+        const auto po_loc = ew.po_loc();
+        const auto rfe = ew.rfe();
+        EventRel dd = addr | data;
+        EventRel rdw = po_loc & EventRelSeq({ew.fre(), rfe}).eval_clear();
+        EventRel detour = po_loc & EventRelSeq({ew.coe(), rfe}).eval_clear();
+        EventRel addrpo = EventRelSeq({addr, ew.po}).eval_clear();
+
+        // 3. Compute ppo
+        //
+        // Init
+        EventRel ci = ctrl_cfence | detour;
+        EventRel ii = dd | ew.rfi() | rdw;
+        EventRel cc = dd | ctrl | addrpo | po_loc;
+        EventRel ic;
+
+        std::size_t total_size = ci.size() + ii.size() + cc.size() + ic.size();
+        std::size_t prev_total_size = total_size;
+
+        do {
+            prev_total_size = total_size;
+
+            ci |= EventRelSeq({ci, ii}).eval_clear()
+                | EventRelSeq({cc, ci}).eval_clear();
+
+            ii |= ci | EventRelSeq({ic, ci}).eval_clear()
+                     | EventRelSeq({ii, ii}).eval_clear();
+
+            cc |= ci | EventRelSeq({ci, ic}).eval_clear()
+                     | EventRelSeq({cc, cc}).eval_clear();
+
+            ic |= ii | cc | EventRelSeq({ic, cc}).eval_clear()
+                          | EventRelSeq({ii, ic}).eval_clear();
+
+            total_size = ci.size() + ii.size() + cc.size() + ic.size();
+            assert(prev_total_size <= total_size);
+        } while (total_size != prev_total_size);
+
+        EventRel result = ic.filter([this](const Event& e1, const Event& e2) {
+            return e1.any_type(eventTypeRead()) && e2.any_type(eventTypeWrite());
+        });
+        result |= ii.filter([this](const Event& e1, const Event& e2) {
+            return e1.any_type(eventTypeRead()) && e2.any_type(eventTypeRead());
+        });
+
+        return result;
     }
 
     EventRel fences(const ExecWitness& ew) const override
     {
-        assert(memoized_);
-        return fences_;
+        return dmb | dsb | dmb_st | dsb_st;
     }
 
     EventRel prop(const ExecWitness& ew) const override
     {
-        assert(memoized_);
-        return prop_;
+        EventRel hbstar = ew.hb(*this).set_props(
+                EventRel::ReflexiveTransitiveClosure).eval_inplace();
+        EventRel fence = fences(ew);
+        EventRel A_cumul = EventRelSeq({ew.rfe(), fence}).eval_clear();
+        EventRel propbase = EventRelSeq({(fence | A_cumul), hbstar}).eval_clear();
+
+        EventRel comstar = ew.com().set_props(EventRel::ReflexiveClosure);
+
+        EventRel result = propbase.filter([this](const Event &e1, const Event &e2) {
+            return e1.any_type(eventTypeWrite()) && e2.any_type(eventTypeWrite());
+        });
+
+        propbase.set_props(EventRel::ReflexiveTransitiveClosure).eval_inplace();
+        result |= EventRelSeq({comstar, propbase/*star*/, fence, hbstar}).eval_clear();
+        return result;
     }
 
     Event::TypeMask eventTypeRead() const override
     {
-        return arch_->eventTypeRead();
+        return Event::Read;
     }
 
     Event::TypeMask eventTypeWrite() const override
     {
-        return arch_->eventTypeWrite();
+        return Event::Write;
     }
 
-  protected:
-   Architecture *arch_;
-   bool memoized_;
-
-   EventRel ppo_;
-   EventRel fences_;
-   EventRel prop_;
+  public:
+    EventRel dd_reg;
+    EventRel dsb;
+    EventRel dmb;
+    EventRel dsb_st;
+    EventRel dmb_st;
+    EventRel isb;
 };
 
 } /* namespace model14 */
