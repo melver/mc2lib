@@ -70,7 +70,8 @@ class Architecture {
     /*
      * Creates a checker compatible with this Architecture.
      */
-    virtual std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const = 0;
+    virtual std::unique_ptr<Checker> make_checker(const Architecture *arch,
+                                        const ExecWitness *exec) const = 0;
 
     virtual EventRel ppo(const ExecWitness& ew) const = 0;
     virtual EventRel fences(const ExecWitness& ew) const = 0;
@@ -326,9 +327,10 @@ class Checker {
 
 class Arch_SC : public Architecture {
   public:
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const override
+    std::unique_ptr<Checker> make_checker(const Architecture *arch,
+                                          const ExecWitness *exec) const override
     {
-        return std::unique_ptr<Checker>(new Checker(this, exec));
+        return std::unique_ptr<Checker>(new Checker(arch, exec));
     }
 
     EventRel ppo(const ExecWitness& ew) const override
@@ -365,9 +367,10 @@ class Arch_TSO : public Architecture {
         mfence.clear();
     }
 
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const override
+    std::unique_ptr<Checker> make_checker(const Architecture *arch,
+                                          const ExecWitness *exec) const override
     {
-        return std::unique_ptr<Checker>(new Checker(this, exec));
+        return std::unique_ptr<Checker>(new Checker(arch, exec));
     }
 
     EventRel ppo(const ExecWitness& ew) const override
@@ -426,9 +429,15 @@ class ArchProxy : public Architecture {
         memoized_ = false;
     }
 
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const override
+    std::unique_ptr<Checker> make_checker(const Architecture *arch,
+                                          const ExecWitness *exec) const override
     {
-        return arch_->make_checker(exec);
+        return arch_->make_checker(arch, exec);
+    }
+
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    {
+        return make_checker(this, exec);
     }
 
     void memoize(const ExecWitness& ew)

@@ -410,7 +410,7 @@ BOOST_AUTO_TEST_CASE(Model12Empty)
 {
     model12::ExecWitness ew;
     model12::Arch_SC sc;
-    auto c = sc.make_checker(&ew);
+    auto c = sc.make_checker(&sc, &ew);
 
     BOOST_CHECK_NO_THROW(c->wf());
     BOOST_CHECK(c->uniproc());
@@ -423,7 +423,7 @@ BOOST_AUTO_TEST_CASE(Model14Empty)
 {
     model14::ExecWitness ew;
     model14::Arch_SC sc;
-    auto c = sc.make_checker(&ew);
+    auto c = sc.make_checker(&sc, &ew);
 
     BOOST_CHECK_NO_THROW(c->wf());
     BOOST_CHECK(c->sc_per_location());
@@ -437,7 +437,7 @@ BOOST_AUTO_TEST_CASE(Model12DekkerValidSC)
 {
     model12::ExecWitness ew;
     model12::Arch_SC sc;
-    auto c = sc.make_checker(&ew);
+    auto c = sc.make_checker(&sc, &ew);
 
     Event Ix = Event(Event::Write, 10, Iiid(-1, 0));
     Event Iy = Event(Event::Write, 20, Iiid(-1, 1));
@@ -470,8 +470,8 @@ BOOST_AUTO_TEST_CASE(Model14DekkerInvalidSCValidTSO)
     model14::ExecWitness ew;
     model14::Arch_SC sc;
     model14::Arch_TSO tso;
-    auto c_sc = sc.make_checker(&ew);
-    auto c_tso = tso.make_checker(&ew);
+    auto c_sc = sc.make_checker(&sc, &ew);
+    auto c_tso = tso.make_checker(&tso, &ew);
 
     Event Ix = Event(Event::Write, 10, Iiid(-1, 0));
     Event Iy = Event(Event::Write, 20, Iiid(-1, 1));
@@ -644,7 +644,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     BOOST_CHECK(emit_len != 0);
 
 #if 1
-    auto checker = arch.make_checker(&ew);
+    auto checker = arch.make_checker(&arch, &ew);
     ew.po.set_props(mc::EventRel::TransitiveClosure);
     ew.co.set_props(mc::EventRel::TransitiveClosure);
 
