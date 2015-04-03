@@ -836,6 +836,17 @@ class Relation {
         return res;
     }
 
+    bool subseteq(const Relation& rhs) const
+    {
+        const Relation diff = (*this - rhs);
+        return diff.empty();
+    }
+
+    bool subset(const Relation& rhs) const
+    {
+        return size() < rhs.size() && subseteq(rhs);
+    }
+
   protected:
     typedef typename Ts::template MapContainer<bool> FlagSet;
 

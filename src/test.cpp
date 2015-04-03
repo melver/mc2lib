@@ -413,6 +413,29 @@ BOOST_AUTO_TEST_CASE(EventRelReflexivePath)
     BOOST_CHECK(p[1] == p[2]);
 }
 
+BOOST_AUTO_TEST_CASE(EventRelSubset)
+{
+    Event e1 = resetevt();
+    Event e2;
+
+    EventRel er1;
+    er1.insert(e1, e2 = nextevt());
+    er1.insert(e2, e1 = nextevt());
+    er1.insert(e2, e1 = nextevt());
+    er1.set_props(EventRel::ReflexiveTransitiveClosure);
+
+    EventRel er2 = er1.eval();
+    BOOST_CHECK(er2.subseteq(er1));
+    BOOST_CHECK(er1.subseteq(er2));
+    BOOST_CHECK(!er2.subset(er1));
+
+    er2.insert(e1, e2 = nextevt());
+    er2.insert(e1, e2 = nextevt());
+
+    BOOST_CHECK(!er2.subset(er1));
+    BOOST_CHECK(er1.subset(er2));
+}
+
 BOOST_AUTO_TEST_CASE(Model12Empty)
 {
     model12::ExecWitness ew;
