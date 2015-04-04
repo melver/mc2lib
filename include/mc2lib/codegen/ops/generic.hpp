@@ -49,7 +49,9 @@ namespace codegen {
  */
 namespace ops {
 
-struct BackendGeneric : Backend {
+struct Backend {
+    virtual ~Backend() {}
+
     virtual std::size_t Return(void *code, std::size_t len) const = 0;
 
     virtual std::size_t Delay(std::size_t length, void *code, std::size_t len) const = 0;
@@ -71,13 +73,16 @@ struct BackendGeneric : Backend {
     virtual std::size_t CacheFlush(types::Addr addr, void *code, std::size_t len) const = 0;
 };
 
+typedef Op<Backend> Operation;
+typedef MemOp<Backend> MemOperation;
+
 class Return : public Operation {
   public:
     explicit Return(types::Pid pid = -1)
         : Operation(pid)
     {}
 
-    OperationPtr clone() const override
+    Operation::Ptr clone() const override
     {
         return std::make_shared<Return>(*this);
     }
@@ -87,14 +92,13 @@ class Return : public Operation {
     bool enable_emit(AssemblerState *asms) override
     { return true; }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
+    void insert_po(Operation::SeqConstIt before, AssemblerState *asms) override
     {}
 
     std::size_t emit(const Backend *backend, types::InstPtr start,
                      AssemblerState *asms, void *code, std::size_t len) override
     {
-        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
-        return backend_generic->Return(code, len);
+        return backend->Return(code, len);
     }
 
     const mc::Event* last_event(const mc::Event *next_event,
@@ -113,7 +117,7 @@ class Delay : public Operation {
         : Operation(pid), length_(length), before_(nullptr)
     {}
 
-    OperationPtr clone() const override
+    Operation::Ptr clone() const override
     {
         return std::make_shared<Delay>(*this);
     }
@@ -126,7 +130,7 @@ class Delay : public Operation {
     bool enable_emit(AssemblerState *asms) override
     { return true; }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
+    void insert_po(Operation::SeqConstIt before, AssemblerState *asms) override
     {
         before_ = *before;
     }
@@ -134,8 +138,7 @@ class Delay : public Operation {
     std::size_t emit(const Backend *backend, types::InstPtr start,
                      AssemblerState *asms, void *code, std::size_t len) override
     {
-        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
-        return backend_generic->Delay(length_, code, len);
+        return backend->Delay(length_, code, len);
     }
 
     const mc::Event* last_event(const mc::Event *next_event,
@@ -168,7 +171,7 @@ class Read : public MemOperation {
         : MemOperation(pid), addr_(addr), event_(nullptr), from_(nullptr)
     {}
 
-    OperationPtr clone() const override
+    Operation::Ptr clone() const override
     {
         return std::make_shared<Read>(*this);
     }
@@ -182,7 +185,7 @@ class Read : public MemOperation {
     bool enable_emit(AssemblerState *asms) override
     { return !asms->exhausted(); }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
+    void insert_po(Operation::SeqConstIt before, AssemblerState *asms) override
     {
         event_ = asms->make_read(pid(), mc::Event::Read, addr_)[0];
 
@@ -197,8 +200,7 @@ class Read : public MemOperation {
     std::size_t emit(const Backend *backend, types::InstPtr start,
                      AssemblerState *asms, void *code, std::size_t len) override
     {
-        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
-        return backend_generic->Read(addr_, start, code, len, &at_);
+        return backend->Read(addr_, start, code, len, &at_);
     }
 
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
@@ -257,7 +259,7 @@ class ReadAddrDp : public Read {
         : Read(addr, pid)
     {}
 
-    OperationPtr clone() const override
+    Operation::Ptr clone() const override
     {
         return std::make_shared<ReadAddrDp>(*this);
     }
@@ -271,8 +273,7 @@ class ReadAddrDp : public Read {
     std::size_t emit(const Backend *backend, types::InstPtr start,
                      AssemblerState *asms, void *code, std::size_t len) override
     {
-        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
-        return backend_generic->ReadAddrDp(addr_, start, code, len, &at_);
+        return backend->ReadAddrDp(addr_, start, code, len, &at_);
     }
 };
 
@@ -282,7 +283,7 @@ class Write : public Read {
         : Read(addr, pid), write_id_(0)
     {}
 
-    OperationPtr clone() const override
+    Operation::Ptr clone() const override
     {
         return std::make_shared<Write>(*this);
     }
@@ -294,7 +295,7 @@ class Write : public Read {
         write_id_ = 0;
     }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
+    void insert_po(Operation::SeqConstIt before, AssemblerState *asms) override
     {
         event_ = asms->make_write(pid(), mc::Event::Write, addr_, &write_id_)[0];
 
@@ -309,8 +310,7 @@ class Write : public Read {
     std::size_t emit(const Backend *backend, types::InstPtr start,
                      AssemblerState *asms, void *code, std::size_t len) override
     {
-        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
-        return backend_generic->Write(addr_, write_id_, start, code, len, &at_);
+        return backend->Write(addr_, write_id_, start, code, len, &at_);
     }
 
   protected:
@@ -335,7 +335,7 @@ class ReadModifyWrite : public MemOperation {
         : MemOperation(pid), addr_(addr), last_part_(-1)
     {}
 
-    OperationPtr clone() const override
+    Operation::Ptr clone() const override
     {
         return std::make_shared<ReadModifyWrite>(*this);
     }
@@ -352,7 +352,7 @@ class ReadModifyWrite : public MemOperation {
     bool enable_emit(AssemblerState *asms) override
     { return !asms->exhausted(); }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
+    void insert_po(Operation::SeqConstIt before, AssemblerState *asms) override
     {
         event_r_ = asms->make_read(pid(), mc::Event::Read, addr_)[0];
         event_w_ = asms->make_write(pid(), mc::Event::Write, addr_, &write_id_)[0];
@@ -376,8 +376,7 @@ class ReadModifyWrite : public MemOperation {
     std::size_t emit(const Backend *backend, types::InstPtr start,
                      AssemblerState *asms, void *code, std::size_t len) override
     {
-        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
-        return backend_generic->ReadModifyWrite(addr_, write_id_, start, code, len, &at_);
+        return backend->ReadModifyWrite(addr_, write_id_, start, code, len, &at_);
     }
 
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
@@ -456,7 +455,7 @@ class CacheFlush : public MemOperation {
         : MemOperation(pid), addr_(addr), before_(nullptr)
     {}
 
-    OperationPtr clone() const override
+    Operation::Ptr clone() const override
     {
         return std::make_shared<CacheFlush>(*this);
     }
@@ -469,7 +468,7 @@ class CacheFlush : public MemOperation {
     bool enable_emit(AssemblerState *asms) override
     { return true; }
 
-    void insert_po(OperationSeqConstIt before, AssemblerState *asms) override
+    void insert_po(Operation::SeqConstIt before, AssemblerState *asms) override
     {
         before_ = *before;
     }
@@ -477,8 +476,7 @@ class CacheFlush : public MemOperation {
     std::size_t emit(const Backend *backend, types::InstPtr start,
                      AssemblerState *asms, void *code, std::size_t len) override
     {
-        auto backend_generic = dynamic_cast<const BackendGeneric*>(backend);
-        return backend_generic->CacheFlush(addr_, code, len);
+        return backend->CacheFlush(addr_, code, len);
     }
 
     const mc::Event* last_event(const mc::Event *next_event,
@@ -511,6 +509,8 @@ class CacheFlush : public MemOperation {
  * RandomFactory.
  */
 struct RandomFactory {
+    typedef Operation ResultType;
+
     explicit RandomFactory(types::Pid min_pid, types::Pid max_pid,
                            types::Addr min_addr, types::Addr max_addr,
                            std::size_t stride = sizeof(types::WriteID),
@@ -535,7 +535,7 @@ struct RandomFactory {
     }
 
     template <class URNG>
-    OperationPtr operator ()(URNG& urng) const
+    Operation::Ptr operator ()(URNG& urng) const
     {
         std::uniform_int_distribution<std::size_t> dist_choice(0, 99);
         std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);

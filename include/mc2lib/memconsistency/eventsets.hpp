@@ -215,7 +215,7 @@ class Event {
 
             if (all_type(Branch)) {
                 memtype << (found_type ? "|" : "") << "Branch";
-                found_type = true;
+                //found_type = true;
             }
         }
 

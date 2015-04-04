@@ -42,7 +42,7 @@ namespace mc2lib {
 namespace codegen {
 namespace ops {
 
-struct Backend_X86_64 : BackendGeneric {
+struct Backend_X86_64 : Backend {
     std::size_t Return(void *code, std::size_t len) const override;
 
     std::size_t Delay(std::size_t length, void *code, std::size_t len) const override;

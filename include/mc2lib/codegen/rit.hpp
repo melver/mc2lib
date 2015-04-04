@@ -45,23 +45,25 @@ namespace mc2lib {
 namespace codegen {
 
 template <class URNG, class OperationFactory>
-class RandInstTest : public simplega::Genome<OperationPtr> {
+class RandInstTest : public simplega::Genome<typename OperationFactory::ResultType::Ptr> {
   public:
+    typedef typename OperationFactory::ResultType Operation;
+
     explicit RandInstTest(URNG& urng, const OperationFactory *factory, std::size_t len)
         : urng_(urng)
         , factory_(factory)
         , fitness_(0.0f)
     {
-        genome_.resize(len);
+        this->genome_.resize(len);
 
-        for (auto& op_ptr : genome_) {
+        for (auto& op_ptr : this->genome_) {
             op_ptr = (*factory)(urng);
         }
     }
 
     explicit RandInstTest(const RandInstTest& parent1, const RandInstTest& parent2,
-                          const std::vector<OperationPtr>& g)
-        : simplega::Genome<OperationPtr>(g)
+                          const std::vector<typename Operation::Ptr>& g)
+        : simplega::Genome<typename Operation::Ptr>(g)
         , urng_(parent1.urng_)
         , factory_(parent1.factory_)
         , fitness_(0.0f)
@@ -69,10 +71,10 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
 
     void mutate(float rate) override
     {
-        std::uniform_int_distribution<std::size_t> dist_idx(0, genome_.size() - 1);
+        std::uniform_int_distribution<std::size_t> dist_idx(0, this->genome_.size() - 1);
         std::unordered_set<std::size_t> used;
         std::size_t selection_count =
-            static_cast<std::size_t>(static_cast<float>(genome_.size()) * rate);
+            static_cast<std::size_t>(static_cast<float>(this->genome_.size()) * rate);
 
         while (selection_count) {
             auto idx = dist_idx(urng_);
@@ -80,7 +82,7 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
                 continue;
             }
 
-            genome_[idx] = make_random();
+            this->genome_[idx] = make_random();
 
             used.insert(idx);
             --selection_count;
@@ -99,14 +101,14 @@ class RandInstTest : public simplega::Genome<OperationPtr> {
     std::unordered_set<types::Addr>* fitaddrsptr()
     { return &fitaddrs_; }
 
-    OperationPtr make_random() const
+    typename Operation::Ptr make_random() const
     {
         return (*factory_)(urng_);
     }
 
-    Threads threads()
+    typename Operation::Threads threads()
     {
-        return threads_extract(getptr());
+        return threads_extract(this->getptr());
     }
 
   private:

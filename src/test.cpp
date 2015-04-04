@@ -660,7 +660,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     BOOST_CHECK_EQUAL(threads.size(), 2);
     BOOST_CHECK_EQUAL(threads_size(threads), rit.get().size());
 
-    Compiler<ops::Backend_X86_64> compiler(&arch, &ew,  &threads);
+    Compiler<ops::Operation, ops::Backend_X86_64> compiler(&arch, &ew,  &threads);
 
     char code[1024];
 
@@ -714,14 +714,14 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux)
     cats::ExecWitness ew;
     cats::Arch_TSO arch;
 
-    Compiler<ops::Backend_X86_64> compiler(&arch, &ew);
+    Compiler<ops::Operation, ops::Backend_X86_64> compiler(&arch, &ew);
 
     unsigned char test_mem[] = {
         0x03, 0x14, 0x25, 0x36, 0x47, 0x58, 0x69, 0x7a, 0x8b, 0x9c,
         0xad, 0xbe, 0xcf, 0xd0, 0xe1, 0xf2
     };
 
-    OperationPtr ops[] = {
+    ops::Operation::Ptr ops[] = {
         std::make_shared<ops::Read>(reinterpret_cast<types::Addr>(&test_mem[0xf])),
         std::make_shared<ops::Return>()
     };
