@@ -34,13 +34,13 @@
 #ifndef MC2LIB_CODEGEN_OPS_X86_64_HPP_
 #define MC2LIB_CODEGEN_OPS_X86_64_HPP_
 
-#include "generic.hpp"
+#include "strong.hpp"
 
 #include <cstdint>
 
 namespace mc2lib {
 namespace codegen {
-namespace ops {
+namespace strong {
 
 struct Backend_X86_64 : Backend {
     std::size_t Return(void *code, std::size_t len) const override;
@@ -423,7 +423,7 @@ Backend_X86_64::CacheFlush(types::Addr addr, void *code, std::size_t len) const
     return expected_len;
 }
 
-} /* namespace ops */
+} /* namespace strong */
 } /* namespace codegen */
 } /* namespace mc2lib */
 

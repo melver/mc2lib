@@ -653,14 +653,14 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
     cats::Arch_TSO arch;
 
     const types::Addr offset = 0x0;
-    ops::RandomFactory factory(0, 1, offset + 0xccc0, offset + 0xccca);
-    RandInstTest<std::default_random_engine, ops::RandomFactory> rit(urng, &factory, 150);
+    strong::RandomFactory factory(0, 1, offset + 0xccc0, offset + 0xccca);
+    RandInstTest<std::default_random_engine, strong::RandomFactory> rit(urng, &factory, 150);
 
     const auto threads = rit.threads();
     BOOST_CHECK_EQUAL(threads.size(), 2);
     BOOST_CHECK_EQUAL(threads_size(threads), rit.get().size());
 
-    Compiler<ops::Operation, ops::Backend_X86_64> compiler(&arch, &ew,  &threads);
+    Compiler<strong::Operation, strong::Backend_X86_64> compiler(&arch, &ew,  &threads);
 
     char code[1024];
 
@@ -714,16 +714,16 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux)
     cats::ExecWitness ew;
     cats::Arch_TSO arch;
 
-    Compiler<ops::Operation, ops::Backend_X86_64> compiler(&arch, &ew);
+    Compiler<strong::Operation, strong::Backend_X86_64> compiler(&arch, &ew);
 
     unsigned char test_mem[] = {
         0x03, 0x14, 0x25, 0x36, 0x47, 0x58, 0x69, 0x7a, 0x8b, 0x9c,
         0xad, 0xbe, 0xcf, 0xd0, 0xe1, 0xf2
     };
 
-    ops::Operation::Ptr ops[] = {
-        std::make_shared<ops::Read>(reinterpret_cast<types::Addr>(&test_mem[0xf])),
-        std::make_shared<ops::Return>()
+    strong::Operation::Ptr ops[] = {
+        std::make_shared<strong::Read>(reinterpret_cast<types::Addr>(&test_mem[0xf])),
+        std::make_shared<strong::Return>()
     };
 
     const std::size_t MAX_CODE_SIZE = 4096;

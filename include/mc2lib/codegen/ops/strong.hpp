@@ -31,8 +31,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MC2LIB_CODEGEN_OPS_GENERIC_HPP_
-#define MC2LIB_CODEGEN_OPS_GENERIC_HPP_
+#ifndef MC2LIB_CODEGEN_OPS_STRONG_HPP_
+#define MC2LIB_CODEGEN_OPS_STRONG_HPP_
 
 #include "../../config.hpp"
 #include "../compiler.hpp"
@@ -44,10 +44,10 @@ namespace mc2lib {
 namespace codegen {
 
 /**
- * @namespace mc2lib::codegen::ops
- * @brief Implementations of Operations.
+ * @namespace mc2lib::codegen::strong
+ * @brief Implementations of Operations for strong memory consistency models.
  */
-namespace ops {
+namespace strong {
 
 struct Backend {
     virtual ~Backend() {}
@@ -607,10 +607,10 @@ struct RandomFactory {
     std::size_t max_delay_;
 };
 
-} /* namespace ops */
+} /* namespace strong */
 } /* namespace codegen */
 } /* namespace mc2lib */
 
-#endif /* MC2LIB_CODEGEN_OPS_GENERIC_HPP_ */
+#endif /* MC2LIB_CODEGEN_OPS_STRONG_HPP_ */
 
 /* vim: set ts=4 sts=4 sw=4 et : */
