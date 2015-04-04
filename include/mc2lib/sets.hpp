@@ -148,6 +148,17 @@ class Set {
         return *this;
     }
 
+    Set& operator|=(Set&& rhs)
+    {
+        if (empty()) {
+            set_ = std::move(rhs.set_);
+        } else {
+            set_.insert(rhs.set_.begin(), rhs.set_.end());
+        }
+
+        return *this;
+    }
+
     /*
      * Set difference.
      */
@@ -391,6 +402,12 @@ class Relation {
     {
         if (e2s.empty()) return;
         rel_[e1] |= e2s;
+    }
+
+    void insert(const Element& e1, Set<Ts>&& e2s)
+    {
+        if (e2s.empty()) return;
+        rel_[e1] |= std::move(e2s);
     }
 
     void erase(const Element& e1, const Element& e2, bool assert_exists = false)
@@ -1167,10 +1184,8 @@ inline Relation<Ts> operator&(const Relation<Ts>& lhs, const Relation<Ts>& rhs)
     const auto lhs_domain = lhs.domain();
     for (const auto& e : lhs_domain.get()) {
         Set<Ts> intersect = lhs.reachable(e) & rhs.reachable(e);
-
-        if (!intersect.empty()) {
-            res.insert(e, intersect);
-        }
+        // insert checks if empty or not
+        res.insert(e, std::move(intersect));
     }
 
     return res;
@@ -1240,9 +1255,9 @@ class RelationOp {
         eval_inplace();
         assert(rels_.size() == 1);
 
-        auto result = std::move(rels_.back());
+        Relation<Ts> result = std::move(rels_.back());
         rels_.clear();
-        return result;
+        return result; // NRVO
     }
 
   protected:
