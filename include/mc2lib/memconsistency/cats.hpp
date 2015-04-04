@@ -31,8 +31,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MC2LIB_MEMCONSISTENCY_MODEL14_HPP_
-#define MC2LIB_MEMCONSISTENCY_MODEL14_HPP_
+#ifndef MC2LIB_MEMCONSISTENCY_CATS_HPP_
+#define MC2LIB_MEMCONSISTENCY_CATS_HPP_
 
 #include "eventsets.hpp"
 
@@ -42,7 +42,7 @@ namespace mc2lib {
 namespace memconsistency {
 
 /**
- * @namespace mc2lib::memconsistency::model14
+ * @namespace mc2lib::memconsistency::cats
  * @brief Memory consistency model framework based on 2014 TOPLAS paper.
  *
  * This memory consistency model framework is based upon [1], and [2].
@@ -54,7 +54,7 @@ namespace memconsistency {
  * [2] J. Alglave, L. Maranget, S. Sarkar, and P. Sewell. "Fences in weak memory
  *      models", 2012.
 */
-namespace model14 {
+namespace cats {
 
 class ExecWitness;
 class Checker;
@@ -639,10 +639,10 @@ class Arch_ARMv7 : public Architecture {
     EventRel isb;
 };
 
-} /* namespace model14 */
+} /* namespace cats */
 } /* namespace memconsistency */
 } /* namespace mc2lib */
 
-#endif /* MEMCONSISTENCY_MODEL14_HPP_ */
+#endif /* MEMCONSISTENCY_CATS_HPP_ */
 
 /* vim: set ts=4 sts=4 sw=4 et : */

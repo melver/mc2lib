@@ -32,12 +32,14 @@
 */
 
 #if 1
-#include <mc2lib/memconsistency.hpp>
+#include <mc2lib/memconsistency/cats.hpp>
+#include <mc2lib/memconsistency/model12.hpp>
 #include <mc2lib/simplega.hpp>
 #include <mc2lib/codegen/ops/x86_64.hpp>
 #include <mc2lib/codegen/rit.hpp>
 #else
-#include "../include/mc2lib/memconsistency.hpp"
+#include "../include/mc2lib/memconsistency/cats.hpp"
+#include "../include/mc2lib/memconsistency/model12.hpp"
 #include "../include/mc2lib/simplega.hpp"
 #include "../include/mc2lib/codegen/ops/x86_64.hpp"
 #include "../include/mc2lib/codegen/rit.hpp"
@@ -449,10 +451,10 @@ BOOST_AUTO_TEST_CASE(Model12Empty)
     BOOST_CHECK_NO_THROW(c->valid_exec());
 }
 
-BOOST_AUTO_TEST_CASE(Model14Empty)
+BOOST_AUTO_TEST_CASE(CatsEmpty)
 {
-    model14::ExecWitness ew;
-    model14::Arch_SC sc;
+    cats::ExecWitness ew;
+    cats::Arch_SC sc;
     auto c = sc.make_checker(&sc, &ew);
 
     BOOST_CHECK_NO_THROW(c->wf());
@@ -495,11 +497,11 @@ BOOST_AUTO_TEST_CASE(Model12DekkerValidSC)
     BOOST_CHECK_NO_THROW(c->valid_exec());
 }
 
-BOOST_AUTO_TEST_CASE(Model14DekkerInvalidSCValidTSO)
+BOOST_AUTO_TEST_CASE(CatsDekkerInvalidSCValidTSO)
 {
-    model14::ExecWitness ew;
-    model14::Arch_SC sc;
-    model14::Arch_TSO tso;
+    cats::ExecWitness ew;
+    cats::Arch_SC sc;
+    cats::Arch_TSO tso;
     auto c_sc = sc.make_checker(&sc, &ew);
     auto c_tso = tso.make_checker(&tso, &ew);
 
@@ -647,8 +649,8 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 {
     std::default_random_engine urng(1238);
 
-    model14::ExecWitness ew;
-    model14::Arch_TSO arch;
+    cats::ExecWitness ew;
+    cats::Arch_TSO arch;
 
     const types::Addr offset = 0x0;
     ops::RandomFactory factory(0, 1, offset + 0xccc0, offset + 0xccca);
@@ -709,8 +711,8 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64)
 #include <sys/mman.h>
 BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux)
 {
-    model14::ExecWitness ew;
-    model14::Arch_TSO arch;
+    cats::ExecWitness ew;
+    cats::Arch_TSO arch;
 
     Compiler<ops::Backend_X86_64> compiler(&arch, &ew);
 

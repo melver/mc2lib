@@ -234,13 +234,13 @@ class Read : public MemOperation {
 
   protected:
     virtual void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
-                                    mc::model14::ExecWitness *ew)
+                                    mc::cats::ExecWitness *ew)
     {
         ew->rf.insert(*e1, *e2, true);
     }
 
     virtual void erase_from_helper(const mc::Event *e1, const mc::Event *e2,
-                                   mc::model14::ExecWitness *ew)
+                                   mc::cats::ExecWitness *ew)
     {
         ew->rf.erase(*e1, *e2);
     }
@@ -315,13 +315,13 @@ class Write : public Read {
 
   protected:
     void insert_from_helper(const mc::Event *e1, const mc::Event *e2,
-                            mc::model14::ExecWitness *ew) override
+                            mc::cats::ExecWitness *ew) override
     {
         ew->co.insert(*e1, *e2);
     }
 
     void erase_from_helper(const mc::Event *e1, const mc::Event *e2,
-                           mc::model14::ExecWitness *ew) override
+                           mc::cats::ExecWitness *ew) override
     {
         ew->co.erase(*e1, *e2);
     }
@@ -362,9 +362,9 @@ class ReadModifyWrite : public MemOperation {
             if (event_before != nullptr) {
                 asms->ew()->po.insert(*event_before, *event_r_);
 
-                if (dynamic_cast<mc::model14::Arch_TSO*>(asms->arch()) != nullptr) {
+                if (dynamic_cast<mc::cats::Arch_TSO*>(asms->arch()) != nullptr) {
                     // Implied fence before atomic
-                    auto arch_tso = dynamic_cast<mc::model14::Arch_TSO*>(asms->arch());
+                    auto arch_tso = dynamic_cast<mc::cats::Arch_TSO*>(asms->arch());
                     arch_tso->mfence.insert(*event_before, *event_r_);
                 }
             }
@@ -428,9 +428,9 @@ class ReadModifyWrite : public MemOperation {
     const mc::Event* last_event(const mc::Event *next_event,
                                 AssemblerState *asms) const override
     {
-        if (dynamic_cast<mc::model14::Arch_TSO*>(asms->arch()) != nullptr) {
+        if (dynamic_cast<mc::cats::Arch_TSO*>(asms->arch()) != nullptr) {
             // Implied fence after atomic
-            auto arch_tso = dynamic_cast<mc::model14::Arch_TSO*>(asms->arch());
+            auto arch_tso = dynamic_cast<mc::cats::Arch_TSO*>(asms->arch());
             arch_tso->mfence.insert(*event_w_, *next_event);
         }
 

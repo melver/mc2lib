@@ -34,7 +34,7 @@
 #ifndef MC2LIB_CODEGEN_COMPILER_HPP_
 #define MC2LIB_CODEGEN_COMPILER_HPP_
 
-#include "../memconsistency/model14.hpp"
+#include "../memconsistency/cats.hpp"
 #include "../types.hpp"
 
 #include <array>
@@ -219,7 +219,7 @@ class AssemblerState {
 
     static_assert(MIN_OTHER > MAX_WRITE, "Invalid read/write ID limits!");
 
-    explicit AssemblerState(mc::model14::ExecWitness *ew, mc::model14::Architecture *arch)
+    explicit AssemblerState(mc::cats::ExecWitness *ew, mc::cats::Architecture *arch)
         : ew_(ew), arch_(arch)
     {}
 
@@ -353,17 +353,17 @@ class AssemblerState {
         return result;
     }
 
-    mc::model14::ExecWitness* ew()
+    mc::cats::ExecWitness* ew()
     { return ew_; }
 
-    mc::model14::Architecture* arch()
+    mc::cats::Architecture* arch()
     { return arch_; }
 
   private:
     typedef std::unordered_map<types::WriteID, const mc::Event*> WriteID_EventPtr;
 
-    mc::model14::ExecWitness *ew_;
-    mc::model14::Architecture *arch_;
+    mc::cats::ExecWitness *ew_;
+    mc::cats::Architecture *arch_;
 
     WriteID_EventPtr writes_;
 
@@ -374,7 +374,7 @@ class AssemblerState {
 template <class Backend>
 class Compiler {
   public:
-    explicit Compiler(mc::model14::Architecture *arch, mc::model14::ExecWitness *ew,
+    explicit Compiler(mc::cats::Architecture *arch, mc::cats::ExecWitness *ew,
                       const Threads *threads = nullptr)
         : asms_(ew, arch)
     {
