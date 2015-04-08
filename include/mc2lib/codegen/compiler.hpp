@@ -338,6 +338,7 @@ class AssemblerState {
         assert(size % sizeof(types::WriteID) == 0);
 
         EventPtrs<max_size_bytes> result;
+        result.fill(nullptr); // init
 
         for (std::size_t i = 0; i < size/sizeof(types::WriteID); ++i) {
             WriteID_EventPtr::const_iterator write;
