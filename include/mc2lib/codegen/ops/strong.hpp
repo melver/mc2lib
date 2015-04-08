@@ -534,8 +534,9 @@ struct RandomFactory {
         stride_ = stride;
     }
 
-    template <class URNG>
-    Operation::Ptr operator ()(URNG& urng) const
+    template <class URNG, class AddrFilterFunc>
+    Operation::Ptr operator ()(URNG& urng, AddrFilterFunc addr_filter_func,
+                               std::size_t max_fails = 0) const
     {
         std::uniform_int_distribution<std::size_t> dist_choice(0, 99);
         std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);
@@ -551,8 +552,17 @@ struct RandomFactory {
 
         // addr (lazy)
         auto addr = [&]() {
-            auto result = dist_addr(urng);
-            result -= result % stride_;
+            types::Addr result = 0;
+
+            for (std::size_t tries = 0; tries < max_fails + 1; ++tries) {
+                result = dist_addr(urng);
+                result -= result % stride_;
+
+                if (addr_filter_func(result)) {
+                    return result;
+                }
+            }
+
             return result;
         };
 
@@ -578,6 +588,12 @@ struct RandomFactory {
         // should never get here
         assert(false);
         return nullptr;
+    }
+
+    template <class URNG>
+    Operation::Ptr operator ()(URNG& urng) const
+    {
+        return (*this)(urng, [](types::Addr addr) { return true; });
     }
 
     types::Pid min_pid() const

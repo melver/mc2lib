@@ -1472,20 +1472,20 @@ inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, RelationSeq<Ts>&& rhs)
     return std::move(lhs);
 }
 
-template <class E>
+template <class E, class Hash = typename E::Hash>
 struct Types {
     typedef E Element;
 
-    typedef std::unordered_set<Element, typename Element::Hash> SetContainer;
+    typedef std::unordered_set<Element, Hash> SetContainer;
 
 #if defined(__GNUC__) && (__GNUC__ == 4 && (__GNUC_MINOR__ == 6))
     template <class T>
-    class MapContainer : public std::unordered_map<Element, T, typename Element::Hash>
+    class MapContainer : public std::unordered_map<Element, T, Hash>
     {};
 #else
     // Only works for GCC > 4.6
     template <class T>
-    using MapContainer = std::unordered_map<Element, T, typename Element::Hash>;
+    using MapContainer = std::unordered_map<Element, T, Hash>;
 #endif
 };
 

@@ -163,15 +163,15 @@ class ExecWitness {
      * wf_rf), the rf-relation to have any additional properties.
      */
     template <class FilterFunc>
-    EventRel fr(FilterFunc filterFunc) const
+    EventRel fr(FilterFunc filter_func) const
     {
         EventRel er;
         for (const auto& rf_tuples : rf.raw()) {
             const auto ws_reach = ws.reachable(rf_tuples.first);
             for (const auto& ws_w : ws_reach.get()) {
                 for (const auto& rf_r : rf_tuples.second.get()) {
-                    if (filterFunc(std::make_pair(rf_tuples.first, rf_r),
-                                   std::make_pair(rf_tuples.first, ws_w))) {
+                    if (filter_func(std::make_pair(rf_tuples.first, rf_r),
+                                    std::make_pair(rf_tuples.first, ws_w))) {
                         er.insert(rf_r, ws_w);
                     }
                 }

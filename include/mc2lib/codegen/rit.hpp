@@ -35,11 +35,12 @@
 #define MC2LIB_CODEGEN_RIT_HPP_
 
 #include "../config.hpp"
+#include "../sets.hpp"
 #include "../simplega.hpp"
 #include "compiler.hpp"
 
+#include <functional>
 #include <random>
-#include <unordered_set>
 
 namespace mc2lib {
 namespace codegen {
@@ -48,6 +49,7 @@ template <class URNG, class OperationFactory>
 class RandInstTest : public simplega::Genome<typename OperationFactory::ResultType::Ptr> {
   public:
     typedef typename OperationFactory::ResultType Operation;
+    typedef sets::Set<sets::Types<types::Addr, std::hash<types::Addr>>> AddrSet;
 
     explicit RandInstTest(URNG& urng, const OperationFactory *factory, std::size_t len)
         : urng_(urng)
@@ -95,15 +97,22 @@ class RandInstTest : public simplega::Genome<typename OperationFactory::ResultTy
     void set_fitness(float fitness)
     { fitness_ = fitness; }
 
-    const std::unordered_set<types::Addr>& fitaddrs() const
+    const AddrSet& fitaddrs() const
     { return fitaddrs_; }
 
-    std::unordered_set<types::Addr>* fitaddrsptr()
+    AddrSet* fitaddrsptr()
     { return &fitaddrs_; }
 
     typename Operation::Ptr make_random() const
     {
         return (*factory_)(urng_);
+    }
+
+    typename Operation::Ptr make_random(const AddrSet& subset_addrs, std::size_t max_tries = 1000) const
+    {
+        return (*factory_)(urng_, [&subset_addrs](types::Addr addr) {
+            return subset_addrs.contains(addr);
+        }, max_tries);
     }
 
     typename Operation::Threads threads()
@@ -116,7 +125,7 @@ class RandInstTest : public simplega::Genome<typename OperationFactory::ResultTy
     const OperationFactory *factory_;
 
     float fitness_;
-    std::unordered_set<types::Addr> fitaddrs_;
+    AddrSet fitaddrs_;
 };
 
 } /* namespace codegen */
