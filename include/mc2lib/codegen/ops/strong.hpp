@@ -620,7 +620,7 @@ struct RandomFactory {
                                std::size_t max_fails = 0) const
     {
         // Choice distribution
-        const std::size_t max_choice = (extended_ ? 1001 : 1000) - 1;
+        const std::size_t max_choice = (extended_ ? 1005 : 1000) - 1;
         std::uniform_int_distribution<std::size_t> dist_choice(0, max_choice);
 
         // Attributes of the operation
@@ -671,7 +671,7 @@ struct RandomFactory {
         } else if (extended_) {
             // REAL_PERCENTAGE_OF_100 = PERC * (1000 / MAX_CHOICE)
 
-            if (choice < 1001) { // 0.1%
+            if (choice < 1005) { // 0.5%
                 auto min_a = addr();
                 //TODO: do not hard-code stride
                 auto max_a = min_a + sequence() * 64;
@@ -711,6 +711,15 @@ struct RandomFactory {
 
     std::size_t max_sequence() const
     { return max_sequence_; }
+
+    void set_max_sequence(std::size_t val)
+    { max_sequence_ = val; }
+
+    bool extended() const
+    { return extended_; }
+
+    void set_extended(bool val)
+    { extended_ = val; }
 
   private:
     types::Pid min_pid_;
