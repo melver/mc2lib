@@ -107,6 +107,10 @@ class Return : public Operation
                                 AssemblerState *asms) const override
     { return nullptr; }
 
+    const mc::Event* first_event(const mc::Event *prev_event,
+                                 AssemblerState *asms) const override
+    { return nullptr; }
+
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
                      AssemblerState *asms) override
@@ -150,6 +154,17 @@ class Delay : public Operation
         // Forward
         if (before_ != nullptr) {
             return before_->last_event(next_event, asms);
+        }
+
+        return nullptr;
+    }
+
+    const mc::Event* first_event(const mc::Event *prev_event,
+                                 AssemblerState *asms) const override
+    {
+        // Forward
+        if (before_ != nullptr) {
+            return before_->first_event(prev_event, asms);
         }
 
         return nullptr;
@@ -232,6 +247,10 @@ class Read : public MemOperation
     }
 
     const mc::Event* last_event(const mc::Event *next_event,
+                                AssemblerState *asms) const override
+    { return event_; }
+
+    const mc::Event* first_event(const mc::Event *prev_event,
                                 AssemblerState *asms) const override
     { return event_; }
 
@@ -443,6 +462,10 @@ class ReadModifyWrite : public MemOperation
         return event_w_;
     }
 
+    const mc::Event* first_event(const mc::Event *prev_event,
+                                 AssemblerState *asms) const override
+    { return event_r_; }
+
     types::Addr addr() const override
     { return addr_; }
 
@@ -498,6 +521,17 @@ class CacheFlush : public MemOperation
         return nullptr;
     }
 
+    const mc::Event* first_event(const mc::Event *prev_event,
+                                 AssemblerState *asms) const override
+    {
+        // Forward
+        if (before_ != nullptr) {
+            return before_->first_event(prev_event, asms);
+        }
+
+        return nullptr;
+    }
+
     bool update_from(types::InstPtr ip, int part, types::Addr addr,
                      const types::WriteID *from_id, std::size_t size,
                      AssemblerState *asms) override
@@ -527,9 +561,8 @@ class ReadSequence : public NullOperation
 
     void advance_seq(Operation::SeqItStack *it_stack) const override
     {
-        ++(it_stack->top().first);
-        it_stack->push(std::pair<Operation::SeqIt, Operation::SeqIt>(
-                       sequence_.begin(), sequence_.end()));
+        ++(it_stack->back().first);
+        it_stack->emplace_back(sequence_.begin(), sequence_.end());
     }
 
     Operation::Ptr clone() const override

@@ -41,11 +41,11 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <map>
 #include <memory>
 #include <sstream>
-#include <stack>
 #include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
@@ -94,13 +94,20 @@ template <class Backend>
 class Op
 {
   public:
+    // Types for sequences and threads
     typedef std::shared_ptr<Op> Ptr;
     typedef std::vector<Ptr> Seq;
     typedef typename Seq::const_iterator SeqIt;
     typedef std::unordered_map<types::Pid, Seq> Threads;
-    typedef std::stack<std::pair<SeqIt, SeqIt>> SeqItStack;
+    typedef std::vector<std::pair<SeqIt, SeqIt>> SeqItStack;
+
+    // Read-only sequence types: new Ops can access previous Ops.
     typedef std::vector<const Op*> SeqConst;
     typedef typename SeqConst::const_iterator SeqConstIt;
+
+    // Callback type: optionally, previous Ops get called back with new Ops.
+    typedef std::function<void(const Op*, AssemblerState *asms)> Callback;
+    typedef std::vector<Callback> CallbackStack;
 
     template <class T>
     friend Threads threads_extract(T *container)
@@ -143,7 +150,7 @@ class Op
 
     virtual void advance_seq(SeqItStack *it_stack) const
     {
-        ++(it_stack->top().first);
+        ++(it_stack->back().first);
     }
 
     /**
@@ -177,6 +184,14 @@ class Op
     virtual void insert_po(SeqConstIt before, AssemblerState *asms) = 0;
 
     /**
+     * Optionally register callback.
+     *
+     * @param[out] callback_stack Pointer to callback_stack with which to
+     *                            register the callback.
+     */
+    virtual void register_callback(CallbackStack *callback_stack) {}
+
+    /**
      * Emit machine code.
      *
      * @param backend Architecture backend.
@@ -191,17 +206,27 @@ class Op
                              AssemblerState *asms, void *code, std::size_t len) = 0;
 
     /**
-     * Accessor for last event generated. Also use to insert additional
-     * ordering based on passed next_event (typically fences).
+     * Accessor for last event generated. Also used to insert additional
+     * ordering based on passed next_event (e.g. fences).
      *
-     * @param next_event The first event in program-order of the next Op;
-     *                   nullptr if none exists.
+     * @param next_event Event after last in program order; nullptr if none exists.
      * @param[in,out] asms Pointer to AssemblerState instance maintained by Compiler.
      *
      * @return Last event in program-order; nullptr if none exists.
      */
     virtual const mc::Event* last_event(const mc::Event *next_event,
                                         AssemblerState *asms) const = 0;
+
+    /**
+     * Accessor for first event generated.
+     *
+     * @param prev_event Event before first in program order; nullptr if none exists.
+     * @param[in,out] asms Pointer to AssemblerState instance maintained by Compiler.
+     *
+     * @return First event in program-order; nullptr if none exists.
+     */
+    virtual const mc::Event* first_event(const mc::Event *prev_event,
+                                         AssemblerState *asms) const = 0;
 
     /**
      * Updates dynamic observation for instruction's memory operation.
@@ -275,6 +300,13 @@ class NullOp : public Op<Backend>
 
     const mc::Event* last_event(const mc::Event *next_event,
                                 AssemblerState *asms) const override
+    {
+        throw std::logic_error("Not supported!");
+        return nullptr;
+    }
+
+    const mc::Event* first_event(const mc::Event *prev_event,
+                                 AssemblerState *asms) const override
     {
         throw std::logic_error("Not supported!");
         return nullptr;
@@ -459,6 +491,8 @@ class Compiler
     typedef typename Operation::SeqIt OperationSeqIt;
     typedef typename Operation::SeqItStack OperationSeqItStack;
     typedef typename Operation::SeqConst OperationSeqConst;
+    typedef typename Operation::Callback OperationCallback;
+    typedef typename Operation::CallbackStack OperationCallbackStack;
 
     explicit Compiler(mc::cats::Architecture *arch, mc::cats::ExecWitness *ew,
                       const OperationThreads *threads = nullptr)
@@ -491,7 +525,7 @@ class Compiler
     { return &asms_; }
 
     std::size_t emit(types::InstPtr base, Operation *op, void *code, std::size_t len,
-                     OperationSeqConst *ops) {
+                     OperationSeqConst *ops, OperationCallbackStack *callback_stack) {
         // Prepare op for emit.
         if (!op->enable_emit(&asms_)) {
             return 0;
@@ -505,6 +539,16 @@ class Compiler
         } else {
             OperationSeqConst invalid{nullptr};
             op->insert_po(invalid.begin(), &asms_);
+        }
+
+        if (callback_stack != nullptr) {
+            // Call all registered callbacks
+            for (auto& callback : (*callback_stack)) {
+                callback(op, &asms_);
+            }
+
+            // Register callback
+            op->register_callback(callback_stack);
         }
 
         // Generate code and architecture-specific ordering relations.
@@ -539,17 +583,19 @@ class Compiler
         OperationSeqConst ops{nullptr};
         ops.reserve(thread->second.size() + 1);
 
+        // Callback function list
+        OperationCallbackStack callback_stack;
+
         // Enable recursive, nested sequences.
         OperationSeqItStack it_stack;
-        it_stack.push(std::pair<OperationSeqIt, OperationSeqIt>(
-                      thread->second.begin(), thread->second.end()));
+        it_stack.emplace_back(thread->second.begin(), thread->second.end());
 
         while (!it_stack.empty()) {
-            auto& it = it_stack.top().first;
-            auto& end = it_stack.top().second;
+            auto& it = it_stack.back().first;
+            auto& end = it_stack.back().second;
 
             if (it == end) {
-                it_stack.pop();
+                it_stack.pop_back();
                 continue;
             }
 
@@ -557,7 +603,7 @@ class Compiler
 
             // Generate code and architecture-specific ordering relations.
             const std::size_t op_len = emit(base + emit_len, op.get(), code,
-                                            len - emit_len, &ops);
+                                            len - emit_len, &ops, &callback_stack);
 
             emit_len += op_len;
             assert(emit_len <= len);

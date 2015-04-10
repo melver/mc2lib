@@ -736,7 +736,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux)
     std::size_t emit_len = 0;
     for (auto& op : ops) {
         emit_len += compiler.emit(emit_len, op.get(), code + emit_len,
-                                  MAX_CODE_SIZE - emit_len, nullptr);
+                                  MAX_CODE_SIZE - emit_len, nullptr, nullptr);
     }
 
     unsigned char (*func)() = reinterpret_cast<unsigned char (*)()>(code);
