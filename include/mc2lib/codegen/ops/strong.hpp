@@ -75,8 +75,10 @@ struct Backend {
 
 typedef Op<Backend> Operation;
 typedef MemOp<Backend> MemOperation;
+typedef NullOp<Backend> NullOperation;
 
-class Return : public Operation {
+class Return : public Operation
+{
   public:
     explicit Return(types::Pid pid = -1)
         : Operation(pid)
@@ -111,7 +113,8 @@ class Return : public Operation {
     { return true; }
 };
 
-class Delay : public Operation {
+class Delay : public Operation
+{
   public:
     explicit Delay(std::size_t length, types::Pid pid = -1)
         : Operation(pid), length_(length), before_(nullptr)
@@ -165,7 +168,8 @@ class Delay : public Operation {
     const Operation *before_;
 };
 
-class Read : public MemOperation {
+class Read : public MemOperation
+{
   public:
     explicit Read(types::Addr addr, types::Pid pid = -1)
         : MemOperation(pid), addr_(addr), event_(nullptr), from_(nullptr)
@@ -253,7 +257,8 @@ class Read : public MemOperation {
     types::InstPtr at_;
 };
 
-class ReadAddrDp : public Read {
+class ReadAddrDp : public Read
+{
   public:
     explicit ReadAddrDp(types::Addr addr, types::Pid pid = -1)
         : Read(addr, pid)
@@ -277,7 +282,8 @@ class ReadAddrDp : public Read {
     }
 };
 
-class Write : public Read {
+class Write : public Read
+{
   public:
     explicit Write(types::Addr addr, types::Pid pid = -1)
         : Read(addr, pid), write_id_(0)
@@ -329,7 +335,8 @@ class Write : public Read {
     types::WriteID write_id_;
 };
 
-class ReadModifyWrite : public MemOperation {
+class ReadModifyWrite : public MemOperation
+{
   public:
     explicit ReadModifyWrite(types::Addr addr, types::Pid pid = -1)
         : MemOperation(pid), addr_(addr), last_part_(-1)
@@ -449,7 +456,8 @@ class ReadModifyWrite : public MemOperation {
     types::InstPtr at_;
 };
 
-class CacheFlush : public MemOperation {
+class CacheFlush : public MemOperation
+{
   public:
     explicit CacheFlush(types::Addr addr, types::Pid pid = -1)
         : MemOperation(pid), addr_(addr), before_(nullptr)
@@ -505,6 +513,44 @@ class CacheFlush : public MemOperation {
     const Operation *before_;
 };
 
+class ReadSequence : public NullOperation
+{
+  public:
+    explicit ReadSequence(types::Addr min_addr, types::Addr max_addr, types::Pid pid = -1)
+        : NullOperation(pid), min_addr_(min_addr), max_addr_(max_addr)
+    {
+        while (min_addr <= max_addr) {
+            sequence_.emplace_back(std::make_shared<Read>(min_addr, pid));
+            min_addr += 64;
+        }
+    }
+
+    void advance_seq(Operation::SeqItStack *it_stack) const override
+    {
+        ++(it_stack->top().first);
+        it_stack->push(std::pair<Operation::SeqIt, Operation::SeqIt>(
+                       sequence_.begin(), sequence_.end()));
+    }
+
+    Operation::Ptr clone() const override
+    {
+        // Don't just copy, need deep clone
+        return std::make_shared<ReadSequence>(min_addr_, max_addr_, pid());
+    }
+
+    void reset() override
+    {
+        for (const auto& op : sequence_) {
+            op->reset();
+        }
+    }
+
+  protected:
+    types::Addr min_addr_;
+    types::Addr max_addr_;
+    Operation::Seq sequence_;
+};
+
 /**
  * RandomFactory.
  */
@@ -514,10 +560,12 @@ struct RandomFactory {
     explicit RandomFactory(types::Pid min_pid, types::Pid max_pid,
                            types::Addr min_addr, types::Addr max_addr,
                            std::size_t stride = sizeof(types::WriteID),
-                           std::size_t max_delay = 50)
+                           std::size_t max_sequence = 50,
+                           bool extended = false)
         : min_pid_(min_pid), max_pid_(max_pid),
           min_addr_(min_addr), max_addr_(max_addr),
-          stride_(stride), max_delay_(max_delay)
+          stride_(stride), max_sequence_(max_sequence),
+          extended_(extended)
     {
         assert(stride_ >= sizeof(types::WriteID));
         assert(stride_ % sizeof(types::WriteID) == 0);
@@ -525,7 +573,7 @@ struct RandomFactory {
 
     void reset(types::Pid min_pid, types::Pid max_pid,
                types::Addr min_addr, types::Addr max_addr,
-               std::size_t stride = 1)
+               std::size_t stride = sizeof(types::WriteID))
     {
         min_pid_ = min_pid;
         max_pid_ = max_pid;
@@ -538,11 +586,15 @@ struct RandomFactory {
     Operation::Ptr operator ()(URNG& urng, AddrFilterFunc addr_filter_func,
                                std::size_t max_fails = 0) const
     {
-        std::uniform_int_distribution<std::size_t> dist_choice(0, 99);
+        // Choice distribution
+        const std::size_t max_choice = (extended_ ? 1001 : 1000) - 1;
+        std::uniform_int_distribution<std::size_t> dist_choice(0, max_choice);
+
+        // Attributes of the operation
         std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);
         std::uniform_int_distribution<types::Addr> dist_addr(min_addr_,
                                     max_addr_ - AssemblerState::MAX_OP_SIZE);
-        std::uniform_int_distribution<std::size_t> dist_delay(1, max_delay_);
+        std::uniform_int_distribution<std::size_t> dist_sequence(1, max_sequence_);
 
         // select op
         const auto choice = dist_choice(urng);
@@ -566,23 +618,36 @@ struct RandomFactory {
             return result;
         };
 
-        // delay (lazy)
-        auto delay = [&dist_delay, &urng]() {
-            return dist_delay(urng);
+        // sequence (lazy)
+        auto sequence = [&dist_sequence, &urng]() {
+            return dist_sequence(urng);
         };
 
-        if (choice < 50) { // 50%
+        if (choice < 500) { // 50%
             return std::make_shared<Read>(addr(), pid);
-        } else if (choice < 55) { // 5%
+        } else if (choice < 550) { // 5%
             return std::make_shared<ReadAddrDp>(addr(), pid);
-        } else if (choice < 97) { // 42%
+        } else if (choice < 970) { // 42%
             return std::make_shared<Write>(addr(), pid);
-        } else if (choice < 98) { // 1%
+        } else if (choice < 980) { // 1%
             return std::make_shared<ReadModifyWrite>(addr(), pid);
-        } else if (choice < 99) { // 1%
+        } else if (choice < 990) { // 1%
             return std::make_shared<CacheFlush>(addr(), pid);
-        } else if (choice < 100) { // 1%
-            return std::make_shared<Delay>(delay(), pid);
+        } else if (choice < 1000) { // 1%
+            return std::make_shared<Delay>(sequence(), pid);
+        } else if (extended_) {
+            // REAL_PERCENTAGE_OF_100 = PERC * (1000 / MAX_CHOICE)
+
+            if (choice < 1001) { // 0.1%
+                auto min_a = addr();
+                //TODO: do not hard-code stride
+                auto max_a = min_a + sequence() * 64;
+                if (max_a > max_addr()) {
+                    max_a = max_addr();
+                }
+
+                return std::make_shared<ReadSequence>(min_a, max_a, pid);
+            }
         }
 
         // should never get here
@@ -611,8 +676,8 @@ struct RandomFactory {
     std::size_t stride() const
     { return stride_; }
 
-    std::size_t max_delay() const
-    { return max_delay_; }
+    std::size_t max_sequence() const
+    { return max_sequence_; }
 
   private:
     types::Pid min_pid_;
@@ -620,7 +685,8 @@ struct RandomFactory {
     types::Addr min_addr_;
     types::Addr max_addr_;
     std::size_t stride_;
-    std::size_t max_delay_;
+    std::size_t max_sequence_;
+    bool extended_;
 };
 
 } /* namespace strong */

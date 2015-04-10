@@ -45,6 +45,7 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <stack>
 #include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
@@ -90,11 +91,14 @@ inline auto make_eventptrs(const mc::Event* e1, Ts... en)
  * Baseclass for Operation implementations.
  */
 template <class Backend>
-class Op {
+class Op
+{
   public:
     typedef std::shared_ptr<Op> Ptr;
     typedef std::vector<Ptr> Seq;
+    typedef typename Seq::const_iterator SeqIt;
     typedef std::unordered_map<types::Pid, Seq> Threads;
+    typedef std::stack<std::pair<SeqIt, SeqIt>> SeqItStack;
     typedef std::vector<const Op*> SeqConst;
     typedef typename SeqConst::const_iterator SeqConstIt;
 
@@ -136,6 +140,11 @@ class Op {
 
     virtual ~Op()
     {}
+
+    virtual void advance_seq(SeqItStack *it_stack) const
+    {
+        ++(it_stack->top().first);
+    }
 
     /**
      * Clone the instance.
@@ -223,7 +232,8 @@ class Op {
 };
 
 template <class Backend>
-class MemOp : public Op<Backend> {
+class MemOp : public Op<Backend>
+{
   public:
     explicit MemOp(types::Pid pid)
         : Op<Backend>(pid)
@@ -232,7 +242,47 @@ class MemOp : public Op<Backend> {
     virtual types::Addr addr() const = 0;
 };
 
-class AssemblerState {
+template <class Backend>
+class NullOp : public Op<Backend>
+{
+  public:
+    explicit NullOp(types::Pid pid)
+        : Op<Backend>(pid)
+    {}
+
+    bool enable_emit(AssemblerState *asms) override
+    { return false; }
+
+    void insert_po(typename Op<Backend>::SeqConstIt before, AssemblerState *asms) override
+    {
+        throw std::logic_error("Not supported!");
+    }
+
+    std::size_t emit(const Backend *backend, types::InstPtr start,
+                     AssemblerState *asms, void *code, std::size_t len) override
+    {
+        throw std::logic_error("Not supported!");
+        return 0;
+    }
+
+    bool update_from(types::InstPtr ip, int part, types::Addr addr,
+                     const types::WriteID *from_id, std::size_t size,
+                     AssemblerState *asms) override
+    {
+        throw std::logic_error("Not supported!");
+        return false;
+    }
+
+    const mc::Event* last_event(const mc::Event *next_event,
+                                AssemblerState *asms) const override
+    {
+        throw std::logic_error("Not supported!");
+        return nullptr;
+    }
+};
+
+class AssemblerState
+{
   public:
     static constexpr std::size_t MAX_OP_SIZE = sizeof(types::WriteID) * 2; // 1 Op can at most emit 2 write Events
     static constexpr std::size_t MAX_OP_EVTS = MAX_OP_SIZE / sizeof(types::WriteID);
@@ -402,11 +452,13 @@ class AssemblerState {
 };
 
 template <class Operation, class Backend>
-class Compiler {
+class Compiler
+{
   public:
     typedef typename Operation::Threads OperationThreads;
+    typedef typename Operation::SeqIt OperationSeqIt;
+    typedef typename Operation::SeqItStack OperationSeqItStack;
     typedef typename Operation::SeqConst OperationSeqConst;
-    typedef typename Operation::SeqConstIt OperationSeqConstIt;
 
     explicit Compiler(mc::cats::Architecture *arch, mc::cats::ExecWitness *ew,
                       const OperationThreads *threads = nullptr)
@@ -451,7 +503,7 @@ class Compiler {
             op->insert_po(--ops->end(), &asms_);
             ops->push_back(op);
         } else {
-            OperationSeqConst invalid {nullptr};
+            OperationSeqConst invalid{nullptr};
             op->insert_po(invalid.begin(), &asms_);
         }
 
@@ -480,12 +532,29 @@ class Compiler {
 
         std::size_t emit_len = 0;
 
-        // Maintain const sequence of ops; nullptr denotes beginning of
-        // sequence (insert_po cannot query ops.begin()).
-        OperationSeqConst ops {nullptr};
+        // Maintain const sequence of *emitted* ops; nullptr denotes beginning
+        // of sequence (in absence of ops.begin()).
+        //
+        // This will be a flattened sequence of ops (evaluated recursive ops).
+        OperationSeqConst ops{nullptr};
         ops.reserve(thread->second.size() + 1);
 
-        for (const auto& op : thread->second) {
+        // Enable recursive, nested sequences.
+        OperationSeqItStack it_stack;
+        it_stack.push(std::pair<OperationSeqIt, OperationSeqIt>(
+                      thread->second.begin(), thread->second.end()));
+
+        while (!it_stack.empty()) {
+            auto& it = it_stack.top().first;
+            auto& end = it_stack.top().second;
+
+            if (it == end) {
+                it_stack.pop();
+                continue;
+            }
+
+            const auto& op = *it;
+
             // Generate code and architecture-specific ordering relations.
             const std::size_t op_len = emit(base + emit_len, op.get(), code,
                                             len - emit_len, &ops);
@@ -494,6 +563,8 @@ class Compiler {
             assert(emit_len <= len);
 
             code = static_cast<char*>(code) + op_len;
+
+            op->advance_seq(&it_stack);
         }
 
         return emit_len;
