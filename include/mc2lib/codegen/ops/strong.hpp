@@ -600,8 +600,8 @@ struct RandomFactory {
           stride_(stride), max_sequence_(max_sequence),
           extended_(extended)
     {
-        assert(stride_ >= sizeof(types::WriteID));
-        assert(stride_ % sizeof(types::WriteID) == 0);
+        assert(this->stride() >= sizeof(types::WriteID));
+        assert(this->stride() % sizeof(types::WriteID) == 0);
     }
 
     void reset(types::Pid min_pid, types::Pid max_pid,
@@ -623,10 +623,29 @@ struct RandomFactory {
         const std::size_t max_choice = (extended_ ? 1005 : 1000) - 1;
         std::uniform_int_distribution<std::size_t> dist_choice(0, max_choice);
 
-        // Attributes of the operation
+        // Pid distribution
         std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);
-        std::uniform_int_distribution<types::Addr> dist_addr(min_addr_,
-                                    max_addr_ - AssemblerState::MAX_OP_SIZE);
+
+
+        // Addr distribution
+        auto chunk_min_addr = min_addr_;
+        auto chunk_max_addr = max_addr_;
+
+        if (chunk_size() > 1 && hole_size() > 1) {
+            std::size_t chunk_cnt = for_each_addr_range([](types::Addr a, types::Addr b){});
+            std::size_t select_chunk = std::uniform_int_distribution<std::size_t>(0, chunk_cnt - 1)(urng);
+
+            chunk_min_addr = min_addr_ + (select_chunk * hole_size());
+            chunk_max_addr = chunk_min_addr + chunk_size() - 1;
+
+            assert(chunk_min_addr >= min_addr_);
+            assert(chunk_max_addr <= max_addr_);
+        }
+
+        std::uniform_int_distribution<types::Addr> dist_addr(chunk_min_addr,
+                                    chunk_max_addr - AssemblerState::MAX_OP_SIZE);
+
+        // Sequence distribution
         std::uniform_int_distribution<std::size_t> dist_sequence(1, max_sequence_);
 
         // select op
@@ -641,7 +660,7 @@ struct RandomFactory {
 
             for (std::size_t tries = 0; tries < max_fails + 1; ++tries) {
                 result = dist_addr(urng);
-                result -= result % stride_;
+                result -= result % stride();
 
                 if (addr_filter_func(result)) {
                     return result;
@@ -707,7 +726,43 @@ struct RandomFactory {
     { return max_addr_; }
 
     std::size_t stride() const
-    { return stride_; }
+    {
+        return stride_ & ((1ULL << 16) - 1);
+    }
+
+    std::size_t chunk_size() const
+    {
+        return 1ULL << ((stride_ & (0xffULL << 24)) >> 24);
+    }
+
+    std::size_t hole_size() const
+    {
+        return 1ULL << ((stride_ & (0xffULL << 16)) >> 16);
+    }
+
+    template <class Func>
+    std::size_t for_each_addr_range(Func func) const
+    {
+        if (chunk_size() > 1 && hole_size() > 1) {
+            assert(hole_size() >= chunk_size());
+            assert(chunk_size() <= (max_addr_ - min_addr_ + 1));
+
+            std::size_t chunk_cnt = 0;
+
+            for (;; ++chunk_cnt) {
+                types::Addr min = min_addr_ + (chunk_cnt * hole_size());
+                types::Addr max = min + chunk_size() - 1;
+                if (max > max_addr_) break;
+
+                func(min, max);
+            }
+
+            return chunk_cnt;
+        }
+
+        func(min_addr_, max_addr_);
+        return 1;
+    }
 
     std::size_t max_sequence() const
     { return max_sequence_; }
