@@ -38,54 +38,54 @@
 
 namespace mc2lib {
 
-    /**
-     * @namespace mc2lib::types
-     * @brief Common types.
-     */
-    namespace types {
+/**
+ * @namespace mc2lib::types
+ * @brief Common types.
+ */
+namespace types {
 
-        /**
-         * @brief Template class of common types, permitting specialization.
-         *
-         * Can be specialized to declare custom types without overwriting
-         * types.hh; however, this appraoch depends on user specializing before
-         * including any mc2lib header file.
-         */
-        template <bool use_specialized>
-            struct Types {
-                typedef std::uint64_t Addr;
-                typedef std::uint16_t Pid;
-                typedef std::uint16_t Poi;
-                typedef Addr InstPtr;
-                typedef std::uint8_t WriteID;
-            };
+/**
+ * @brief Template class of common types, permitting specialization.
+ *
+ * Can be specialized to declare custom types without overwriting
+ * types.hh; however, this appraoch depends on user specializing before
+ * including any mc2lib header file.
+ */
+template <bool use_specialized>
+struct Types {
+    typedef std::uint64_t Addr;
+    typedef std::uint16_t Pid;
+    typedef std::uint16_t Poi;
+    typedef Addr InstPtr;
+    typedef std::uint8_t WriteID;
+};
 
-        /**
-         * @brief Address type.
-         */
-        typedef typename Types<true>::Addr Addr;
+/**
+ * @brief Address type.
+ */
+typedef typename Types<true>::Addr Addr;
 
-        /**
-         * @brief Processor/thread ID type.
-         */
-        typedef typename Types<true>::Pid Pid;
+/**
+ * @brief Processor/thread ID type.
+ */
+typedef typename Types<true>::Pid Pid;
 
-        /**
-         * @brief Program order index type.
-         */
-        typedef typename Types<true>::Poi Poi;
+/**
+ * @brief Program order index type.
+ */
+typedef typename Types<true>::Poi Poi;
 
-        /**
-         * @brief Instruction pointer type.
-         */
-        typedef typename Types<true>::InstPtr InstPtr;
+/**
+ * @brief Instruction pointer type.
+ */
+typedef typename Types<true>::InstPtr InstPtr;
 
-        /**
-         * @brief Write ID type.
-         */
-        typedef typename Types<true>::WriteID WriteID;
+/**
+ * @brief Write ID type.
+ */
+typedef typename Types<true>::WriteID WriteID;
 
-    } // namespace types
+} // namespace types
 } // namespace mc2lib
 
 #endif /* MC2LIB_TYPES_HPP_ */

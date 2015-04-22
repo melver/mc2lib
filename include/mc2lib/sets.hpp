@@ -77,6 +77,12 @@ inline bool any_bitmask(unsigned mask, unsigned any)
     return (mask & any) != 0;
 }
 
+/**
+ * @brief Abstracts over container library's set implementation.
+ *
+ * Provides additional functions and operators not provided in the standard
+ * library.
+ */
 template <class Ts>
 class Set {
   public:
@@ -90,6 +96,11 @@ class Set {
         : set_(s)
     {}
 
+    /**
+     * Provide access to underlying container.
+     *
+     * @return Reference to underlying container.
+     */
     const Container& get() const
     { return set_; }
 
@@ -98,6 +109,13 @@ class Set {
         return set_ == rhs.set_;
     }
 
+    /**
+     * Insert element.
+     *
+     * @param e Element to be inserted.
+     * @param assert_unique Assert that element does not exist in container.
+     * @return Reference to inserted Element.
+     */
     const Element& insert(const Element& e, bool assert_unique = false)
     {
         auto result = set_.insert(e);
@@ -105,13 +123,16 @@ class Set {
         return *result.first;
     }
 
-    void erase(const Element& e, bool assert_exists = false)
+    /**
+     * Erase element.
+     *
+     * @param e Element to be erased.
+     */
+    bool erase(const Element& e, bool assert_exists = false)
     {
-#ifndef NDEBUG
-        auto result =
-#endif
-        set_.erase(e);
+        auto result = set_.erase(e);
         assert(!assert_exists || result != 0);
+        return result != 0;
     }
 
     template <class FilterFunc>
@@ -410,16 +431,20 @@ class Relation {
         rel_[e1] |= std::move(e2s);
     }
 
-    void erase(const Element& e1, const Element& e2, bool assert_exists = false)
+    bool erase(const Element& e1, const Element& e2, bool assert_exists = false)
     {
         // May not work as expect if ReflexiveClosure is set.
         if (contains__(e1)) {
-            rel_[e1].erase(e2, assert_exists);
+            bool result = rel_[e1].erase(e2, assert_exists);
 
             if (rel_[e1].empty()) {
                 rel_.erase(e1);
             }
+
+            return result;
         }
+
+        return false;
     }
 
     void erase(const Element& e1, const Set<Ts>& e2s)
