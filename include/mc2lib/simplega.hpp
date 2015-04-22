@@ -54,6 +54,63 @@ namespace mc2lib {
 namespace simplega {
 
 /**
+ * @namespace mc2lib::simplega::evolve
+ * @brief Example crossover_mutate implementations.
+ */
+namespace evolve {
+
+/*
+ * Cut & splice. one_point == true turns it into one-point crossover.
+ *
+ * Assumes that GenomeT implements get() and uses a vector-like structure to
+ * represent the genome.
+ */
+template <class URNG, class GenomeT, class C, bool one_point = false, bool theone = false>
+inline void cut_splice_mutate(URNG& urng, const GenomeT& mate1, const GenomeT& mate2,
+                              float mutation_rate, C *container)
+{
+    assert(!mate1.get().empty());
+    assert(!mate2.get().empty());
+
+    std::uniform_int_distribution<std::size_t> dist1(0, mate1.get().size() - 1);
+    std::uniform_int_distribution<std::size_t> dist2(0, mate2.get().size() - 1);
+
+    const std::size_t cut1 = dist1(urng);
+    const std::size_t cut2 = one_point ? cut1 : dist2(urng);
+
+    // a[0:cut_a] + b[cut_b:]
+    auto cut_and_splice = [](const GenomeT& a, const GenomeT& b,
+                             std::size_t cut_a, std::size_t cut_b) {
+        auto result = a.get();
+        auto ita = result.begin();
+        std::advance(ita, cut_a);
+        result.erase(ita, result.end());
+        auto itb = b.get().begin();
+        std::advance(itb, cut_b);
+        result.insert(result.end(), itb, b.get().end());
+        return GenomeT(a, b, result);
+    };
+
+    // child1 = mate1[0:cut1] + mate2[cut2:]
+    GenomeT child1 = cut_and_splice(mate1, mate2, cut1, cut2);
+    if (child1.get().size()) {
+        child1.mutate(mutation_rate);
+        container->push_back(std::move(child1));
+    }
+
+    if (!theone) {
+        // child2 = mate2[0:cut2] + mate1[cut1:]
+        GenomeT child2 = cut_and_splice(mate2, mate1, cut2, cut1);
+        if (child2.get().size()) {
+            child2.mutate(mutation_rate);
+            container->push_back(std::move(child2));
+        }
+    }
+}
+
+} // namespace evolve
+
+/**
  * @brief Simple Genome interface.
  *
  * Use as a baseclass for genome implementations, but this is optional, as long
@@ -69,6 +126,8 @@ namespace simplega {
 template <class T>
 class Genome {
   public:
+    typedef std::vector<T> Container;
+
     /**
      * @brief Default constructor.
      *
@@ -82,7 +141,7 @@ class Genome {
      *
      * @param g A raw vector of type T genes forming this new Genome.
      */
-    explicit Genome(const std::vector<T>& g)
+    explicit Genome(const Container& g)
         : genome_(g)
     {}
 
@@ -94,7 +153,7 @@ class Genome {
      *
      * @return Const reference to vector of genes.
      */
-    const std::vector<T>& get() const
+    const Container& get() const
     { return genome_; }
 
     /**
@@ -102,7 +161,7 @@ class Genome {
      *
      * @return Pointer to vector of genes.
      */
-    std::vector<T>* getptr()
+    Container* getptr()
     { return &genome_; }
 
     /**
@@ -163,55 +222,8 @@ class Genome {
     /**
      * @brief Raw genome of individual genes of T.
      */
-    std::vector<T> genome_;
+    Container genome_;
 };
-
-/*
- * Default crossover_mutate operator using cut&splice.
- *
- * Assumes that GenomeT implements get() and uses a vector-like structure to
- * represent the genome.
- */
-template <class URNG, class GenomeT, class C>
-inline void crossover_mutate(URNG& urng, const GenomeT& mate1, const GenomeT& mate2,
-                             float mutation_rate, C *container)
-{
-    assert(!mate1.get().empty());
-    assert(!mate2.get().empty());
-
-    std::uniform_int_distribution<std::size_t> dist1(0, mate1.get().size() - 1);
-    std::uniform_int_distribution<std::size_t> dist2(0, mate2.get().size() - 1);
-
-    const std::size_t cut1 = dist1(urng);
-    const std::size_t cut2 = dist2(urng);
-
-    // a[0:cut_a] + b[cut_b:]
-    auto cut_and_splice = [](const GenomeT& a, const GenomeT& b,
-                             std::size_t cut_a, std::size_t cut_b) {
-        auto result = a.get();
-        auto ita = result.begin();
-        std::advance(ita, cut_a);
-        result.erase(ita, result.end());
-        auto itb = b.get().begin();
-        std::advance(itb, cut_b);
-        result.insert(result.end(), itb, b.get().end());
-        return GenomeT(a, b, result);
-    };
-
-    // child1 = mate1[0:cut1] + mate2[cut2:]
-    GenomeT child1 = cut_and_splice(mate1, mate2, cut1, cut2);
-    if (child1.get().size()) {
-        child1.mutate(mutation_rate);
-        container->push_back(std::move(child1));
-    }
-
-    // child2 = mate2[0:cut2] + mate1[cut1:]
-    GenomeT child2 = cut_and_splice(mate2, mate1, cut2, cut1);
-    if (child2.get().size()) {
-        child2.mutate(mutation_rate);
-        container->push_back(std::move(child2));
-    }
-}
 
 /*
  * GenePool
@@ -410,8 +422,9 @@ class GenePool {
      * removed from the population; selection[keep:] are removed from
      * population (can e.g. be used for elitism).
      */
-    template <class URNG>
-    void step(URNG& urng, const Selection& selection,
+    template <class URNG, class CrossoverMutateFunc>
+    void step(URNG& urng, CrossoverMutateFunc crossover_mutate,
+              const Selection& selection,
               std::size_t mates, std::size_t keep = 0,
               std::size_t mate1_stride = 1, std::size_t mate2_stride = 1)
     {
