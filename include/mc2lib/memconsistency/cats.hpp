@@ -56,107 +56,6 @@ namespace memconsistency {
 */
 namespace cats {
 
-class ExecWitness;
-class Checker;
-
-class Architecture {
-  public:
-    virtual ~Architecture()
-    {}
-
-    virtual void clear()
-    {}
-
-    /*
-     * Creates a checker compatible with this Architecture.
-     */
-    virtual std::unique_ptr<Checker> make_checker(const Architecture *arch,
-                                        const ExecWitness *exec) const = 0;
-
-    virtual EventRel ppo(const ExecWitness& ew) const = 0;
-    virtual EventRel fences(const ExecWitness& ew) const = 0;
-    virtual EventRel prop(const ExecWitness& ew) const = 0;
-
-    /*
-     * Should return the mask of all types that are classed as read.
-     */
-    virtual Event::TypeMask eventTypeRead() const = 0;
-
-    /*
-     * Should return the mask of all types that are classed as write.
-     */
-    virtual Event::TypeMask eventTypeWrite() const = 0;
-};
-
-class ArchProxy : public Architecture {
-  public:
-    explicit ArchProxy(Architecture *arch)
-       : arch_(arch), memoized_(false)
-    {}
-
-    void clear() override
-    {
-        arch_->clear();
-        memoized_ = false;
-    }
-
-    std::unique_ptr<Checker> make_checker(const Architecture *arch,
-                                          const ExecWitness *exec) const override
-    {
-        return arch_->make_checker(arch, exec);
-    }
-
-    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
-    {
-        return make_checker(this, exec);
-    }
-
-    void memoize(const ExecWitness& ew)
-    {
-        ppo_ = arch_->ppo(ew);
-        fences_ = arch_->fences(ew);
-        prop_ = arch_->prop(ew);
-
-        memoized_ = true;
-    }
-
-    EventRel ppo(const ExecWitness& ew) const override
-    {
-        assert(memoized_);
-        return ppo_;
-    }
-
-    EventRel fences(const ExecWitness& ew) const override
-    {
-        assert(memoized_);
-        return fences_;
-    }
-
-    EventRel prop(const ExecWitness& ew) const override
-    {
-        assert(memoized_);
-        return prop_;
-    }
-
-    Event::TypeMask eventTypeRead() const override
-    {
-        return arch_->eventTypeRead();
-    }
-
-    Event::TypeMask eventTypeWrite() const override
-    {
-        return arch_->eventTypeWrite();
-    }
-
-  protected:
-   Architecture *arch_;
-   bool memoized_;
-
-   EventRel ppo_;
-   EventRel fences_;
-   EventRel prop_;
-};
-
 class ExecWitness {
   public:
 
@@ -238,11 +137,6 @@ class ExecWitness {
                          { return e1.addr == e2.addr; });
     }
 
-    EventRel hb(const Architecture& arch) const
-    {
-        return rfe() | arch.ppo(*this) | arch.fences(*this);
-    }
-
     void clear()
     {
         events.clear();
@@ -256,7 +150,155 @@ class ExecWitness {
     EventRel po;
     EventRel co;
     EventRel rf;
+};
 
+class Checker;
+
+class Architecture {
+  public:
+    Architecture()
+        : proxy_(this)
+    {}
+
+    virtual ~Architecture()
+    {
+        assert(proxy_ == this);
+    }
+
+    virtual void clear()
+    {}
+
+    /*
+     * Creates a checker compatible with this Architecture.
+     */
+    virtual std::unique_ptr<Checker> make_checker(const Architecture *arch,
+                                        const ExecWitness *exec) const = 0;
+
+    virtual EventRel ppo(const ExecWitness& ew) const = 0;
+    virtual EventRel fences(const ExecWitness& ew) const = 0;
+    virtual EventRel prop(const ExecWitness& ew) const = 0;
+
+    virtual EventRel hb(const ExecWitness& ew) const
+    {
+        return ew.rfe() | proxy_->ppo(ew) | proxy_->fences(ew);
+    }
+
+    /*
+     * Should return the mask of all types that are classed as read.
+     */
+    virtual Event::TypeMask eventTypeRead() const = 0;
+
+    /*
+     * Should return the mask of all types that are classed as write.
+     */
+    virtual Event::TypeMask eventTypeWrite() const = 0;
+
+    void set_proxy(const Architecture *proxy)
+    {
+        assert(proxy != nullptr);
+        proxy_ = proxy;
+    }
+
+  protected:
+    const Architecture *proxy_;
+};
+
+template <class ConcreteArch>
+class ArchProxy : public Architecture {
+  public:
+    explicit ArchProxy(ConcreteArch *arch)
+       : arch_(arch)
+       , memoized_ppo_(false)
+       , memoized_fences_(false)
+       , memoized_prop_(false)
+       , memoized_hb_(false)
+    {
+        arch_->set_proxy(this);
+    }
+
+    ~ArchProxy() override
+    {
+        arch_->set_proxy(arch_);
+    }
+
+    void clear() override
+    {
+        arch_->clear();
+        memoized_ppo_ = false;
+        memoized_fences_ = false;
+        memoized_prop_ = false;
+        memoized_hb_ = false;
+    }
+
+    std::unique_ptr<Checker> make_checker(const Architecture *arch,
+                                          const ExecWitness *exec) const override
+    {
+        return arch_->make_checker(arch, exec);
+    }
+
+    std::unique_ptr<Checker> make_checker(const ExecWitness *exec) const
+    {
+        return make_checker(this, exec);
+    }
+
+    void memoize(const ExecWitness& ew)
+    {
+        // fences and ppo are likely used by hb and prop
+        fences_ = arch_->fences(ew);
+        memoized_fences_ = true;
+
+        ppo_ = arch_->ppo(ew);
+        memoized_ppo_ = true;
+
+        hb_ = arch_->hb(ew);
+        memoized_hb_ = true;
+
+        prop_ = arch_->prop(ew);
+        memoized_prop_ = true;
+    }
+
+    EventRel ppo(const ExecWitness& ew) const override
+    {
+        return memoized_ppo_ ? ppo_ : arch_->ppo(ew);
+    }
+
+    EventRel fences(const ExecWitness& ew) const override
+    {
+        return memoized_fences_ ? fences_ : arch_->fences(ew);
+    }
+
+    EventRel prop(const ExecWitness& ew) const override
+    {
+        return memoized_prop_ ? prop_ : arch_->prop(ew);
+    }
+
+    EventRel hb(const ExecWitness& ew) const override
+    {
+        return memoized_hb_ ? hb_ : arch_->hb(ew);
+    }
+
+    Event::TypeMask eventTypeRead() const override
+    {
+        return arch_->eventTypeRead();
+    }
+
+    Event::TypeMask eventTypeWrite() const override
+    {
+        return arch_->eventTypeWrite();
+    }
+
+  protected:
+    ConcreteArch *arch_;
+
+    bool memoized_ppo_;
+    bool memoized_fences_;
+    bool memoized_prop_;
+    bool memoized_hb_;
+
+    EventRel ppo_;
+    EventRel fences_;
+    EventRel prop_;
+    EventRel hb_;
 };
 
 class Checker {
@@ -338,13 +380,13 @@ class Checker {
 
     virtual bool no_thin_air(EventRel::Path *cyclic = nullptr) const
     {
-        return exec_->hb(*arch_).acyclic(cyclic);
+        return arch_->hb(*exec_).acyclic(cyclic);
     }
 
     virtual bool observation(EventRel::Path *cyclic = nullptr) const
     {
         const EventRel prop = arch_->prop(*exec_);
-        const EventRel hbstar = exec_->hb(*arch_).set_props(
+        const EventRel hbstar = arch_->hb(*exec_).set_props(
                 EventRel::ReflexiveTransitiveClosure);
 
         // Not eval'ing hbstar causes performance to degrade substantially, as
@@ -417,7 +459,7 @@ class Arch_SC : public Architecture {
 
     EventRel prop(const ExecWitness& ew) const override
     {
-        return ppo(ew) | fences(ew) | ew.rf | ew.fr();
+        return proxy_->ppo(ew) | proxy_->fences(ew) | ew.rf | ew.fr();
     }
 
     Event::TypeMask eventTypeRead() const override
@@ -471,7 +513,7 @@ class Arch_TSO : public Architecture {
 
     EventRel prop(const ExecWitness& ew) const override
     {
-        return ppo(ew) | fences(ew) | ew.rfe() | ew.fr();
+        return proxy_->ppo(ew) | proxy_->fences(ew) | ew.rfe() | ew.fr();
     }
 
     Event::TypeMask eventTypeRead() const override
@@ -567,6 +609,7 @@ class Arch_ARMv7 : public Architecture {
         std::size_t total_size = ci.size() + ii.size() + cc.size() + ic.size();
         std::size_t prev_total_size = total_size;
 
+        // Fix-point computation
         do {
             prev_total_size = total_size;
 
@@ -603,11 +646,10 @@ class Arch_ARMv7 : public Architecture {
 
     EventRel prop(const ExecWitness& ew) const override
     {
-        EventRel hbstar = ew.hb(*this).set_props(
+        EventRel hbstar = proxy_->hb(ew).set_props(
                 EventRel::ReflexiveTransitiveClosure).eval_inplace();
-        EventRel fence = fences(ew);
-        EventRel A_cumul = EventRelSeq({ew.rfe(), fence}).eval_clear();
-        EventRel propbase = EventRelSeq({(fence | A_cumul), hbstar}).eval_clear();
+        EventRel A_cumul = EventRelSeq({ew.rfe(), proxy_->fences(ew)}).eval_clear();
+        EventRel propbase = EventRelSeq({(proxy_->fences(ew) | A_cumul), hbstar}).eval_clear();
 
         EventRel comstar = ew.com().set_props(EventRel::ReflexiveClosure);
 
@@ -616,7 +658,7 @@ class Arch_ARMv7 : public Architecture {
         });
 
         propbase.set_props(EventRel::ReflexiveTransitiveClosure).eval_inplace();
-        result |= EventRelSeq({comstar, propbase/*star*/, fence, hbstar}).eval_clear();
+        result |= EventRelSeq({comstar, propbase/*star*/, proxy_->fences(ew), hbstar}).eval_clear();
         return result;
     }
 
