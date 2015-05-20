@@ -106,7 +106,8 @@ class Op
     typedef typename SeqConst::const_iterator SeqConstIt;
 
     // Callback type: optionally, previous Ops get called back with new Ops.
-    typedef std::function<void(const Op*, AssemblerState *asms)> Callback;
+    // E.g. for lazily constructing control flow graph with random branches.
+    typedef std::function<std::size_t(Op*, const Backend*, types::InstPtr, AssemblerState*, void*, std::size_t)> Callback;
     typedef std::vector<Callback> CallbackStack;
 
     template <class T>
@@ -541,18 +542,27 @@ class Compiler
             op->insert_po(invalid.begin(), &asms_);
         }
 
+        std::size_t ctrl_len = 0;
+
         if (callback_stack != nullptr) {
             // Call all registered callbacks
             for (auto& callback : (*callback_stack)) {
-                callback(op, &asms_);
+                // Pass in current base, e.g. to allow late resolving of branch
+                // targets; allows inserting code for flow control.
+                const std::size_t s = callback(op, &backend_, base, &asms_, code, len);
+
+                assert(s < len);
+                base += s;
+                code = static_cast<char*>(code) + s;
+                len -= s;
+                ctrl_len += s;
             }
 
             // Register callback
             op->register_callback(callback_stack);
         }
 
-        // Generate code and architecture-specific ordering relations.
-        // Must be called *after* insert_po!
+        // Must be called *after* insert_po and callback!
         const std::size_t op_len = op->emit(&backend_, base, &asms_, code, len);
         assert(op_len != 0);
 
@@ -561,7 +571,7 @@ class Compiler
         // Insert IP to Operation mapping.
         ip_to_op_[base] = std::make_pair(base + op_len, op);
 
-        return op_len;
+        return op_len + ctrl_len;
     }
 
     std::size_t emit(types::Pid pid, types::InstPtr base, void *code, std::size_t len)
@@ -607,10 +617,19 @@ class Compiler
 
             emit_len += op_len;
             assert(emit_len <= len);
-
             code = static_cast<char*>(code) + op_len;
 
             op->advance_seq(&it_stack);
+        }
+
+        // Notify ops of completion
+        for (auto& callback : callback_stack) {
+            const std::size_t s = callback(nullptr, &backend_, base + emit_len,
+                                           &asms_, code, len - emit_len);
+
+            emit_len += s;
+            assert(emit_len <= len);
+            code = static_cast<char*>(code) + s;
         }
 
         return emit_len;
