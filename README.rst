@@ -1,5 +1,5 @@
 ======
-MC2LIB
+mc2lib
 ======
 
 A memory consistency checking library implemented in C++11.

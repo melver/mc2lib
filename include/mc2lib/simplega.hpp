@@ -55,60 +55,61 @@ namespace simplega {
 
 /**
  * @namespace mc2lib::simplega::evolve
- * @brief Example crossover_mutate implementations.
+ * @brief Example CrossoverMutateFunc implementations.
  */
 namespace evolve {
 
 /*
  * Cut & splice. one_point == true turns it into one-point crossover.
  *
- * Assumes that GenomeT implements get() and uses a vector-like structure to
+ * Assumes that GenomeT implements Get() and uses a vector-like structure to
  * represent the genome.
  */
-template <class URNG, class GenomeT, class C, bool one_point = false, bool theone = false>
-inline void cut_splice_mutate(URNG& urng, const GenomeT& mate1, const GenomeT& mate2,
-                              float mutation_rate, C *container)
-{
-    assert(!mate1.get().empty());
-    assert(!mate2.get().empty());
+template <class URNG, class GenomeT, class C, bool one_point = false,
+          bool theone = false>
+inline void CutSpliceMutate(URNG& urng, const GenomeT& mate1,
+                            const GenomeT& mate2, float mutation_rate,
+                            C* container) {
+  assert(!mate1.Get().empty());
+  assert(!mate2.Get().empty());
 
-    std::uniform_int_distribution<std::size_t> dist1(0, mate1.get().size() - 1);
-    std::uniform_int_distribution<std::size_t> dist2(0, mate2.get().size() - 1);
+  std::uniform_int_distribution<std::size_t> dist1(0, mate1.Get().size() - 1);
+  std::uniform_int_distribution<std::size_t> dist2(0, mate2.Get().size() - 1);
 
-    const std::size_t cut1 = dist1(urng);
-    const std::size_t cut2 = one_point ? cut1 : dist2(urng);
+  const std::size_t cut1 = dist1(urng);
+  const std::size_t cut2 = one_point ? cut1 : dist2(urng);
 
-    // a[0:cut_a] + b[cut_b:]
-    auto cut_and_splice = [](const GenomeT& a, const GenomeT& b,
-                             std::size_t cut_a, std::size_t cut_b) {
-        auto result = a.get();
-        auto ita = result.begin();
-        std::advance(ita, cut_a);
-        result.erase(ita, result.end());
-        auto itb = b.get().begin();
-        std::advance(itb, cut_b);
-        result.insert(result.end(), itb, b.get().end());
-        return GenomeT(a, b, result);
-    };
+  // a[0:cut_a] + b[cut_b:]
+  auto cut_and_splice = [](const GenomeT& a, const GenomeT& b,
+                           std::size_t cut_a, std::size_t cut_b) {
+    auto result = a.Get();
+    auto ita = result.begin();
+    std::advance(ita, cut_a);
+    result.erase(ita, result.end());
+    auto itb = b.Get().begin();
+    std::advance(itb, cut_b);
+    result.insert(result.end(), itb, b.Get().end());
+    return GenomeT(a, b, result);
+  };
 
-    // child1 = mate1[0:cut1] + mate2[cut2:]
-    GenomeT child1 = cut_and_splice(mate1, mate2, cut1, cut2);
-    if (child1.get().size()) {
-        child1.mutate(mutation_rate);
-        container->push_back(std::move(child1));
+  // child1 = mate1[0:cut1] + mate2[cut2:]
+  GenomeT child1 = cut_and_splice(mate1, mate2, cut1, cut2);
+  if (child1.Get().size()) {
+    child1.Mutate(mutation_rate);
+    container->push_back(std::move(child1));
+  }
+
+  if (!theone) {
+    // child2 = mate2[0:cut2] + mate1[cut1:]
+    GenomeT child2 = cut_and_splice(mate2, mate1, cut2, cut1);
+    if (child2.Get().size()) {
+      child2.Mutate(mutation_rate);
+      container->push_back(std::move(child2));
     }
-
-    if (!theone) {
-        // child2 = mate2[0:cut2] + mate1[cut1:]
-        GenomeT child2 = cut_and_splice(mate2, mate1, cut2, cut1);
-        if (child2.get().size()) {
-            child2.mutate(mutation_rate);
-            container->push_back(std::move(child2));
-        }
-    }
+  }
 }
 
-} // namespace evolve
+}  // namespace evolve
 
 /**
  * @brief Simple Genome interface.
@@ -125,104 +126,93 @@ inline void cut_splice_mutate(URNG& urng, const GenomeT& mate1, const GenomeT& m
  */
 template <class T>
 class Genome {
-  public:
-    typedef std::vector<T> Container;
+ public:
+  typedef std::vector<T> Container;
 
-    /**
-     * @brief Default constructor.
-     *
-     * Yields an empty genome.
-     */
-    Genome()
-    {}
+  /**
+   * @brief Default constructor.
+   *
+   * Yields an empty genome.
+   */
+  Genome() {}
 
-    /**
-     * @brief Converting constructor.
-     *
-     * @param g A raw vector of type T genes forming this new Genome.
-     */
-    explicit Genome(const Container& g)
-        : genome_(g)
-    {}
+  /**
+   * @brief Converting constructor.
+   *
+   * @param g A raw vector of type T genes forming this new Genome.
+   */
+  explicit Genome(const Container& g) : genome_(g) {}
 
-    virtual ~Genome()
-    {}
+  virtual ~Genome() {}
 
-    /**
-     * @brief Read-only genome accessor.
-     *
-     * @return Const reference to vector of genes.
-     */
-    const Container& get() const
-    { return genome_; }
+  /**
+   * @brief Read-only genome accessor.
+   *
+   * @return Const reference to vector of genes.
+   */
+  const Container& Get() const { return genome_; }
 
-    /**
-     * @brief Modifiable genome accessor.
-     *
-     * @return Pointer to vector of genes.
-     */
-    Container* getptr()
-    { return &genome_; }
+  /**
+   * @brief Modifiable genome accessor.
+   *
+   * @return Pointer to vector of genes.
+   */
+  Container* GetPtr() { return &genome_; }
 
-    /**
-     * @brief Less than comparison operator.
-     *
-     * Use to rank genomes from best fitness to worst fitness. Assumes higher
-     * fitness means better.
-     *
-     * @return True if this instance (lhs) is fitter than rhs, false otherwise.
-     */
-    virtual bool operator<(const Genome& rhs) const
-    {
-        return fitness() > rhs.fitness();
+  /**
+   * @brief Less than comparison operator.
+   *
+   * Use to rank genomes from best fitness to worst fitness. Assumes higher
+   * fitness means better.
+   *
+   * @return True if this instance (lhs) is fitter than rhs, false otherwise.
+   */
+  virtual bool operator<(const Genome& rhs) const {
+    return Fitness() > rhs.Fitness();
+  }
+
+  /**
+   * @brief Mutate this Genome.
+   *
+   * @param rate Mutation rate.
+   */
+  virtual void Mutate(float rate) = 0;
+
+  /**
+   * @brief Fitness accessor.
+   *
+   * @return Current fitness.
+   */
+  virtual float Fitness() const = 0;
+
+  /**
+   * @brief Converting operator to float.
+   *
+   * As this is also used for the roulette selection, the assumption is that
+   * higher fitness means better.
+   */
+  virtual operator float() const { return Fitness(); }
+
+  /**
+   * @brief Converting operator to std::string.
+   */
+  virtual operator std::string() const {
+    std::ostringstream oss;
+    oss << "[";
+    bool first = true;
+    for (const auto& v : genome_) {
+      oss << (first ? "" : ", ") << v;
+      first = false;
     }
+    oss << "]";
+    return oss.str();
+  }
 
-    /**
-     * @brief Mutate this Genome.
-     *
-     * @param rate Mutation rate.
-     */
-    virtual void mutate(float rate) = 0;
-
-    /**
-     * @brief Fitness accessor.
-     *
-     * @return Current fitness.
-     */
-    virtual float fitness() const = 0;
-
-    /**
-     * @brief Converting operator to float.
-     *
-     * As this is also used for the roulette selection, the assumption is that
-     * higher fitness means better.
-     */
-    virtual operator float() const
-    {
-        return fitness();
-    }
-
-    /**
-     * @brief Converting operator to std::string.
-     */
-    virtual operator std::string() const
-    {
-        std::ostringstream oss;
-        oss << "[";
-        bool first = true;
-        for (const auto& v : genome_) {
-            oss << (first ? "" : ", ") << v;
-            first = false;
-        }
-        oss << "]";
-        return oss.str();
-    }
-
-  protected:
-    /**
-     * @brief Raw genome of individual genes of T.
-     */
-    Container genome_;
+ protected:
+  /**
+   * @brief Raw genome of individual genes of T.
+   */
+  Container genome_;
 };
 
 /*
@@ -233,268 +223,244 @@ class Genome {
  */
 template <class GenomeT>
 class GenePool {
-  public:
-    /*
-     * Use a list for the population pool, as this permits O(1) removal of
-     * elements.
-     */
-    typedef std::list<GenomeT> Population;
-    typedef std::vector<GenomeT*> Selection;
+ public:
+  /*
+   * Use a list for the population pool, as this permits O(1) removal of
+   * elements.
+   */
+  typedef std::list<GenomeT> Population;
+  typedef std::vector<GenomeT*> Selection;
 
-    explicit GenePool(std::size_t target_population_size = 80, float mutation_rate = 0.02f)
-        : target_population_size_(target_population_size), mutation_rate_(mutation_rate),
-          steps_(0)
-    {
-        // mutation rate is a percentage
-        if (mutation_rate_ > 1.0f) {
-            mutation_rate_ = 1.0f;
-        } else if (mutation_rate_ < 0.0f) {
-            mutation_rate_ = 0.0f;
+  explicit GenePool(std::size_t target_population_size = 80,
+                    float mutation_rate = 0.02f)
+      : target_population_size_(target_population_size),
+        mutation_rate_(mutation_rate),
+        steps_(0) {
+    // mutation rate is a percentage
+    if (mutation_rate_ > 1.0f) {
+      mutation_rate_ = 1.0f;
+    } else if (mutation_rate_ < 0.0f) {
+      mutation_rate_ = 0.0f;
+    }
+
+    // Initialize with defaults (e.g. random)
+    population_.resize(target_population_size_);
+  }
+
+  explicit GenePool(Population population, float mutation_rate = 0.02f)
+      : target_population_size_(population.size()),
+        mutation_rate_(mutation_rate),
+        steps_(0),
+        population_(population) {}
+
+  explicit GenePool(Selection selection, float mutation_rate = 0.02f)
+      : target_population_size_(selection.size()),
+        mutation_rate_(mutation_rate),
+        steps_(0) {
+    for (const auto& gptr : selection) {
+      population_.push_back(*gptr);
+    }
+  }
+
+  operator std::string() const {
+    std::ostringstream oss;
+    oss << "{ ";
+
+    bool first = true;
+    for (const auto& genome : population_) {
+      oss << (first ? "" : ", ") << static_cast<std::string>(genome);
+      first = false;
+    }
+
+    oss << " }";
+    return oss.str();
+  }
+
+  const Population& Get() const { return population_; }
+
+  Population* GetPtr() { return &population_; }
+
+  float mutation_rate() const { return mutation_rate_; }
+
+  void set_mutation_rate(float mutation_rate) {
+    mutation_rate_ = mutation_rate;
+  }
+
+  std::size_t target_population_size() const { return target_population_size_; }
+
+  std::size_t population_size() const { return population_.size(); }
+
+  std::size_t steps() const { return steps_; }
+
+  float AverageFitness() const {
+    float result = 0.0f;
+    for (const auto& g : population_) {
+      result += g.Fitness();
+    }
+    return result / population_.size();
+  }
+
+  float WorstFitness() const {
+    return std::max_element(population_.begin(), population_.end())->Fitness();
+  }
+
+  float BestFitness() const {
+    return std::min_element(population_.begin(), population_.end())->Fitness();
+  }
+
+  /*
+   * Sorts the population based on fitness.
+   */
+  void Sort() { population_.Sort(); }
+
+  const GenomeT& SelectBest() const {
+    return *std::min_element(population_.begin(), population_.end());
+  }
+
+  /*
+   * Return the entire population.
+   */
+  Selection SelectAll() {
+    Selection result;
+    result.reserve(population_.size());
+    for (GenomeT& g : population_) {
+      result.push_back(&g);
+    }
+    return result;
+  }
+
+  /*
+   * Return random subset of population, using distribution dist to select.
+   */
+  template <class URNG, class DIST>
+  Selection SelectDist(URNG& urng, DIST& dist, std::size_t count) {
+    assert(population_.size() >= count);
+
+    std::unordered_set<std::size_t> used;
+    Selection result;
+    result.reserve(count);
+
+    while (result.size() < count) {
+      std::size_t idx = dist(urng);
+      if (used.find(idx) != used.end()) {
+        continue;
+      }
+
+      auto it = population_.begin();
+      std::advance(it, idx);
+      result.push_back(&(*it));
+      used.insert(idx);
+    }
+
+    return result;
+  }
+
+  /*
+   * Return random subset of population, where a higher fitness means an
+   * individual is more likely to be selected.
+   */
+  template <class URNG>
+  Selection SelectRoulette(URNG& urng, std::size_t count) {
+    std::discrete_distribution<std::size_t> dist(population_.begin(),
+                                                 population_.end());
+    return SelectDist(urng, dist, count);
+  }
+
+  /*
+   * Return a random subset of the population, where each individual has the
+   * same probability of being selected.
+   */
+  template <class URNG>
+  Selection SelectUniform(URNG& urng, std::size_t count) {
+    std::uniform_int_distribution<std::size_t> dist(0, population_.size() - 1);
+    return SelectDist(urng, dist, count);
+  }
+
+  /*
+   * Sorts a selection based on fitness.
+   */
+  void SelectionSort(Selection* v) {
+    std::sort(v->begin(), v->end(), [](const GenomeT* lhs, const GenomeT* rhs) {
+      return (*lhs) < (*rhs);
+    });
+  }
+
+  /*
+   * Takes a selection and mates the initial selection[:mates]
+   * individuals.
+   *
+   * The elements in selection also determine which individuals are to be
+   * removed from the population; selection[keep:] are removed from
+   * population (can e.g. be used for elitism).
+   */
+  template <class URNG, class CrossoverMutateFunc>
+  void Step(URNG& urng, CrossoverMutateFunc crossover_mutate,
+            const Selection& selection, std::size_t mates, std::size_t keep = 0,
+            std::size_t mate1_stride = 1, std::size_t mate2_stride = 1) {
+    assert(selection.size() >= mates);
+    assert(selection.size() >= keep);
+
+    std::size_t replace = selection.size() - keep;
+    assert(replace > 0);
+
+    const std::size_t target_population_size =
+        target_population_size_ + replace;
+
+    // Add offspring
+    for (std::size_t i = 0; i < mates; i += mate1_stride) {
+      const auto mate1 = selection[i];
+
+      // j = i: avoid mating 2 individuals twice
+      for (std::size_t j = i + 1; j < mates; j += mate2_stride) {
+        const auto mate2 = selection[j];
+
+        crossover_mutate(urng, *mate1, *mate2, mutation_rate_, &population_);
+
+        if (population_.size() >= target_population_size) {
+          goto target_reached;
+        }
+      }
+    }
+  target_reached:
+
+    // Remove selection[keep:]
+    auto selection_start = selection.begin();
+    std::advance(selection_start, keep);
+
+    for (auto it = population_.begin();
+         it != population_.end() && replace > 0;) {
+      const GenomeT* val = &(*it);
+      auto match = std::find(selection_start, selection.end(), val);
+
+      if (match != selection.end()) {
+        if (match == selection_start) {
+          ++selection_start;
         }
 
-        // Initialize with defaults (e.g. random)
-        population_.resize(target_population_size_);
+        it = population_.erase(it);
+        --replace;
+      } else {
+        ++it;
+      }
     }
 
-    explicit GenePool(Population population, float mutation_rate = 0.02f)
-        : target_population_size_(population.size()), mutation_rate_(mutation_rate),
-          steps_(0), population_(population)
-    {}
+    assert(population_.size() >= target_population_size_);
+    // The population might be larger than the target, if crossover
+    // generates more than one offspring.
 
-    explicit GenePool(Selection selection, float mutation_rate = 0.02f)
-        : target_population_size_(selection.size()), mutation_rate_(mutation_rate),
-          steps_(0)
-    {
-        for (const auto& gptr : selection) {
-            population_.push_back(*gptr);
-        }
-    }
+    ++steps_;
+  }
 
-    operator std::string() const
-    {
-        std::ostringstream oss;
-        oss << "{ ";
-
-        bool first = true;
-        for (const auto& genome : population_) {
-            oss << (first ? "" : ", ") << static_cast<std::string>(genome);
-            first = false;
-        }
-
-        oss << " }";
-        return oss.str();
-    }
-
-    const Population& get() const
-    { return population_; }
-
-    Population* getptr()
-    { return &population_; }
-
-    float mutation_rate() const
-    { return mutation_rate_; }
-
-    void set_mutation_rate(float mutation_rate)
-    {
-        mutation_rate_ = mutation_rate;
-    }
-
-    std::size_t target_population_size() const
-    { return target_population_size_; }
-
-    std::size_t population_size() const
-    { return population_.size(); }
-
-    std::size_t steps() const
-    { return steps_; }
-
-    float avg_fitness() const
-    {
-        float result = 0.0f;
-        for (const auto& g : population_) {
-            result += g.fitness();
-        }
-        return result / population_.size();
-    }
-
-    float worst_fitness() const
-    {
-        return std::max_element(population_.begin(), population_.end())
-                               ->fitness();
-    }
-
-    float best_fitness() const
-    {
-        return std::min_element(population_.begin(), population_.end())
-                               ->fitness();
-    }
-
-    /*
-     * Sorts the population based on fitness.
-     */
-    void sort()
-    {
-        population_.sort();
-    }
-
-    const GenomeT& select_best() const
-    {
-        return *std::min_element(population_.begin(), population_.end());
-    }
-
-    /*
-     * Return the entire population.
-     */
-    Selection select_all()
-    {
-        Selection result;
-        result.reserve(population_.size());
-        for (GenomeT& g : population_) {
-            result.push_back(&g);
-        }
-        return result;
-    }
-
-    /*
-     * Return random subset of population, using distribution dist to select.
-     */
-    template <class URNG, class DIST>
-    Selection select_dist(URNG& urng, DIST& dist, std::size_t count)
-    {
-        assert(population_.size() >= count);
-
-        std::unordered_set<std::size_t> used;
-        Selection result;
-        result.reserve(count);
-
-        while (result.size() < count) {
-            std::size_t idx = dist(urng);
-            if (used.find(idx) != used.end()) {
-                continue;
-            }
-
-            auto it = population_.begin();
-            std::advance(it, idx);
-            result.push_back(&(*it));
-            used.insert(idx);
-        }
-
-        return result;
-    }
-
-    /*
-     * Return random subset of population, where a higher fitness means an
-     * individual is more likely to be selected.
-     */
-    template <class URNG>
-    Selection select_roulette(URNG& urng, std::size_t count)
-    {
-        std::discrete_distribution<std::size_t> dist(population_.begin(), population_.end());
-        return select_dist(urng, dist, count);
-    }
-
-    /*
-     * Return a random subset of the population, where each individual has the
-     * same probability of being selected.
-     */
-    template <class URNG>
-    Selection select_uniform(URNG& urng, std::size_t count)
-    {
-        std::uniform_int_distribution<std::size_t> dist(0, population_.size() - 1);
-        return select_dist(urng, dist, count);
-    }
-
-    /*
-     * Sorts a selection based on fitness.
-     */
-    void selection_sort(Selection *v)
-    {
-        std::sort(v->begin(), v->end(),
-                  [](const GenomeT* lhs, const GenomeT* rhs)
-                  { return (*lhs) < (*rhs); });
-    }
-
-    /*
-     * Takes a selection and mates the initial selection[:mates]
-     * individuals.
-     *
-     * The elements in selection also determine which individuals are to be
-     * removed from the population; selection[keep:] are removed from
-     * population (can e.g. be used for elitism).
-     */
-    template <class URNG, class CrossoverMutateFunc>
-    void step(URNG& urng, CrossoverMutateFunc crossover_mutate,
-              const Selection& selection,
-              std::size_t mates, std::size_t keep = 0,
-              std::size_t mate1_stride = 1, std::size_t mate2_stride = 1)
-    {
-        assert(selection.size() >= mates);
-        assert(selection.size() >= keep);
-
-        std::size_t replace = selection.size() - keep;
-        assert(replace > 0);
-
-        const std::size_t target_population_size = target_population_size_ + replace;
-
-        // Add offspring
-        for (std::size_t i = 0; i < mates; i += mate1_stride) {
-            const auto mate1 = selection[i];
-
-            // j = i: avoid mating 2 individuals twice
-            for (std::size_t j = i + 1; j < mates; j += mate2_stride) {
-                const auto mate2 = selection[j];
-
-                crossover_mutate(urng,
-                                 *mate1, *mate2,
-                                 mutation_rate_,
-                                 &population_);
-
-                if (population_.size() >= target_population_size) {
-                    goto target_reached;
-                }
-            }
-        }
-target_reached:
-
-        // Remove selection[keep:]
-        auto selection_start = selection.begin();
-        std::advance(selection_start, keep);
-
-        for (auto it = population_.begin();
-                it != population_.end() && replace > 0; )
-        {
-            const GenomeT *val = &(*it);
-            auto match = std::find(selection_start, selection.end(), val);
-
-            if (match != selection.end()) {
-                if (match == selection_start) {
-                    ++selection_start;
-                }
-
-                it = population_.erase(it);
-                --replace;
-            } else {
-                ++it;
-            }
-        }
-
-        assert(population_.size() >= target_population_size_);
-        // The population might be larger than the target, if crossover
-        // generates more than one offspring.
-
-        ++steps_;
-    }
-
-  protected:
-    std::size_t target_population_size_;
-    float mutation_rate_;
-    std::size_t steps_;
-    Population population_;
+ protected:
+  std::size_t target_population_size_;
+  float mutation_rate_;
+  std::size_t steps_;
+  Population population_;
 };
 
-} /* namespace simplega */
-} /* namespace mc2lib */
+}  // namespace simplega
+}  // namespace mc2lib
 
 #endif /* SIMPLEGA_HPP_ */
 
-/* vim: set ts=4 sts=4 sw=4 et : */
+/* vim: set ts=2 sts=2 sw=2 et : */

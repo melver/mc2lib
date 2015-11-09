@@ -34,14 +34,14 @@
 #ifndef MC2LIB_SETS_HPP_
 #define MC2LIB_SETS_HPP_
 
-#include "config.hpp"
-
 #include <cassert>
 #include <cstddef>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include "config.hpp"
 
 namespace mc2lib {
 
@@ -58,10 +58,9 @@ namespace sets {
  * @param all Bit mask to check against.
  * @return True if all bits in all are also set in mask, false otherwise.
  */
-inline bool all_bitmask(unsigned mask, unsigned all)
-{
-    assert(all != 0);
-    return (mask & all) == all;
+inline bool AllBitmask(unsigned mask, unsigned all) {
+  assert(all != 0);
+  return (mask & all) == all;
 }
 
 /**
@@ -71,10 +70,9 @@ inline bool all_bitmask(unsigned mask, unsigned all)
  * @param any Bit mask to check against.
  * @return True if at least any one of the bits in all is set in mask.
  */
-inline bool any_bitmask(unsigned mask, unsigned any)
-{
-    assert(any != 0);
-    return (mask & any) != 0;
+inline bool AnyBitmask(unsigned mask, unsigned any) {
+  assert(any != 0);
+  return (mask & any) != 0;
 }
 
 /**
@@ -85,1156 +83,1045 @@ inline bool any_bitmask(unsigned mask, unsigned any)
  */
 template <class Ts>
 class Set {
-  public:
-    typedef typename Ts::Element Element;
-    typedef typename Ts::SetContainer Container;
+ public:
+  typedef typename Ts::Element Element;
+  typedef typename Ts::SetContainer Container;
 
-    Set()
-    {}
+  Set() {}
 
-    explicit Set(const Container& s)
-        : set_(s)
-    {}
+  explicit Set(const Container& s) : set_(s) {}
 
-    /**
-     * Provide access to underlying container.
-     *
-     * @return Reference to underlying container.
-     */
-    const Container& get() const
-    { return set_; }
+  /**
+   * Provide access to underlying container.
+   *
+   * @return Reference to underlying container.
+   */
+  const Container& Get() const { return set_; }
 
-    bool operator==(const Set& rhs) const
-    {
-        return set_ == rhs.set_;
-    }
+  bool operator==(const Set& rhs) const { return set_ == rhs.set_; }
 
-    /**
-     * Insert element.
-     *
-     * @param e Element to be inserted.
-     * @param assert_unique Assert that element does not exist in container.
-     * @return Reference to inserted Element.
-     */
-    const Element& insert(const Element& e, bool assert_unique = false)
-    {
-        auto result = set_.insert(e);
-        assert(!assert_unique || result.second);
-        return *result.first;
-    }
+  /**
+   * Insert element.
+   *
+   * @param e Element to be inserted.
+   * @param assert_unique Assert that element does not exist in container.
+   * @return Reference to inserted Element.
+   */
+  const Element& Insert(const Element& e, bool assert_unique = false) {
+    auto result = set_.insert(e);
+    assert(!assert_unique || result.second);
+    return *result.first;
+  }
 
-    /**
-     * Erase element.
-     *
-     * @param e Element to be erased.
-     */
-    bool erase(const Element& e, bool assert_exists = false)
-    {
-        auto result = set_.erase(e);
-        assert(!assert_exists || result != 0);
-        return result != 0;
-    }
+  /**
+   * Erase element.
+   *
+   * @param e Element to be erased.
+   * @param assert_exists Assert that element exists.
+   */
+  bool Erase(const Element& e, bool assert_exists = false) {
+    auto result = set_.erase(e);
+    assert(!assert_exists || result != 0);
+    return result != 0;
+  }
 
-    template <class FilterFunc>
-    Set filter(FilterFunc filterFunc) const
-    {
-        Set res;
+  template <class FilterFunc>
+  Set Filter(FilterFunc filterFunc) const {
+    Set res;
 
-        for (const auto& e : set_) {
-            if (filterFunc(e)) {
-                res.insert(e);
-            }
-        }
-
-        return res;
-    }
-
-    void clear()
-    { set_.clear(); }
-
-    bool contains(const Element& e) const
-    {
-        return set_.find(e) != set_.end();
-    }
-
-    /*
-     * Set union.
-     */
-    Set& operator|=(const Set& rhs)
-    {
-        if (this != &rhs) {
-            set_.insert(rhs.set_.begin(), rhs.set_.end());
-        }
-
-        return *this;
-    }
-
-    Set& operator|=(Set&& rhs)
-    {
-        if (empty()) {
-            set_ = std::move(rhs.set_);
-        } else {
-            set_.insert(rhs.set_.begin(), rhs.set_.end());
-        }
-
-        return *this;
-    }
-
-    /*
-     * Set difference.
-     */
-    Set& operator-=(const Set& rhs)
-    {
-        if (this == &rhs) {
-            clear();
-        } else {
-            // Cannot use set_.erase with iterator, as rhs may contain elements
-            // that do not exist in this set. In such a case, the erase
-            // implementation of current GCC segfaults.
-            for (const auto& e : rhs.get()) {
-                erase(e);
-            }
-        }
-
-        return *this;
-    }
-
-    /*
-     * Set intersection
-     */
-    Set& operator&=(const Set& rhs)
-    {
-        if (this != &rhs) {
-            for (auto it = set_.begin(); it != set_.end();) {
-                if (!rhs.contains(*it)) {
-                    it = set_.erase(it);
-                    continue;
-                }
-
-                it++;
-            }
-        }
-
-        return *this;
-    }
-
-    std::size_t size() const
-    { return set_.size(); }
-
-    bool empty() const
-    { return set_.empty(); }
-
-    bool subseteq(const Set& s) const
-    {
-        if (size() > s.size()) return false;
-
-        for (const auto& e : set_) {
-            if (!s.contains(e)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    bool subset(const Set& s) const
-    {
-        return size() < s.size() && subseteq(s);
-    }
-
-  protected:
-     Container set_;
-};
-
-template <class Ts>
-inline Set<Ts> operator|(const Set<Ts>& lhs, const Set<Ts>& rhs)
-{
-    Set<Ts> res = lhs;
-    return res |= rhs;
-}
-
-template <class Ts>
-inline Set<Ts> operator|(Set<Ts>&& lhs, const Set<Ts>& rhs)
-{
-    lhs |= rhs;
-    return std::move(lhs);
-}
-
-template <class Ts>
-inline Set<Ts> operator|(const Set<Ts>& lhs, Set<Ts>&& rhs)
-{
-    rhs |= lhs;
-    return std::move(rhs);
-}
-
-template <class Ts>
-inline Set<Ts> operator|(Set<Ts>&& lhs, Set<Ts>&& rhs)
-{
-    lhs |= rhs;
-    return std::move(lhs);
-}
-
-template <class Ts>
-inline Set<Ts> operator-(const Set<Ts>& lhs, const Set<Ts>& rhs)
-{
-    Set<Ts> res = lhs;
-    return res -= rhs;
-}
-
-template <class Ts>
-inline Set<Ts> operator-(Set<Ts>&& lhs, const Set<Ts>& rhs)
-{
-    lhs -= rhs;
-    return std::move(lhs);
-}
-
-template <class Ts>
-inline Set<Ts> operator-(const Set<Ts>& lhs, Set<Ts>&& rhs)
-{
-    Set<Ts> res = lhs;
-    return res -= rhs;
-}
-
-template <class Ts>
-inline Set<Ts> operator-(Set<Ts>&& lhs, Set<Ts>&& rhs)
-{
-    lhs -= rhs;
-    return std::move(lhs);
-}
-
-template <class Ts>
-inline Set<Ts> operator&(const Set<Ts>& lhs, const Set<Ts>& rhs)
-{
-    Set<Ts> res;
-
-    for (const auto& e : rhs.get()) {
-        if (lhs.contains(e)) {
-            res.insert(e);
-        }
+    for (const auto& e : set_) {
+      if (filterFunc(e)) {
+        res.Insert(e);
+      }
     }
 
     return res;
+  }
+
+  void Clear() { set_.clear(); }
+
+  bool Contains(const Element& e) const { return set_.find(e) != set_.end(); }
+
+  /*
+   * Set union.
+   */
+  Set& operator|=(const Set& rhs) {
+    if (this != &rhs) {
+      set_.insert(rhs.set_.begin(), rhs.set_.end());
+    }
+
+    return *this;
+  }
+
+  Set& operator|=(Set&& rhs) {
+    if (Empty()) {
+      set_ = std::move(rhs.set_);
+    } else {
+      set_.insert(rhs.set_.begin(), rhs.set_.end());
+    }
+
+    return *this;
+  }
+
+  /*
+   * Set difference.
+   */
+  Set& operator-=(const Set& rhs) {
+    if (this == &rhs) {
+      Clear();
+    } else {
+      // Cannot use set_.erase with iterator, as rhs may contain elements
+      // that do not exist in this set. In such a case, the erase
+      // implementation of current GCC segfaults.
+      for (const auto& e : rhs.Get()) {
+        Erase(e);
+      }
+    }
+
+    return *this;
+  }
+
+  /*
+   * Set intersection
+   */
+  Set& operator&=(const Set& rhs) {
+    if (this != &rhs) {
+      for (auto it = set_.begin(); it != set_.end();) {
+        if (!rhs.Contains(*it)) {
+          it = set_.erase(it);
+          continue;
+        }
+
+        it++;
+      }
+    }
+
+    return *this;
+  }
+
+  std::size_t size() const { return set_.size(); }
+
+  bool Empty() const { return set_.empty(); }
+
+  bool SubsetEq(const Set& s) const {
+    if (size() > s.size()) return false;
+
+    for (const auto& e : set_) {
+      if (!s.Contains(e)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  bool Subset(const Set& s) const { return size() < s.size() && SubsetEq(s); }
+
+ protected:
+  Container set_;
+};
+
+template <class Ts>
+inline Set<Ts> operator|(const Set<Ts>& lhs, const Set<Ts>& rhs) {
+  Set<Ts> res = lhs;
+  return res |= rhs;
 }
 
 template <class Ts>
-inline Set<Ts> operator&(Set<Ts>&& lhs, const Set<Ts>& rhs)
-{
-    lhs &= rhs;
-    return std::move(lhs);
+inline Set<Ts> operator|(Set<Ts>&& lhs, const Set<Ts>& rhs) {
+  lhs |= rhs;
+  return std::move(lhs);
 }
 
 template <class Ts>
-inline Set<Ts> operator&(const Set<Ts>& lhs, Set<Ts>&& rhs)
-{
-    rhs &= lhs;
-    return std::move(rhs);
+inline Set<Ts> operator|(const Set<Ts>& lhs, Set<Ts>&& rhs) {
+  rhs |= lhs;
+  return std::move(rhs);
 }
 
 template <class Ts>
-inline Set<Ts> operator&(Set<Ts>&& lhs, Set<Ts>&& rhs)
-{
-    lhs &= rhs;
-    return std::move(lhs);
+inline Set<Ts> operator|(Set<Ts>&& lhs, Set<Ts>&& rhs) {
+  lhs |= rhs;
+  return std::move(lhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator-(const Set<Ts>& lhs, const Set<Ts>& rhs) {
+  Set<Ts> res = lhs;
+  return res -= rhs;
+}
+
+template <class Ts>
+inline Set<Ts> operator-(Set<Ts>&& lhs, const Set<Ts>& rhs) {
+  lhs -= rhs;
+  return std::move(lhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator-(const Set<Ts>& lhs, Set<Ts>&& rhs) {
+  Set<Ts> res = lhs;
+  return res -= rhs;
+}
+
+template <class Ts>
+inline Set<Ts> operator-(Set<Ts>&& lhs, Set<Ts>&& rhs) {
+  lhs -= rhs;
+  return std::move(lhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator&(const Set<Ts>& lhs, const Set<Ts>& rhs) {
+  Set<Ts> res;
+
+  for (const auto& e : rhs.Get()) {
+    if (lhs.Contains(e)) {
+      res.Insert(e);
+    }
+  }
+
+  return res;
+}
+
+template <class Ts>
+inline Set<Ts> operator&(Set<Ts>&& lhs, const Set<Ts>& rhs) {
+  lhs &= rhs;
+  return std::move(lhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator&(const Set<Ts>& lhs, Set<Ts>&& rhs) {
+  rhs &= lhs;
+  return std::move(rhs);
+}
+
+template <class Ts>
+inline Set<Ts> operator&(Set<Ts>&& lhs, Set<Ts>&& rhs) {
+  lhs &= rhs;
+  return std::move(lhs);
 }
 
 template <class Ts>
 class Relation {
-  public:
-    typedef typename Ts::Element Element;
+ public:
+  typedef typename Ts::Element Element;
 
-    typedef typename Ts::template MapContainer<Set<Ts>> Container;
+  typedef typename Ts::template MapContainer<Set<Ts>> Container;
 
-    typedef std::pair<Element, Element> Tuple;
+  typedef std::pair<Element, Element> Tuple;
 
-    typedef std::vector<Element> Path;
+  typedef std::vector<Element> Path;
 
-    /*
-     * Lazy operators as properties.
-     *
-     * All inplace operators (e.g. |=) evaluate the current relation in place
-     * and clear properties.
-     */
-    enum Property {
-        None              = 0x0,
-        TransitiveClosure = 0x1,
-        ReflexiveClosure  = 0x2,
-        ReflexiveTransitiveClosure = TransitiveClosure | ReflexiveClosure
-    };
-    typedef unsigned Properties;
+  /*
+   * Lazy operators as properties.
+   *
+   * All inplace operators (e.g. |=) evaluate the current relation in place
+   * and clear properties.
+   */
+  enum Property {
+    kNone = 0x0,
+    kTransitiveClosure = 0x1,
+    kReflexiveClosure = 0x2,
+    kReflexiveTransitiveClosure = kTransitiveClosure | kReflexiveClosure
+  };
+  typedef unsigned Properties;
 
-    Relation()
-        : props_(None)
-    {}
+  Relation() : props_(kNone) {}
 
-    explicit Relation(const Container& r)
-        : props_(None), rel_(r)
-    {}
+  explicit Relation(const Container& r) : props_(kNone), rel_(r) {}
 
-    /*
-     * Avoid accessing rel_ directly. Uses of raw should be well justified.
-     */
-    const Container& raw() const
-    { return rel_; }
+  /*
+   * Avoid accessing rel_ directly. Uses of raw should be well justified.
+   */
+  const Container& Raw() const { return rel_; }
 
-    Properties props() const
-    { return props_; }
+  Properties props() const { return props_; }
 
-    Relation& set_props(Properties props)
-    {
-        props_ = props;
-        return *this;
+  Relation& set_props(Properties props) {
+    props_ = props;
+    return *this;
+  }
+
+  Relation& add_props(Properties props) {
+    props_ |= props;
+    return *this;
+  }
+
+  Relation& unset_props(Properties props) {
+    props_ &= ~props;
+    return *this;
+  }
+
+  bool all_props(Properties all) const { return AllBitmask(props_, all); }
+
+  bool any_props(Properties any) const { return AnyBitmask(props_, any); }
+
+  Properties clear_props() {
+    const auto props = props_;
+    props_ = kNone;
+    return props;
+  }
+
+  void Insert(const Element& e1, const Element& e2,
+              bool assert_unique = false) {
+    rel_[e1].Insert(e2, assert_unique);
+  }
+
+  void Insert(const Element& e1, const Set<Ts>& e2s) {
+    if (e2s.Empty()) return;
+    rel_[e1] |= e2s;
+  }
+
+  void Insert(const Element& e1, Set<Ts>&& e2s) {
+    if (e2s.Empty()) return;
+    rel_[e1] |= std::move(e2s);
+  }
+
+  bool Erase(const Element& e1, const Element& e2, bool assert_exists = false) {
+    // May not work as expect if kReflexiveClosure is set.
+    if (Contains__(e1)) {
+      bool result = rel_[e1].Erase(e2, assert_exists);
+
+      if (rel_[e1].Empty()) {
+        rel_.erase(e1);
+      }
+
+      return result;
     }
 
-    Relation& add_props(Properties props)
-    {
-        props_ |= props;
-        return *this;
+    return false;
+  }
+
+  void Erase(const Element& e1, const Set<Ts>& e2s) {
+    if (Contains__(e1)) {
+      rel_[e1] -= e2s;
+
+      if (rel_[e1].Empty()) {
+        rel_.erase(e1);
+      }
+    }
+  }
+
+  std::size_t size() const {
+    std::size_t total = 0;
+
+    if (props()) {
+      const auto dom = Domain();
+      for (const auto& e : dom.Get()) {
+        total += Reachable(e).size();
+      }
+    } else {
+      for (const auto& tuples : rel_) {
+        total += tuples.second.size();
+      }
     }
 
-    Relation& unset_props(Properties props)
-    {
-        props_ &= ~props;
-        return *this;
+    return total;
+  }
+
+  template <class Func>
+  Func for_each(Func func) const {
+    const auto dom = Domain();
+
+    for (const auto& e1 : dom.Get()) {
+      const auto reach = Reachable(e1);
+      for (const auto& e2 : reach.Get()) {
+        func(e1, e2);
+      }
     }
 
-    bool all_props(Properties all) const
-    {
-        return all_bitmask(props_, all);
+    return std::move(func);
+  }
+
+  /*
+   * Provide Eval() for evaluated view of the relation (with properties
+   * evaluated).
+   */
+  Relation Eval() const {
+    if (props() == kNone) {
+      return *this;
     }
 
-    bool any_props(Properties any) const
-    {
-        return any_bitmask(props_, any);
+    Relation result;
+
+    for_each([&result](const Element& e1, const Element& e2) {
+      result.Insert(e1, e2);
+    });
+
+    return result;
+  }
+
+  Relation& EvalInplace() {
+    if (props() == kNone) {
+      return *this;
     }
 
-    Properties clear_props()
-    {
-        const auto props = props_;
-        props_ = None;
-        return props;
+    Relation result;
+
+    for_each([&result](const Element& e1, const Element& e2) {
+      result.Insert(e1, e2);
+    });
+
+    clear_props();
+    rel_ = std::move(result.rel_);
+    return *this;
+  }
+
+  template <class FilterFunc>
+  Relation Filter(FilterFunc filterFunc) const {
+    Relation result;
+
+    for_each([&filterFunc, &result](const Element& e1, const Element& e2) {
+      if (filterFunc(e1, e2)) {
+        result.Insert(e1, e2);
+      }
+    });
+
+    return result;
+  }
+
+  Relation Inverse() const {
+    Relation result;
+
+    for_each([&result](const Element& e1, const Element& e2) {
+      result.Insert(e2, e1);
+    });
+
+    return result;
+  }
+
+  /*
+   * Relation union.
+   */
+  Relation& operator|=(const Relation& rhs) {
+    EvalInplace();
+
+    if (rhs.props()) {
+      const auto rhs_domain = rhs.Domain();
+      for (const auto& e : rhs_domain.Get()) {
+        rel_[e] |= rhs.Reachable(e);
+      }
+    } else {
+      for (const auto& tuples : rhs.Raw()) {
+        rel_[tuples.first] |= tuples.second;
+      }
     }
 
-    void insert(const Element& e1, const Element& e2, bool assert_unique = false)
-    {
-        rel_[e1].insert(e2, assert_unique);
+    return *this;
+  }
+
+  /*
+   * Relation difference.
+   */
+  Relation& operator-=(const Relation& rhs) {
+    EvalInplace();
+
+    if (rhs.props()) {
+      const auto rhs_domain = rhs.Domain();
+      for (const auto& e : rhs_domain.Get()) {
+        Erase(e, rhs.Reachable(e));
+      }
+    } else {
+      for (const auto& tuples : rhs.Raw()) {
+        Erase(tuples.first, tuples.second);
+      }
     }
 
-    void insert(const Element& e1, const Set<Ts>& e2s)
-    {
-        if (e2s.empty()) return;
-        rel_[e1] |= e2s;
+    return *this;
+  }
+
+  /*
+   * Relation intersection
+   */
+  Relation& operator&=(const Relation& rhs) {
+    EvalInplace();
+
+    for (auto it = rel_.begin(); it != rel_.end();) {
+      it->second &= rhs.Reachable(it->first);
+
+      if (it->second.Empty()) {
+        it = rel_.erase(it);
+        continue;
+      }
+
+      it++;
     }
 
-    void insert(const Element& e1, Set<Ts>&& e2s)
-    {
-        if (e2s.empty()) return;
-        rel_[e1] |= std::move(e2s);
-    }
+    return *this;
+  }
 
-    bool erase(const Element& e1, const Element& e2, bool assert_exists = false)
-    {
-        // May not work as expect if ReflexiveClosure is set.
-        if (contains__(e1)) {
-            bool result = rel_[e1].erase(e2, assert_exists);
+  void Clear() { rel_.clear(); }
 
-            if (rel_[e1].empty()) {
-                rel_.erase(e1);
-            }
+  bool Empty() const {
+    // Upon erasure, we ensure that an element is not related to an empty
+    // set, i.e. in that case it is deleted.
+    return rel_.empty();
+  }
 
-            return result;
-        }
+  bool operator==(const Relation& rhs) const {
+    return (props() ? Eval() : *this).rel_ ==
+           (rhs.props() ? rhs.Eval() : rhs).rel_;
+  }
 
-        return false;
-    }
-
-    void erase(const Element& e1, const Set<Ts>& e2s)
-    {
-        if (contains__(e1)) {
-            rel_[e1] -= e2s;
-
-            if (rel_[e1].empty()) {
-                rel_.erase(e1);
-            }
-        }
-    }
-
-    std::size_t size() const
-    {
-        std::size_t total = 0;
-
-        if (props()) {
-            const auto dom = domain();
-            for (const auto& e : dom.get()) {
-                total += reachable(e).size();
-            }
-        } else {
-            for (const auto& tuples : rel_) {
-                total += tuples.second.size();
-            }
-        }
-
-        return total;
-    }
-
-    template <class Func>
-    Func for_each(Func func) const
-    {
-        const auto dom = domain();
-
-        for (const auto& e1 : dom.get()) {
-            const auto reach = reachable(e1);
-            for (const auto& e2 : reach.get()) {
-                func(e1, e2);
-            }
-        }
-
-        return std::move(func);
-    }
-
-    /*
-     * Provide eval() for evaluated view of the relation (with properties
-     * evaluated).
-     */
-    Relation eval() const
-    {
-        if (props() == None) {
-            return *this;
-        }
-
-        Relation result;
-
-        for_each([&result](const Element& e1, const Element& e2) {
-            result.insert(e1, e2);
-        });
-
-        return result;
-    }
-
-    Relation& eval_inplace()
-    {
-        if (props() == None) {
-            return *this;
-        }
-
-        Relation result;
-
-        for_each([&result](const Element& e1, const Element& e2) {
-            result.insert(e1, e2);
-        });
-
-        clear_props();
-        rel_ = std::move(result.rel_);
-        return *this;
-    }
-
-    template <class FilterFunc>
-    Relation filter(FilterFunc filterFunc) const
-    {
-        Relation result;
-
-        for_each([&filterFunc, &result](const Element& e1, const Element& e2) {
-            if (filterFunc(e1, e2)) {
-                result.insert(e1, e2);
-            }
-        });
-
-        return result;
-    }
-
-    Relation inverse() const
-    {
-        Relation result;
-
-        for_each([&result](const Element& e1, const Element& e2) {
-            result.insert(e2, e1);
-        });
-
-        return result;
-    }
-
-    /*
-     * Relation union.
-     */
-    Relation& operator|=(const Relation& rhs)
-    {
-        eval_inplace();
-
-        if (rhs.props()) {
-            const auto rhs_domain = rhs.domain();
-            for (const auto& e : rhs_domain.get()) {
-                rel_[e] |= rhs.reachable(e);
-            }
-        } else {
-            for (const auto& tuples : rhs.raw()) {
-                rel_[tuples.first] |= tuples.second;
-            }
-        }
-
-        return *this;
-    }
-
-    /*
-     * Relation difference.
-     */
-    Relation& operator-=(const Relation& rhs)
-    {
-        eval_inplace();
-
-        if (rhs.props()) {
-            const auto rhs_domain = rhs.domain();
-            for (const auto& e : rhs_domain.get()) {
-                erase(e, rhs.reachable(e));
-            }
-        } else {
-            for (const auto& tuples : rhs.raw()) {
-                erase(tuples.first, tuples.second);
-            }
-        }
-
-        return *this;
-    }
-
-    /*
-     * Relation intersection
-     */
-    Relation& operator&=(const Relation& rhs)
-    {
-        eval_inplace();
-
-        for (auto it = rel_.begin(); it != rel_.end();) {
-            it->second &= rhs.reachable(it->first);
-
-            if (it->second.empty()) {
-                it = rel_.erase(it);
-                continue;
-            }
-
-            it++;
-        }
-
-        return *this;
-    }
-
-    void clear()
-    { rel_.clear(); }
-
-    bool empty() const
-    {
-        // Upon erasure, we ensure that an element is not related to an empty
-        // set, i.e. in that case it is deleted.
-        return rel_.empty();
-    }
-
-    bool operator==(const Relation& rhs) const
-    {
-        return (props() ? eval() : *this).rel_ ==
-               (rhs.props() ? rhs.eval() : rhs).rel_;
-    }
-
-    /*
-     * Return true if two elements are ordered.
-     */
-    bool R(const Element& e1, const Element& e2, Path *path = nullptr) const
-    {
-        if (e1 == e2 && all_props(ReflexiveClosure)) {
-            if (in_on(e1)) {
-                if (path != nullptr) {
-                    path->push_back(e1);
-                    path->push_back(e1);
-                }
-
-                return true;
-            }
-        }
-
-        Set<Ts> visited;
-
+  /*
+   * Return true if two elements are ordered.
+   */
+  bool R(const Element& e1, const Element& e2, Path* path = nullptr) const {
+    if (e1 == e2 && all_props(kReflexiveClosure)) {
+      if (InOn(e1)) {
         if (path != nullptr) {
-            FlagSet visiting;
-
-            bool result = R_search(e1, &e2, &visited, &visiting);
-            if (result) {
-                get_path(path, &e1, &e2, &visiting);
-            }
-
-            return result;
-        }
-
-        return R_search(e1, &e2, &visited);
-    }
-
-    /*
-     * Returns all rechable elements from a start element without the start
-     * itself, but includes start if start can reach itself (e.g. through
-     * cycle).
-     */
-    Set<Ts> reachable(const Element& e) const
-    {
-        Set<Ts> visited;
-
-        if (all_props(ReflexiveClosure) && in_on(e)) {
-            visited.insert(e);
-        }
-
-        if (!all_props(TransitiveClosure)) {
-            const auto tuples = rel_.find(e);
-            if (tuples != rel_.end()) {
-                visited |= tuples->second;
-            }
-
-            return visited;
-        }
-
-        if (!R_search(e, &e, &visited, nullptr,
-                      None, SearchMode::RelatedVisitAll)) {
-            if (!all_props(ReflexiveClosure)) {
-                visited.erase(e);
-            }
-        }
-
-        return visited;
-    }
-
-    bool irreflexive(Path *cyclic = nullptr) const
-    {
-        return irreflexive(None, cyclic);
-    }
-
-    bool acyclic(Path *cyclic = nullptr) const
-    {
-        return irreflexive(TransitiveClosure, cyclic);
-    }
-
-    /*
-     * x→y ∧ y→z ⇒ x→z
-     */
-    bool transitive() const
-    {
-        if (all_props(TransitiveClosure)) {
-            return true;
-        }
-
-        for (const auto& tuples1 : rel_) {
-            for (const auto& e1 : tuples1.second.get()) {
-                const auto tuples2 = rel_.find(e1);
-                if (tuples2 != rel_.end()) {
-                    for (const auto& e2 : tuples2->second.get()) {
-                        if (!R(tuples1.first, e2)) {
-                            return false;
-                        }
-                    }
-                }
-            }
+          path->push_back(e1);
+          path->push_back(e1);
         }
 
         return true;
+      }
     }
 
-    /*
-     * ∀(x,y) ∈ on×on, x→y ∨ y→x
-     */
-    bool total_on(const Set<Ts>& on) const
-    {
-        for (const auto& e1 : on.get()) {
-            for (const auto& e2 : on.get()) {
-                if (!R(e1, e2) && !R(e2, e1)) {
-                    return false;
-                }
-            }
-        }
+    Set<Ts> visited;
 
+    if (path != nullptr) {
+      FlagSet visiting;
+
+      bool result = R_search(e1, &e2, &visited, &visiting);
+      if (result) {
+        GetPath(path, &e1, &e2, &visiting);
+      }
+
+      return result;
+    }
+
+    return R_search(e1, &e2, &visited);
+  }
+
+  /*
+   * Returns all rechable elements from a start element without the start
+   * itself, but includes start if start can reach itself (e.g. through
+   * cycle).
+   */
+  Set<Ts> Reachable(const Element& e) const {
+    Set<Ts> visited;
+
+    if (all_props(kReflexiveClosure) && InOn(e)) {
+      visited.Insert(e);
+    }
+
+    if (!all_props(kTransitiveClosure)) {
+      const auto tuples = rel_.find(e);
+      if (tuples != rel_.end()) {
+        visited |= tuples->second;
+      }
+
+      return visited;
+    }
+
+    if (!R_search(e, &e, &visited, nullptr, kNone,
+                  SearchMode::kRelatedVisitAll)) {
+      if (!all_props(kReflexiveClosure)) {
+        visited.Erase(e);
+      }
+    }
+
+    return visited;
+  }
+
+  bool Irreflexive(Path* cyclic = nullptr) const {
+    return Irreflexive(kNone, cyclic);
+  }
+
+  bool Acyclic(Path* cyclic = nullptr) const {
+    return Irreflexive(kTransitiveClosure, cyclic);
+  }
+
+  /*
+   * x→y ∧ y→z ⇒ x→z
+   */
+  bool Transitive() const {
+    if (all_props(kTransitiveClosure)) {
+      return true;
+    }
+
+    for (const auto& tuples1 : rel_) {
+      for (const auto& e1 : tuples1.second.Get()) {
+        const auto tuples2 = rel_.find(e1);
+        if (tuples2 != rel_.end()) {
+          for (const auto& e2 : tuples2->second.Get()) {
+            if (!R(tuples1.first, e2)) {
+              return false;
+            }
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /*
+   * ∀(x,y) ∈ on×on, x→y ∨ y→x
+   */
+  bool TotalOn(const Set<Ts>& on) const {
+    for (const auto& e1 : on.Get()) {
+      for (const auto& e2 : on.Get()) {
+        if (!R(e1, e2) && !R(e2, e1)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /*
+   * ∀(x,y) ∈ on×on, x→y ∨ y→x ∨ x=y
+   */
+  bool ConnexOn(const Set<Ts>& on) const {
+    for (const auto& e1 : on.Get()) {
+      for (const auto& e2 : on.Get()) {
+        if (e1 != e2 && !R(e1, e2) && !R(e2, e1)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  bool WeakPartialOrder(const Set<Ts>& on) const {
+    // (domain ∪ range) in on
+    for (const auto& tuples : rel_) {
+      if (!on.Contains(tuples.first) && !tuples.second.SubsetEq(on)) {
+        return false;
+      }
+    }
+
+    return Transitive() && !Irreflexive();
+  }
+
+  bool WeakTotalOrder(const Set<Ts>& on) const {
+    return WeakPartialOrder(on) && TotalOn(on);
+  }
+
+  bool StrictPartialOrder(const Set<Ts>& on) const {
+    // (domain ∪ range) in on
+    for (const auto& tuples : rel_) {
+      if (!on.Contains(tuples.first) && !tuples.second.SubsetEq(on)) {
+        return false;
+      }
+    }
+
+    return Transitive() && Irreflexive();
+  }
+
+  bool StrictTotalOrder(const Set<Ts>& on) const {
+    return StrictPartialOrder(on) && ConnexOn(on);
+  }
+
+  bool InOn(const Element& e) const {
+    if (Contains__(e)) {
+      return true;
+    } else {
+      for (const auto& tuples : rel_) {
+        if (tuples.second.Contains(e)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  bool InDomain(const Element& e) const {
+    if (all_props(kReflexiveClosure)) {
+      return InOn(e);
+    }
+
+    return Contains__(e);
+  }
+
+  bool InRange(const Element& e) const {
+    if (all_props(kReflexiveClosure)) {
+      return InOn(e);
+    }
+
+    for (const auto& tuples : rel_) {
+      if (Reachable(tuples.first).Contains(e)) {
         return true;
+      }
     }
 
-    /*
-     * ∀(x,y) ∈ on×on, x→y ∨ y→x ∨ x=y
-     */
-    bool connex_on(const Set<Ts>& on) const
-    {
-        for (const auto& e1 : on.get()) {
-            for (const auto& e2 : on.get()) {
-                if (e1 != e2 && !R(e1, e2) && !R(e2, e1)) {
-                    return false;
-                }
-            }
+    return false;
+  }
+
+  Set<Ts> On() const {
+    Set<Ts> res;
+    for (const auto& tuples : rel_) {
+      res.Insert(tuples.first);
+      res |= tuples.second;
+    }
+    return res;
+  }
+
+  Set<Ts> Domain() const {
+    if (all_props(kReflexiveClosure)) {
+      // By the fact that the reflexive closure is
+      // R ∪ {(x,x). x ∈ S}, where S is the set the relation is on, and
+      // thus S contains both the range and domain, constructing the
+      // above will yield domain = range = S under the reflexive closure.
+      return On();
+    }
+
+    Set<Ts> res;
+    for (const auto& tuples : rel_) {
+      res.Insert(tuples.first);
+    }
+
+    return res;
+  }
+
+  Set<Ts> Range() const {
+    if (all_props(kReflexiveClosure)) {
+      // See above.
+      return On();
+    }
+
+    Set<Ts> res;
+    for (const auto& tuples : rel_) {
+      res |= Reachable(tuples.first);
+    }
+
+    return res;
+  }
+
+  bool SubsetEq(const Relation& rhs) const {
+    const Relation diff = (*this - rhs);
+    return diff.Empty();
+  }
+
+  bool Subset(const Relation& rhs) const {
+    return size() < rhs.size() && SubsetEq(rhs);
+  }
+
+ protected:
+  typedef typename Ts::template MapContainer<bool> FlagSet;
+
+  enum class SearchMode { kRelated, kRelatedVisitAll, kFindCycle };
+
+  bool Contains__(const Element& e) const { return rel_.find(e) != rel_.end(); }
+
+  void GetPath(Path* out, const Element* start, const Element* end,
+               FlagSet* visiting,
+               SearchMode mode = SearchMode::kRelated) const {
+    assert(out != nullptr && start != nullptr && visiting != nullptr);
+
+    out->push_back(*start);
+    (*visiting)[*start] = false;
+
+    while (start != nullptr) {
+      const Set<Ts>& next = rel_.find(*start)->second;
+      start = nullptr;
+
+      for (const auto& e : next.Get()) {
+        const auto se = visiting->find(e);
+        if (se != visiting->end() && se->second) {
+          out->push_back(e);
+          se->second = false;
+          start = &e;
+          break;
         }
-
-        return true;
+      }
     }
 
-    bool weak_partial_order(const Set<Ts>& on) const
-    {
-        // (domain ∪ range) in on
-        for (const auto& tuples : rel_) {
-            if (!on.contains(tuples.first) && !tuples.second.subseteq(on)) {
-                return false;
-            }
+    const Set<Ts>& next = rel_.find(out->back())->second;
+    if (mode == SearchMode::kFindCycle) {
+      assert(end == nullptr);
+
+      for (const auto& e : *out) {
+        if (next.Contains(e)) {
+          // Final edge
+          out->push_back(e);
+          break;
         }
+      }
+    } else {
+      assert(end != nullptr);
 
-        return transitive() && !irreflexive();
+      // This function should only be called if search established there
+      // is a path between start->end.
+      assert(next.Contains(*end));
+
+      out->push_back(*end);
+    }
+  }
+
+  bool Irreflexive(Properties local_props, Path* cyclic) const {
+    local_props |= props_;
+
+    if (AllBitmask(local_props, kReflexiveClosure) && !Empty()) {
+      if (cyclic != nullptr) {
+        // Pick arbitrary.
+        cyclic->push_back(rel_.begin()->first);
+        cyclic->push_back(rel_.begin()->first);
+      }
+
+      return false;
     }
 
-    bool weak_total_order(const Set<Ts>& on) const
-    {
-        return weak_partial_order(on) && total_on(on);
-    }
+    Set<Ts> visited;
+    FlagSet visiting;
 
-    bool strict_partial_order(const Set<Ts>& on) const
-    {
-        // (domain ∪ range) in on
-        for (const auto& tuples : rel_) {
-            if (!on.contains(tuples.first) && !tuples.second.subseteq(on)) {
-                return false;
-            }
-        }
-
-        return transitive() && irreflexive();
-    }
-
-    bool strict_total_order(const Set<Ts>& on) const
-    {
-        return strict_partial_order(on) && connex_on(on);
-    }
-
-    bool in_on(const Element& e) const
-    {
-        if (contains__(e)) {
-            return true;
-        } else {
-            for (const auto& tuples : rel_) {
-                if (tuples.second.contains(e)) {
-                    return true;
-                }
-            }
+    for (const auto& tuples : rel_) {
+      if (R_search(tuples.first, nullptr, &visited, &visiting, local_props,
+                   SearchMode::kFindCycle)) {
+        if (cyclic != nullptr) {
+          GetPath(cyclic, &tuples.first, nullptr, &visiting,
+                  SearchMode::kFindCycle);
         }
 
         return false;
+      }
     }
 
-    bool in_domain(const Element& e) const
-    {
-        if (all_props(ReflexiveClosure)) {
-            return in_on(e);
-        }
+    return true;
+  }
 
-        return contains__(e);
+  /**
+   * Directed graph search.
+   */
+  bool R_search(const Element& e1, const Element* e2, Set<Ts>* visited,
+                FlagSet* visiting = nullptr, Properties local_props = kNone,
+                SearchMode mode = SearchMode::kRelated) const {
+    // We always require visited to be set.
+    assert(visited != nullptr);
+
+    // Merge call-specific props with global props.
+    local_props |= props_;
+
+    const bool is_tran_cl = AllBitmask(local_props, kTransitiveClosure);
+
+    R_impl search(this, visited, visiting, is_tran_cl, mode);
+
+    if (e2 == nullptr) {
+      // For the purpose of cycle detection, we are looking for e1->*e1.
+      // In addition, if the transitive property is set, we require that
+      // visiting is provided, as we cannot make assumptions on if visited
+      // is reset before every call -- and for performance reasons, this
+      // usage is discouraged.
+
+      assert(mode == SearchMode::kFindCycle);
+
+      e2 = &e1;
+
+      if (is_tran_cl) {
+        assert(visiting != nullptr);
+        return search.DfsRecFindCycle(e1);
+      }
+    } else {
+      assert(mode != SearchMode::kFindCycle);
     }
 
-    bool in_range(const Element& e) const
-    {
-        if (all_props(ReflexiveClosure)) {
-            return in_on(e);
+    return search.DfsRec(e1, *e2);
+  }
+
+  class R_impl {
+   public:
+    R_impl(const Relation* src, Set<Ts>* visited, FlagSet* visiting,
+           bool is_tran_cl, SearchMode mode)
+        : src_(src),
+          visited_(visited),
+          visiting_(visiting),
+          is_tran_cl_(is_tran_cl),
+          mode_(mode) {}
+
+    bool DfsRec(const Element& e1, const Element& e2) const {
+      const auto tuples = src_->Raw().find(e1);
+
+      if (tuples == src_->Raw().end()) {
+        return false;
+      }
+
+      if (visiting_ != nullptr) {
+        (*visiting_)[e1] = true;
+      }
+
+      bool result = false;
+      visited_->Insert(e1);
+
+      for (const auto& e : tuples->second.Get()) {
+        if (e == e2) {
+          if (mode_ == SearchMode::kRelatedVisitAll) {
+            result = true;
+          } else {
+            return true;
+          }
         }
 
-        for (const auto& tuples : rel_) {
-            if (reachable(tuples.first).contains(e)) {
+        if (is_tran_cl_) {
+          if (!visited_->Contains(e)) {
+            if (DfsRec(e, e2)) {
+              if (mode_ == SearchMode::kRelatedVisitAll) {
+                result = true;
+              } else {
                 return true;
+              }
             }
-        }
 
+            // There might not be an edge e -> e2, but we must update
+            // the visited set regardless -- this is only relevant, as
+            // the caller might expect the complete set of visited
+            // nodes if mode == RelatedVisitAll.
+            visited_->Insert(e);
+          } else {
+            // assert(mode_ != SearchMode::kFindCycle);
+          }
+        }
+      }
+
+      if (visiting_ != nullptr) {
+        (*visiting_)[e1] = false;
+      }
+
+      return result;
+    }
+
+    bool DfsRecFindCycle(const Element& start) const {
+      // assert(is_tran_cl_);
+      // assert(mode_ == SearchMode::kFindCycle);
+      // assert(visiting_ != nullptr);
+
+      const auto tuples = src_->Raw().find(start);
+
+      if (tuples == src_->Raw().end()) {
         return false;
-    }
+      }
 
-    Set<Ts> on() const
-    {
-        Set<Ts> res;
-        for (const auto& tuples : rel_) {
-            res.insert(tuples.first);
-            res |= tuples.second;
-        }
-        return res;
-    }
+      (*visiting_)[start] = true;
+      visited_->Insert(start);
 
-    Set<Ts> domain() const
-    {
-        if (all_props(ReflexiveClosure)) {
-            // By the fact that the reflexive closure is
-            // R ∪ {(x,x). x ∈ S}, where S is the set the relation is on, and
-            // thus S contains both the range and domain, constructing the
-            // above will yield domain = range = S under the reflexive closure.
-            return on();
-        }
-
-        Set<Ts> res;
-        for (const auto& tuples : rel_) {
-            res.insert(tuples.first);
-        }
-
-        return res;
-    }
-
-    Set<Ts> range() const
-    {
-        if (all_props(ReflexiveClosure)) {
-            // See above.
-            return on();
-        }
-
-        Set<Ts> res;
-        for (const auto& tuples : rel_) {
-            res |= reachable(tuples.first);
-        }
-
-        return res;
-    }
-
-    bool subseteq(const Relation& rhs) const
-    {
-        const Relation diff = (*this - rhs);
-        return diff.empty();
-    }
-
-    bool subset(const Relation& rhs) const
-    {
-        return size() < rhs.size() && subseteq(rhs);
-    }
-
-  protected:
-    typedef typename Ts::template MapContainer<bool> FlagSet;
-
-    enum class SearchMode {
-        Related,
-        RelatedVisitAll,
-        FindCycle
-    };
-
-    bool contains__(const Element& e) const
-    {
-        return rel_.find(e) != rel_.end();
-    }
-
-    void get_path(Path *out, const Element* start, const Element *end,
-                  FlagSet *visiting, SearchMode mode = SearchMode::Related) const
-    {
-        assert(out != nullptr && start != nullptr && visiting != nullptr);
-
-        out->push_back(*start);
-        (*visiting)[*start] = false;
-
-        while (start != nullptr) {
-            const Set<Ts>& next = rel_.find(*start)->second;
-            start = nullptr;
-
-            for (const auto& e : next.get()) {
-                const auto se = visiting->find(e);
-                if (se != visiting->end() && se->second) {
-                    out->push_back(e);
-                    se->second = false;
-                    start = &e;
-                    break;
-                }
-            }
-        }
-
-        const Set<Ts>& next = rel_.find(out->back())->second;
-        if (mode == SearchMode::FindCycle) {
-            assert(end == nullptr);
-
-            for (const auto& e : *out) {
-                if (next.contains(e)) {
-                    // Final edge
-                    out->push_back(e);
-                    break;
-                }
-            }
+      for (const auto& e : tuples->second.Get()) {
+        if (!visited_->Contains(e)) {
+          if (DfsRecFindCycle(e)) {
+            return true;
+          }
         } else {
-            assert(end != nullptr);
-
-            // This function should only be called if search established there
-            // is a path between start->end.
-            assert(next.contains(*end));
-
-            out->push_back(*end);
+          const auto se = visiting_->find(e);
+          if (se != visiting_->end() && se->second) {
+            // Found a backedge --> cycle!
+            return true;
+          }
         }
+      }
+
+      (*visiting_)[start] = false;
+      return false;
     }
 
-    bool irreflexive(Properties local_props, Path *cyclic) const
-    {
-        local_props |= props_;
+   private:
+    const Relation* src_;
+    Set<Ts>* visited_;
+    FlagSet* visiting_;
+    bool is_tran_cl_;
+    SearchMode mode_;
+  };
 
-        if (all_bitmask(local_props, ReflexiveClosure) && !empty()) {
-            if (cyclic != nullptr) {
-                // Pick arbitrary.
-                cyclic->push_back(rel_.begin()->first);
-                cyclic->push_back(rel_.begin()->first);
-            }
-
-            return false;
-        }
-
-        Set<Ts> visited;
-        FlagSet visiting;
-
-        for (const auto& tuples : rel_) {
-            if (R_search(tuples.first, nullptr, &visited, &visiting,
-                         local_props, SearchMode::FindCycle)) {
-
-                if (cyclic != nullptr) {
-                    get_path(cyclic, &tuples.first, nullptr, &visiting,
-                             SearchMode::FindCycle);
-                }
-
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Directed graph search.
-     */
-    bool R_search(const Element& e1, const Element *e2,
-                  Set<Ts>* visited,
-                  FlagSet* visiting = nullptr,
-                  Properties local_props = None,
-                  SearchMode mode = SearchMode::Related) const
-    {
-        // We always require visited to be set.
-        assert(visited != nullptr);
-
-        // Merge call-specific props with global props.
-        local_props |= props_;
-
-        const bool is_tran_cl = all_bitmask(local_props, TransitiveClosure);
-
-        R_impl search(this, visited, visiting, is_tran_cl, mode);
-
-        if (e2 == nullptr) {
-            // For the purpose of cycle detection, we are looking for e1->*e1.
-            // In addition, if the transitive property is set, we require that
-            // visiting is provided, as we cannot make assumptions on if visited
-            // is reset before every call -- and for performance reasons, this
-            // usage is discouraged.
-
-            assert(mode == SearchMode::FindCycle);
-
-            e2 = &e1;
-
-            if (is_tran_cl) {
-                assert(visiting != nullptr);
-                return search.dfs_rec_find_cycle(e1);
-            }
-        } else {
-            assert(mode != SearchMode::FindCycle);
-        }
-
-        return search.dfs_rec(e1, *e2);
-    }
-
-    class R_impl {
-      public:
-        R_impl(const Relation *src, Set<Ts>* visited,
-               FlagSet* visiting, bool is_tran_cl, SearchMode mode)
-            : src_(src)
-            , visited_(visited)
-            , visiting_(visiting)
-            , is_tran_cl_(is_tran_cl)
-            , mode_(mode)
-        {}
-
-        bool dfs_rec(const Element& e1, const Element& e2) const
-        {
-            const auto tuples = src_->raw().find(e1);
-
-            if (tuples == src_->raw().end()) {
-                return false;
-            }
-
-            if (visiting_ != nullptr) {
-                (*visiting_)[e1] = true;
-            }
-
-            bool result = false;
-            visited_->insert(e1);
-
-            for (const auto& e : tuples->second.get()) {
-                if (e == e2) {
-                    if (mode_ == SearchMode::RelatedVisitAll) {
-                        result = true;
-                    } else {
-                        return true;
-                    }
-                }
-
-                if (is_tran_cl_) {
-                    if (!visited_->contains(e)) {
-                        if (dfs_rec(e, e2)) {
-                            if (mode_ == SearchMode::RelatedVisitAll) {
-                                result = true;
-                            } else {
-                                return true;
-                            }
-                        }
-
-                        // There might not be an edge e -> e2, but we must update
-                        // the visited set regardless -- this is only relevant, as
-                        // the caller might expect the complete set of visited
-                        // nodes if mode == RelatedVisitAll.
-                        visited_->insert(e);
-                    } else {
-                        //assert(mode_ != SearchMode::FindCycle);
-                    }
-                }
-            }
-
-            if (visiting_ != nullptr) {
-                (*visiting_)[e1] = false;
-            }
-
-            return result;
-        }
-
-        bool dfs_rec_find_cycle(const Element& start) const
-        {
-            //assert(is_tran_cl_);
-            //assert(mode_ == SearchMode::FindCycle);
-            //assert(visiting_ != nullptr);
-
-            const auto tuples = src_->raw().find(start);
-
-            if (tuples == src_->raw().end()) {
-                return false;
-            }
-
-            (*visiting_)[start] = true;
-            visited_->insert(start);
-
-            for (const auto& e : tuples->second.get()) {
-                if (!visited_->contains(e)) {
-                    if (dfs_rec_find_cycle(e)) {
-                        return true;
-                    }
-                } else {
-                    const auto se = visiting_->find(e);
-                    if (se != visiting_->end() && se->second) {
-                        // Found a backedge --> cycle!
-                        return true;
-                    }
-                }
-            }
-
-            (*visiting_)[start] = false;
-            return false;
-        }
-
-      private:
-        const Relation* src_;
-        Set<Ts>* visited_;
-        FlagSet* visiting_;
-        bool is_tran_cl_;
-        SearchMode mode_;
-    };
-
-  protected:
-    Properties props_;
-    Container rel_;
+ protected:
+  Properties props_;
+  Container rel_;
 };
 
 template <class Ts>
-inline Relation<Ts> operator*(const Set<Ts>& lhs, const Set<Ts>& rhs)
-{
-    Relation<Ts> res;
+inline Relation<Ts> operator*(const Set<Ts>& lhs, const Set<Ts>& rhs) {
+  Relation<Ts> res;
 
-    for (const auto& e1 : lhs.get()) {
-        for (const auto& e2 : rhs.get()) {
-            res.insert(e1, e2);
-        }
+  for (const auto& e1 : lhs.Get()) {
+    for (const auto& e2 : rhs.Get()) {
+      res.Insert(e1, e2);
     }
+  }
 
-    return res;
+  return res;
 }
 
 template <class Ts>
-inline Relation<Ts> operator|(const Relation<Ts>& lhs, const Relation<Ts>& rhs)
-{
-    Relation<Ts> res = lhs;
-    return res |= rhs;
+inline Relation<Ts> operator|(const Relation<Ts>& lhs,
+                              const Relation<Ts>& rhs) {
+  Relation<Ts> res = lhs;
+  return res |= rhs;
 }
 
 template <class Ts>
-inline Relation<Ts> operator|(Relation<Ts>&& lhs, const Relation<Ts>& rhs)
-{
-    lhs |= rhs;
-    return std::move(lhs);
+inline Relation<Ts> operator|(Relation<Ts>&& lhs, const Relation<Ts>& rhs) {
+  lhs |= rhs;
+  return std::move(lhs);
 }
 
 template <class Ts>
-inline Relation<Ts> operator|(const Relation<Ts>& lhs, Relation<Ts>&& rhs)
-{
-    rhs |= lhs;
-    return std::move(rhs);
+inline Relation<Ts> operator|(const Relation<Ts>& lhs, Relation<Ts>&& rhs) {
+  rhs |= lhs;
+  return std::move(rhs);
 }
 
 template <class Ts>
-inline Relation<Ts> operator|(Relation<Ts>&& lhs, Relation<Ts>&& rhs)
-{
-    lhs |= rhs;
-    return std::move(lhs);
+inline Relation<Ts> operator|(Relation<Ts>&& lhs, Relation<Ts>&& rhs) {
+  lhs |= rhs;
+  return std::move(lhs);
 }
 
 template <class Ts>
-inline Relation<Ts> operator-(const Relation<Ts>& lhs, const Relation<Ts>& rhs)
-{
-    Relation<Ts> res = lhs;
-    return res -= rhs;
+inline Relation<Ts> operator-(const Relation<Ts>& lhs,
+                              const Relation<Ts>& rhs) {
+  Relation<Ts> res = lhs;
+  return res -= rhs;
 }
 
 template <class Ts>
-inline Relation<Ts> operator-(Relation<Ts>&& lhs, const Relation<Ts>& rhs)
-{
-    lhs -= rhs;
-    return std::move(lhs);
+inline Relation<Ts> operator-(Relation<Ts>&& lhs, const Relation<Ts>& rhs) {
+  lhs -= rhs;
+  return std::move(lhs);
 }
 
 template <class Ts>
-inline Relation<Ts> operator-(const Relation<Ts>& lhs, Relation<Ts>&& rhs)
-{
-    Relation<Ts> res = lhs;
-    return res -= rhs;
+inline Relation<Ts> operator-(const Relation<Ts>& lhs, Relation<Ts>&& rhs) {
+  Relation<Ts> res = lhs;
+  return res -= rhs;
 }
 
 template <class Ts>
-inline Relation<Ts> operator-(Relation<Ts>&& lhs, Relation<Ts>&& rhs)
-{
-    lhs -= rhs;
-    return std::move(lhs);
+inline Relation<Ts> operator-(Relation<Ts>&& lhs, Relation<Ts>&& rhs) {
+  lhs -= rhs;
+  return std::move(lhs);
 }
 
 template <class Ts>
-inline Relation<Ts> operator&(const Relation<Ts>& lhs, const Relation<Ts>& rhs)
-{
-    Relation<Ts> res;
+inline Relation<Ts> operator&(const Relation<Ts>& lhs,
+                              const Relation<Ts>& rhs) {
+  Relation<Ts> res;
 
-    const auto lhs_domain = lhs.domain();
-    for (const auto& e : lhs_domain.get()) {
-        Set<Ts> intersect = lhs.reachable(e) & rhs.reachable(e);
-        // insert checks if empty or not
-        res.insert(e, std::move(intersect));
-    }
+  const auto lhs_domain = lhs.Domain();
+  for (const auto& e : lhs_domain.Get()) {
+    Set<Ts> intersect = lhs.Reachable(e) & rhs.Reachable(e);
+    // insert checks if empty or not
+    res.Insert(e, std::move(intersect));
+  }
 
-    return res;
+  return res;
 }
 
 template <class Ts>
-inline Relation<Ts> operator&(Relation<Ts>&& lhs, const Relation<Ts>& rhs)
-{
-    lhs &= rhs;
-    return std::move(lhs);
+inline Relation<Ts> operator&(Relation<Ts>&& lhs, const Relation<Ts>& rhs) {
+  lhs &= rhs;
+  return std::move(lhs);
 }
 
 template <class Ts>
-inline Relation<Ts> operator&(const Relation<Ts>& lhs, Relation<Ts>&& rhs)
-{
-    rhs &= lhs;
-    return std::move(rhs);
+inline Relation<Ts> operator&(const Relation<Ts>& lhs, Relation<Ts>&& rhs) {
+  rhs &= lhs;
+  return std::move(rhs);
 }
 
 template <class Ts>
-inline Relation<Ts> operator&(Relation<Ts>&& lhs, Relation<Ts>&& rhs)
-{
-    lhs &= rhs;
-    return std::move(lhs);
+inline Relation<Ts> operator&(Relation<Ts>&& lhs, Relation<Ts>&& rhs) {
+  lhs &= rhs;
+  return std::move(lhs);
 }
 
 /**
@@ -1242,281 +1129,256 @@ inline Relation<Ts> operator&(Relation<Ts>&& lhs, Relation<Ts>&& rhs)
  */
 template <class Ts>
 class RelationOp {
-  public:
-    RelationOp()
-    {}
+ public:
+  RelationOp() {}
 
-    explicit RelationOp(const std::vector<Relation<Ts>>& rels)
-        : rels_(rels)
-    {}
+  explicit RelationOp(const std::vector<Relation<Ts>>& rels) : rels_(rels) {}
 
-    explicit RelationOp(std::vector<Relation<Ts>>&& rels)
-        : rels_(std::move(rels))
-    {}
+  explicit RelationOp(std::vector<Relation<Ts>>&& rels)
+      : rels_(std::move(rels)) {}
 
-    /*//virtual ~RelationOp()
-     *
-     * No destructor, so compiler can implicitly create move constructor and
-     * assignment operators.
-    */
+  /*//virtual ~RelationOp()
+   *
+   * No destructor, so compiler can implicitly create move constructor and
+   * assignment operators.
+  */
 
-    virtual RelationOp& eval_inplace() = 0;
+  virtual RelationOp& EvalInplace() = 0;
 
-    virtual Relation<Ts> eval() const = 0;
+  virtual Relation<Ts> Eval() const = 0;
 
-    void clear()
-    { rels_.clear(); }
+  void Clear() { rels_.clear(); }
 
-    /**
-     * Optimized for move.
-     */
-    Relation<Ts> eval_clear()
-    {
-        if (rels_.empty()) {
-            // Already cleared
-            return Relation<Ts>();
-        }
-
-        eval_inplace();
-        assert(rels_.size() == 1);
-
-        Relation<Ts> result = std::move(rels_.back());
-        rels_.clear();
-        return result; // NRVO
+  /**
+   * Optimized for move.
+   */
+  Relation<Ts> EvalClear() {
+    if (rels_.empty()) {
+      // Already cleared
+      return Relation<Ts>();
     }
 
-  protected:
-    void add(const Relation<Ts>& er)
-    {
-        rels_.push_back(er);
-    }
+    EvalInplace();
+    assert(rels_.size() == 1);
 
-    void add(Relation<Ts>&& er)
-    {
-        rels_.push_back(std::move(er));
-    }
+    Relation<Ts> result = std::move(rels_.back());
+    rels_.clear();
+    return result;  // NRVO
+  }
 
-    void add(const std::vector<Relation<Ts>>& rels)
-    {
-        rels_.reserve(rels_.size() + rels.size());
-        rels_.insert(rels_.end(), rels.begin(), rels.end());
-    }
+ protected:
+  void Add(const Relation<Ts>& er) { rels_.push_back(er); }
 
-  protected:
-    std::vector<Relation<Ts>> rels_;
+  void Add(Relation<Ts>&& er) { rels_.push_back(std::move(er)); }
+
+  void Add(const std::vector<Relation<Ts>>& rels) {
+    rels_.reserve(rels_.size() + rels.size());
+    rels_.insert(rels_.end(), rels.begin(), rels.end());
+  }
+
+ protected:
+  std::vector<Relation<Ts>> rels_;
 };
 
 template <class Ts>
 class RelationSeq : public RelationOp<Ts> {
-  public:
-    typedef typename Ts::Element Element;
+ public:
+  typedef typename Ts::Element Element;
 
-    RelationSeq()
-    {}
+  RelationSeq() {}
 
-    explicit RelationSeq(const std::vector<Relation<Ts>>& v)
-        : RelationOp<Ts>(v)
-    {}
+  explicit RelationSeq(const std::vector<Relation<Ts>>& v)
+      : RelationOp<Ts>(v) {}
 
-    explicit RelationSeq(std::vector<Relation<Ts>>&& v)
-        : RelationOp<Ts>(std::move(v))
-    {}
+  explicit RelationSeq(std::vector<Relation<Ts>>&& v)
+      : RelationOp<Ts>(std::move(v)) {}
 
-    RelationSeq& operator+=(const Relation<Ts>& rhs)
-    {
-        this->add(rhs);
-        return *this;
+  RelationSeq& operator+=(const Relation<Ts>& rhs) {
+    this->Add(rhs);
+    return *this;
+  }
+
+  RelationSeq& operator+=(Relation<Ts>&& rhs) {
+    this->Add(std::move(rhs));
+    return *this;
+  }
+
+  RelationSeq& operator+=(const RelationSeq& rhs) {
+    this->Add(rhs.rels_);
+    return *this;
+  }
+
+  RelationOp<Ts>& EvalInplace() override {
+    while (this->rels_.size() > 1) {
+      std::size_t from_idx = this->rels_.size() - 2;
+      const auto& first = this->rels_[from_idx];
+      const auto& last = this->rels_.back();
+
+      Relation<Ts> er;
+
+      first.for_each([&er, &last](const Element& e1, const Element& e2) {
+        if (last.InDomain(e2)) {
+          er.Insert(e1, last.Reachable(e2));
+        }
+      });
+
+      this->rels_.erase(this->rels_.end() - 2, this->rels_.end());
+      this->rels_.push_back(std::move(er));
     }
 
-    RelationSeq& operator+=(Relation<Ts>&& rhs)
-    {
-        this->add(std::move(rhs));
-        return *this;
+    return *this;
+  }
+
+  Relation<Ts> Eval() const override {
+    Relation<Ts> er;
+
+    if (this->rels_.empty()) {
+      return Relation<Ts>();
+    } else if (this->rels_.size() == 1) {
+      return this->rels_.back();
     }
 
-    RelationSeq& operator+=(const RelationSeq& rhs)
-    {
-        this->add(rhs.rels_);
-        return *this;
+    const auto potential_domain = this->rels_.front().Domain();
+    const auto potential_range = this->rels_.back().Range();
+
+    for (const auto& e1 : potential_domain.Get()) {
+      for (const auto& e2 : potential_range.Get()) {
+        if (R(e1, e2)) {
+          er.Insert(e1, e2);
+        }
+      }
     }
 
-    RelationOp<Ts>& eval_inplace() override
-    {
-        while (this->rels_.size() > 1) {
-            std::size_t from_idx = this->rels_.size() - 2;
-            const auto& first = this->rels_[from_idx];
-            const auto& last = this->rels_.back();
+    return er;
+  }
 
-            Relation<Ts> er;
-
-            first.for_each([&er, &last](const Element& e1, const Element& e2) {
-                if (last.in_domain(e2)) {
-                    er.insert(e1, last.reachable(e2));
-                }
-            });
-
-            this->rels_.erase(this->rels_.end() - 2, this->rels_.end());
-            this->rels_.push_back(std::move(er));
-        }
-
-        return *this;
+  bool R(const Element& e1, const Element& e2,
+         typename Relation<Ts>::Path* path = nullptr,
+         std::size_t seq = 0) const {
+    if (this->rels_.empty()) {
+      return false;
     }
 
-    Relation<Ts> eval() const override
-    {
-        Relation<Ts> er;
+    assert(seq < this->rels_.size());
 
-        if (this->rels_.empty()) {
-            return Relation<Ts>();
-        } else if (this->rels_.size() == 1) {
-            return this->rels_.back();
+    if (seq + 1 < this->rels_.size()) {
+      const auto& rel = this->rels_[seq];
+      std::size_t path_size = 0;
+
+      const Set<Ts> reach = rel.Reachable(e1);
+      for (const auto& e : reach.Get()) {
+        if (path != nullptr) {
+          path_size = path->size();
+          rel.R(e1, e, path);  // true
+          path->pop_back();    // remove e
         }
 
-        const auto potential_domain = this->rels_.front().domain();
-        const auto potential_range = this->rels_.back().range();
-
-        for (const auto& e1 : potential_domain.get()) {
-            for (const auto& e2 : potential_range.get()) {
-                if (R(e1, e2)) {
-                    er.insert(e1, e2);
-                }
-            }
+        if (R(e, e2, path, seq + 1)) {
+          return true;
         }
 
-        return er;
+        if (path != nullptr) {
+          // e not connected to e2, remove all up to e1 (inclusive).
+          assert(path_size < path->size());
+          path->erase(path->begin() + path_size, path->end());
+        }
+      }
+
+      return false;
     }
 
-    bool R(const Element& e1, const Element& e2,
-           typename Relation<Ts>::Path *path = nullptr, std::size_t seq = 0) const
-    {
-        if (this->rels_.empty()) {
-            return false;
-        }
+    return this->rels_[seq].R(e1, e2, path);
+  }
 
-        assert(seq < this->rels_.size());
-
-        if (seq + 1 < this->rels_.size()) {
-            const auto& rel = this->rels_[seq];
-            std::size_t path_size = 0;
-
-            const Set<Ts> reach = rel.reachable(e1);
-            for (const auto& e : reach.get()) {
-                if (path != nullptr) {
-                    path_size = path->size();
-                    rel.R(e1, e, path); // true
-                    path->pop_back(); // remove e
-                }
-
-                if (R(e, e2, path, seq + 1)) {
-                    return true;
-                }
-
-                if (path != nullptr) {
-                    // e not connected to e2, remove all up to e1 (inclusive).
-                    assert(path_size < path->size());
-                    path->erase(path->begin() + path_size, path->end());
-                }
-            }
-
-            return false;
-        }
-
-        return this->rels_[seq].R(e1, e2, path);
+  bool Irreflexive(typename Relation<Ts>::Path* cyclic = nullptr) const {
+    if (this->rels_.empty()) {
+      return true;
     }
 
-    bool irreflexive(typename Relation<Ts>::Path *cyclic = nullptr) const
-    {
-        if (this->rels_.empty()) {
-            return true;
-        }
-
-        const auto domain = this->rels_.front().domain();
-        for (const auto& e : domain.get()) {
-            if (R(e, e, cyclic)) {
-                return false;
-            }
-        }
-
-        return true;
+    const auto domain = this->rels_.front().Domain();
+    for (const auto& e : domain.Get()) {
+      if (R(e, e, cyclic)) {
+        return false;
+      }
     }
+
+    return true;
+  }
 };
 
 template <class Ts>
-inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs, const Relation<Ts>& rhs)
-{
-    RelationSeq<Ts> res = lhs;
-    return res += rhs;
+inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs,
+                                 const Relation<Ts>& rhs) {
+  RelationSeq<Ts> res = lhs;
+  return res += rhs;
 }
 
 template <class Ts>
-inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, const Relation<Ts>& rhs)
-{
-    lhs += rhs;
-    return std::move(lhs);
+inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs,
+                                 const Relation<Ts>& rhs) {
+  lhs += rhs;
+  return std::move(lhs);
 }
 
 template <class Ts>
-inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs, Relation<Ts>&& rhs)
-{
-    RelationSeq<Ts> res = lhs;
-    return res += std::move(rhs);
+inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs,
+                                 Relation<Ts>&& rhs) {
+  RelationSeq<Ts> res = lhs;
+  return res += std::move(rhs);
 }
 
 template <class Ts>
-inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, Relation<Ts>&& rhs)
-{
-    lhs += std::move(rhs);
-    return std::move(lhs);
+inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, Relation<Ts>&& rhs) {
+  lhs += std::move(rhs);
+  return std::move(lhs);
 }
 
 template <class Ts>
-inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs, const RelationSeq<Ts>& rhs)
-{
-    RelationSeq<Ts> res = lhs;
-    return res += rhs;
+inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs,
+                                 const RelationSeq<Ts>& rhs) {
+  RelationSeq<Ts> res = lhs;
+  return res += rhs;
 }
 
 template <class Ts>
-inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, const RelationSeq<Ts>& rhs)
-{
-    lhs += rhs;
-    return std::move(lhs);
+inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs,
+                                 const RelationSeq<Ts>& rhs) {
+  lhs += rhs;
+  return std::move(lhs);
 }
 
 template <class Ts>
-inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs, RelationSeq<Ts>&& rhs)
-{
-    RelationSeq<Ts> res = lhs;
-    return res += rhs;
+inline RelationSeq<Ts> operator+(const RelationSeq<Ts>& lhs,
+                                 RelationSeq<Ts>&& rhs) {
+  RelationSeq<Ts> res = lhs;
+  return res += rhs;
 }
 
 template <class Ts>
-inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, RelationSeq<Ts>&& rhs)
-{
-    lhs += rhs;
-    return std::move(lhs);
+inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, RelationSeq<Ts>&& rhs) {
+  lhs += rhs;
+  return std::move(lhs);
 }
 
 template <class E, class Hash = typename E::Hash>
 struct Types {
-    typedef E Element;
+  typedef E Element;
 
-    typedef std::unordered_set<Element, Hash> SetContainer;
+  typedef std::unordered_set<Element, Hash> SetContainer;
 
 #if defined(__GNUC__) && (__GNUC__ == 4 && (__GNUC_MINOR__ == 6))
-    template <class T>
-    class MapContainer : public std::unordered_map<Element, T, Hash>
-    {};
+  template <class T>
+  class MapContainer : public std::unordered_map<Element, T, Hash> {};
 #else
-    // Only works for GCC > 4.6
-    template <class T>
-    using MapContainer = std::unordered_map<Element, T, Hash>;
+  // Only works for GCC > 4.6
+  template <class T>
+  using MapContainer = std::unordered_map<Element, T, Hash>;
 #endif
 };
 
-} /* namespace sets */
-} /* namespace mc2lib */
+}  // namespace sets
+}  // namespace mc2lib
 
 #endif /* MC2LIB_SETS_HPP_ */
 
-/* vim: set ts=4 sts=4 sw=4 et : */
+/* vim: set ts=2 sts=2 sw=2 et : */

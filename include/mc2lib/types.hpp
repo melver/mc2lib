@@ -53,11 +53,11 @@ namespace types {
  */
 template <bool use_specialized>
 struct Types {
-    typedef std::uint64_t Addr;
-    typedef std::uint16_t Pid;
-    typedef std::uint16_t Poi;
-    typedef Addr InstPtr;
-    typedef std::uint8_t WriteID;
+  typedef std::uint64_t Addr;
+  typedef std::uint16_t Pid;
+  typedef std::uint16_t Poi;
+  typedef Addr InstPtr;
+  typedef std::uint8_t WriteID;
 };
 
 /**
@@ -85,9 +85,9 @@ typedef typename Types<true>::InstPtr InstPtr;
  */
 typedef typename Types<true>::WriteID WriteID;
 
-} // namespace types
-} // namespace mc2lib
+}  // namespace types
+}  // namespace mc2lib
 
 #endif /* MC2LIB_TYPES_HPP_ */
 
-/* vim: set ts=4 sts=4 sw=4 et : */
+/* vim: set ts=2 sts=2 sw=2 et : */

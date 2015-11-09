@@ -34,103 +34,95 @@
 #ifndef MC2LIB_CODEGEN_RIT_HPP_
 #define MC2LIB_CODEGEN_RIT_HPP_
 
+#include <functional>
+#include <random>
+#include <vector>
+
 #include "../config.hpp"
 #include "../sets.hpp"
 #include "../simplega.hpp"
 #include "compiler.hpp"
 
-#include <functional>
-#include <random>
-
 namespace mc2lib {
 namespace codegen {
 
 template <class URNG, class OperationFactory>
-class RandInstTest : public simplega::Genome<typename OperationFactory::ResultType::Ptr> {
-  public:
-    typedef typename OperationFactory::ResultType Operation;
-    typedef sets::Set<sets::Types<types::Addr, std::hash<types::Addr>>> AddrSet;
+class RandInstTest
+    : public simplega::Genome<typename OperationFactory::ResultType::Ptr> {
+ public:
+  typedef typename OperationFactory::ResultType Operation;
+  typedef sets::Set<sets::Types<types::Addr, std::hash<types::Addr>>> AddrSet;
 
-    explicit RandInstTest(URNG& urng, const OperationFactory *factory, std::size_t len)
-        : urng_(urng)
-        , factory_(factory)
-        , fitness_(0.0f)
-    {
-        this->genome_.resize(len);
+  explicit RandInstTest(URNG& urng, const OperationFactory* factory,
+                        std::size_t len)
+      : urng_(urng), factory_(factory), fitness_(0.0f) {
+    this->genome_.resize(len);
 
-        for (auto& op_ptr : this->genome_) {
-            op_ptr = (*factory)(urng);
-        }
+    for (auto& op_ptr : this->genome_) {
+      op_ptr = (*factory)(urng);
     }
+  }
 
-    explicit RandInstTest(const RandInstTest& parent1, const RandInstTest& parent2,
-                          const std::vector<typename Operation::Ptr>& g)
-        : simplega::Genome<typename Operation::Ptr>(g)
-        , urng_(parent1.urng_)
-        , factory_(parent1.factory_)
-        , fitness_(0.0f)
-    {}
+  explicit RandInstTest(const RandInstTest& parent1,
+                        const RandInstTest& parent2,
+                        const std::vector<typename Operation::Ptr>& g)
+      : simplega::Genome<typename Operation::Ptr>(g),
+        urng_(parent1.urng_),
+        factory_(parent1.factory_),
+        fitness_(0.0f) {}
 
-    void mutate(float rate) override
-    {
-        std::uniform_int_distribution<std::size_t> dist_idx(0, this->genome_.size() - 1);
-        std::unordered_set<std::size_t> used;
-        std::size_t selection_count =
-            static_cast<std::size_t>(static_cast<float>(this->genome_.size()) * rate);
+  void Mutate(float rate) override {
+    std::uniform_int_distribution<std::size_t> dist_idx(
+        0, this->genome_.size() - 1);
+    std::unordered_set<std::size_t> used;
+    std::size_t selection_count = static_cast<std::size_t>(
+        static_cast<float>(this->genome_.size()) * rate);
 
-        while (selection_count) {
-            auto idx = dist_idx(urng_);
-            if (used.find(idx) != used.end()) {
-                continue;
-            }
+    while (selection_count) {
+      auto idx = dist_idx(urng_);
+      if (used.find(idx) != used.end()) {
+        continue;
+      }
 
-            this->genome_[idx] = make_random();
+      this->genome_[idx] = MakeRandom();
 
-            used.insert(idx);
-            --selection_count;
-        }
+      used.insert(idx);
+      --selection_count;
     }
+  }
 
-    float fitness() const override
-    { return fitness_; }
+  float Fitness() const override { return fitness_; }
 
-    void set_fitness(float fitness)
-    { fitness_ = fitness; }
+  void set_fitness(float fitness) { fitness_ = fitness; }
 
-    const AddrSet& fitaddrs() const
-    { return fitaddrs_; }
+  const AddrSet& fitaddrs() const { return fitaddrs_; }
 
-    AddrSet* fitaddrsptr()
-    { return &fitaddrs_; }
+  AddrSet* fitaddrsptr() { return &fitaddrs_; }
 
-    typename Operation::Ptr make_random() const
-    {
-        return (*factory_)(urng_);
-    }
+  typename Operation::Ptr MakeRandom() const { return (*factory_)(urng_); }
 
-    typename Operation::Ptr make_random(const AddrSet& subset_addrs, std::size_t max_tries = 1000) const
-    {
-        return (*factory_)(urng_, [&subset_addrs](types::Addr addr) {
-            return subset_addrs.contains(addr);
-        }, max_tries);
-    }
+  typename Operation::Ptr MakeRandom(const AddrSet& subset_addrs,
+                                     std::size_t max_tries = 1000) const {
+    return (*factory_)(urng_, [&subset_addrs](types::Addr addr) {
+      return subset_addrs.Contains(addr);
+    }, max_tries);
+  }
 
-    typename Operation::Threads threads()
-    {
-        return threads_extract(this->getptr());
-    }
+  typename Operation::Threads threads() {
+    return ExtractThreads(this->GetPtr());
+  }
 
-  private:
-    URNG& urng_;
-    const OperationFactory *factory_;
+ private:
+  URNG& urng_;
+  const OperationFactory* factory_;
 
-    float fitness_;
-    AddrSet fitaddrs_;
+  float fitness_;
+  AddrSet fitaddrs_;
 };
 
-} /* namespace codegen */
-} /* namespace mc2lib */
+}  // namespace codegen
+}  // namespace mc2lib
 
 #endif /* MC2LIB_CODEGEN_RIT_HPP_ */
 
-/* vim: set ts=4 sts=4 sw=4 et : */
+/* vim: set ts=2 sts=2 sw=2 et : */

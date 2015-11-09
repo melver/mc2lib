@@ -34,9 +34,9 @@
 #ifndef MC2LIB_MEMCONSISTENCY_MODEL12_HPP_
 #define MC2LIB_MEMCONSISTENCY_MODEL12_HPP_
 
-#include "eventsets.hpp"
-
 #include <memory>
+
+#include "eventsets.hpp"
 
 namespace mc2lib {
 namespace memconsistency {
@@ -55,246 +55,220 @@ namespace memconsistency {
 namespace model12 {
 
 class ExecWitness {
-  public:
-
-    /*
-     * Use of raw() in rf is justified, as we do not expect (according to
-     * wf_rf), the rf-relation to have any additional properties.
-     */
-    template <class FilterFunc>
-    EventRel fr(FilterFunc filter_func) const
-    {
-        EventRel er;
-        for (const auto& rf_tuples : rf.raw()) {
-            const auto ws_reach = ws.reachable(rf_tuples.first);
-            for (const auto& ws_w : ws_reach.get()) {
-                for (const auto& rf_r : rf_tuples.second.get()) {
-                    if (filter_func(std::make_pair(rf_tuples.first, rf_r),
-                                    std::make_pair(rf_tuples.first, ws_w))) {
-                        er.insert(rf_r, ws_w);
-                    }
-                }
-            }
+ public:
+  /*
+   * Use of Raw() in rf is justified, as we do not expect (according to
+   * wf_rf), the rf-relation to have any additional properties.
+   */
+  template <class FilterFunc>
+  EventRel fr(FilterFunc filter_func) const {
+    EventRel er;
+    for (const auto& rf_tuples : rf.Raw()) {
+      const auto ws_reach = ws.Reachable(rf_tuples.first);
+      for (const auto& ws_w : ws_reach.Get()) {
+        for (const auto& rf_r : rf_tuples.second.Get()) {
+          if (filter_func(std::make_pair(rf_tuples.first, rf_r),
+                          std::make_pair(rf_tuples.first, ws_w))) {
+            er.Insert(rf_r, ws_w);
+          }
         }
-        return er;
+      }
     }
+    return er;
+  }
 
-    EventRel fr() const
-    {
-        return fr([](const EventRel::Tuple& t1,
-                     const EventRel::Tuple& t2)
-                  { return true; });
-    }
+  EventRel fr() const {
+    return fr([](const EventRel::Tuple& t1, const EventRel::Tuple& t2) {
+      return true;
+    });
+  }
 
-    EventRel fri() const
-    {
-        return fr([](const EventRel::Tuple& t1,
-                     const EventRel::Tuple& t2)
-                  { return t1.second.iiid.pid == t2.second.iiid.pid; });
-    }
+  EventRel fri() const {
+    return fr([](const EventRel::Tuple& t1, const EventRel::Tuple& t2) {
+      return t1.second.iiid.pid == t2.second.iiid.pid;
+    });
+  }
 
-    EventRel fre() const
-    {
-        return fr([](const EventRel::Tuple& t1,
-                     const EventRel::Tuple& t2)
-                  { return t1.second.iiid.pid != t2.second.iiid.pid; });
-    }
+  EventRel fre() const {
+    return fr([](const EventRel::Tuple& t1, const EventRel::Tuple& t2) {
+      return t1.second.iiid.pid != t2.second.iiid.pid;
+    });
+  }
 
-    EventRel rfi() const
-    {
-        return rf.filter([](const Event& e1, const Event& e2)
-                         { return e1.iiid.pid == e2.iiid.pid; });
-    }
+  EventRel rfi() const {
+    return rf.Filter([](const Event& e1, const Event& e2) {
+      return e1.iiid.pid == e2.iiid.pid;
+    });
+  }
 
-    EventRel rfe() const
-    {
-        return rf.filter([](const Event& e1, const Event& e2)
-                         { return e1.iiid.pid != e2.iiid.pid; });
-    }
+  EventRel rfe() const {
+    return rf.Filter([](const Event& e1, const Event& e2) {
+      return e1.iiid.pid != e2.iiid.pid;
+    });
+  }
 
-    EventRel wsi() const
-    {
-        return ws.filter([](const Event& e1, const Event& e2)
-                         { return e1.iiid.pid == e2.iiid.pid; });
-    }
+  EventRel wsi() const {
+    return ws.Filter([](const Event& e1, const Event& e2) {
+      return e1.iiid.pid == e2.iiid.pid;
+    });
+  }
 
-    EventRel wse() const
-    {
-        return ws.filter([](const Event& e1, const Event& e2)
-                         { return e1.iiid.pid != e2.iiid.pid; });
-    }
+  EventRel wse() const {
+    return ws.Filter([](const Event& e1, const Event& e2) {
+      return e1.iiid.pid != e2.iiid.pid;
+    });
+  }
 
-    EventRel com() const
-    {
-        return rf | ws | fr();
-    }
+  EventRel com() const { return rf | ws | fr(); }
 
-    EventRel po_loc() const
-    {
-        return po.filter([](const Event& e1, const Event& e2)
-                         { return e1.addr == e2.addr; });
-    }
+  EventRel po_loc() const {
+    return po.Filter(
+        [](const Event& e1, const Event& e2) { return e1.addr == e2.addr; });
+  }
 
-    void clear()
-    {
-        events.clear();
-        po.clear();
-        dp.clear();
-        rf.clear();
-        ws.clear();
-    }
+  void Clear() {
+    events.Clear();
+    po.Clear();
+    dp.Clear();
+    rf.Clear();
+    ws.Clear();
+  }
 
-  public:
-    EventSet events;
-    EventRel po;
-    EventRel dp;
-    EventRel rf;
-    EventRel ws;
+ public:
+  EventSet events;
+  EventRel po;
+  EventRel dp;
+  EventRel rf;
+  EventRel ws;
 };
 
 class Checker;
 
 class Architecture {
-  public:
-    virtual ~Architecture()
-    {}
+ public:
+  virtual ~Architecture() {}
 
-    virtual void clear()
-    {}
+  virtual void Clear() {}
 
-    /*
-     * Creates a checker compatible with this Architecture.
-     */
-    virtual std::unique_ptr<Checker> make_checker(const Architecture *arch,
-                                        const ExecWitness *exec) const = 0;
+  /*
+   * Creates a checker compatible with this Architecture.
+   */
+  virtual std::unique_ptr<Checker> MakeChecker(
+      const Architecture* arch, const ExecWitness* exec) const = 0;
 
-    virtual EventRel ppo(const ExecWitness& ew) const = 0;
-    virtual EventRel grf(const ExecWitness& ew) const = 0;
-    virtual EventRel ab(const ExecWitness& ew)  const = 0;
+  virtual EventRel ppo(const ExecWitness& ew) const = 0;
+  virtual EventRel grf(const ExecWitness& ew) const = 0;
+  virtual EventRel ab(const ExecWitness& ew) const = 0;
 
-    virtual EventRel ghb(const ExecWitness& ew) const
-    {
-        return ew.ws | ew.fr() | ppo(ew) | grf(ew) | ab(ew);
-    }
+  virtual EventRel ghb(const ExecWitness& ew) const {
+    return ew.ws | ew.fr() | ppo(ew) | grf(ew) | ab(ew);
+  }
 
-    /*
-     * Should return the mask of all types that are classed as read.
-     */
-    virtual Event::TypeMask eventTypeRead() const = 0;
+  /*
+   * Should return the mask of all types that are classed as read.
+   */
+  virtual Event::TypeMask EventTypeRead() const = 0;
 
-    /*
-     * Should return the mask of all types that are classed as write.
-     */
-    virtual Event::TypeMask eventTypeWrite() const = 0;
+  /*
+   * Should return the mask of all types that are classed as write.
+   */
+  virtual Event::TypeMask EventTypeWrite() const = 0;
 };
 
 class Checker {
-  public:
-    Checker(const Architecture *arch, const ExecWitness *exec)
-        : arch_(arch), exec_(exec)
-    {}
+ public:
+  Checker(const Architecture* arch, const ExecWitness* exec)
+      : arch_(arch), exec_(exec) {}
 
-    virtual ~Checker()
-    {}
+  virtual ~Checker() {}
 
-    virtual void wf_rf() const
-    {
-        EventSet reads;
+  virtual void wf_rf() const {
+    EventSet reads;
 
-        for (const auto& tuples : exec_->rf.raw()) {
-            if (!tuples.first.any_type(arch_->eventTypeWrite())) {
-                throw Error("WF_RF_NOT_FROM_WRITE");
-            }
+    for (const auto& tuples : exec_->rf.Raw()) {
+      if (!tuples.first.AnyType(arch_->EventTypeWrite())) {
+        throw Error("WF_RF_NOT_FROM_WRITE");
+      }
 
-            for (const auto& e : tuples.second.get()) {
-                if (   !e.any_type(arch_->eventTypeRead())
-                    || tuples.first.addr != e.addr)
-                {
-                    throw Error("WF_RF_NOT_SAME_LOC");
-                }
-
-                // For every read, there exists only 1 source!
-                if (reads.contains(e)) {
-                    throw Error("WF_RF_MULTI_SOURCE");
-                }
-                reads.insert(e);
-            }
-        }
-    }
-
-    virtual void wf_ws() const
-    {
-        std::unordered_set<types::Addr> addrs;
-
-        // Assert writes ordered captured in ws are to the same location.
-        for (const auto& tuples : exec_->ws.raw()) {
-            addrs.insert(tuples.first.addr);
-
-            for (const auto& e : tuples.second.get()) {
-                if (tuples.first.addr != e.addr) {
-                    throw Error("WF_WS_NOT_SAME_LOC");
-                }
-            }
+      for (const auto& e : tuples.second.Get()) {
+        if (!e.AnyType(arch_->EventTypeRead()) || tuples.first.addr != e.addr) {
+          throw Error("WF_RF_NOT_SAME_LOC");
         }
 
-        auto writes = exec_->events.filter([&](const Event& e) {
-                    return e.any_type(arch_->eventTypeWrite());
-                });
-        if (!exec_->ws.strict_partial_order(writes)) {
-            throw Error("WF_WS_NOT_STRICT_PARTIAL_ORDER");
+        // For every read, there exists only 1 source!
+        if (reads.Contains(e)) {
+          throw Error("WF_RF_MULTI_SOURCE");
         }
+        reads.Insert(e);
+      }
+    }
+  }
 
-        for (const auto& addr : addrs) {
-            auto same_addr_writes = writes.filter([&](const Event& e) {
-                        return e.addr == addr;
-                    });
-            if (!exec_->ws.connex_on(same_addr_writes)) {
-                throw Error("WF_WS_NOT_CONNEX");
-            }
+  virtual void wf_ws() const {
+    std::unordered_set<types::Addr> addrs;
+
+    // Assert writes ordered captured in ws are to the same location.
+    for (const auto& tuples : exec_->ws.Raw()) {
+      addrs.insert(tuples.first.addr);
+
+      for (const auto& e : tuples.second.Get()) {
+        if (tuples.first.addr != e.addr) {
+          throw Error("WF_WS_NOT_SAME_LOC");
         }
+      }
     }
 
-    virtual void wf() const
-    {
-        wf_rf();
-        wf_ws();
+    auto writes = exec_->events.Filter(
+        [&](const Event& e) { return e.AnyType(arch_->EventTypeWrite()); });
+    if (!exec_->ws.StrictPartialOrder(writes)) {
+      throw Error("WF_WS_NOT_STRICT_PARTIAL_ORDER");
     }
 
-    virtual bool uniproc(EventRel::Path *cyclic = nullptr) const
-    {
-        return (exec_->com() | exec_->po_loc()).acyclic(cyclic);
+    for (const auto& addr : addrs) {
+      auto same_addr_writes =
+          writes.Filter([&](const Event& e) { return e.addr == addr; });
+      if (!exec_->ws.ConnexOn(same_addr_writes)) {
+        throw Error("WF_WS_NOT_CONNEX");
+      }
+    }
+  }
+
+  virtual void wf() const {
+    wf_rf();
+    wf_ws();
+  }
+
+  virtual bool uniproc(EventRel::Path* cyclic = nullptr) const {
+    return (exec_->com() | exec_->po_loc()).Acyclic(cyclic);
+  }
+
+  virtual bool thin(EventRel::Path* cyclic = nullptr) const {
+    return (exec_->rf | exec_->dp).Acyclic(cyclic);
+  }
+
+  virtual bool check_exec(EventRel::Path* cyclic = nullptr) const {
+    return arch_->ghb(*exec_).Acyclic(cyclic);
+  }
+
+  virtual void valid_exec(EventRel::Path* cyclic = nullptr) const {
+    wf();
+
+    if (!uniproc(cyclic)) {
+      throw Error("UNIPROC");
     }
 
-    virtual bool thin(EventRel::Path *cyclic = nullptr) const
-    {
-        return (exec_->rf | exec_->dp).acyclic(cyclic);
+    if (!thin(cyclic)) {
+      throw Error("THIN");
     }
 
-    virtual bool check_exec(EventRel::Path *cyclic = nullptr) const
-    {
-        return arch_->ghb(*exec_).acyclic(cyclic);
+    if (!check_exec(cyclic)) {
+      throw Error("CHECK_EXEC");
     }
+  }
 
-    virtual void valid_exec(EventRel::Path *cyclic = nullptr) const
-    {
-        wf();
-
-        if (!uniproc(cyclic)) {
-            throw Error("UNIPROC");
-        }
-
-        if (!thin(cyclic)) {
-            throw Error("THIN");
-        }
-
-        if (!check_exec(cyclic)) {
-            throw Error("CHECK_EXEC");
-        }
-    }
-
-  protected:
-    const Architecture *arch_;
-    const ExecWitness *exec_;
+ protected:
+  const Architecture* arch_;
+  const ExecWitness* exec_;
 };
 
 /*
@@ -302,101 +276,71 @@ class Checker {
  */
 
 class Arch_SC : public Architecture {
-  public:
-    std::unique_ptr<Checker> make_checker(const Architecture *arch,
-                                          const ExecWitness *exec) const override
-    {
-        return std::unique_ptr<Checker>(new Checker(arch, exec));
-    }
+ public:
+  std::unique_ptr<Checker> MakeChecker(const Architecture* arch,
+                                       const ExecWitness* exec) const override {
+    return std::unique_ptr<Checker>(new Checker(arch, exec));
+  }
 
-    EventRel ppo(const ExecWitness& ew) const override
-    {
-        assert(ew.po.transitive());
-        return ew.po;
-    }
+  EventRel ppo(const ExecWitness& ew) const override {
+    assert(ew.po.Transitive());
+    return ew.po.Eval();
+  }
 
-    EventRel grf(const ExecWitness& ew) const override
-    {
-        return ew.rf;
-    }
+  EventRel grf(const ExecWitness& ew) const override { return ew.rf; }
 
-    EventRel ab(const ExecWitness& ew) const override
-    {
-        return EventRel();
-    }
+  EventRel ab(const ExecWitness& ew) const override { return EventRel(); }
 
-    Event::TypeMask eventTypeRead() const override
-    {
-        return Event::Read;
-    }
+  Event::TypeMask EventTypeRead() const override { return Event::kRead; }
 
-    Event::TypeMask eventTypeWrite() const override
-    {
-        return Event::Write;
-    }
+  Event::TypeMask EventTypeWrite() const override { return Event::kWrite; }
 };
 
 class Arch_TSO : public Architecture {
-  public:
-    std::unique_ptr<Checker> make_checker(const Architecture *arch,
-                                          const ExecWitness *exec) const override
-    {
-        return std::unique_ptr<Checker>(new Checker(arch, exec));
+ public:
+  void Clear() override { mfence.Clear(); }
+
+  std::unique_ptr<Checker> MakeChecker(const Architecture* arch,
+                                       const ExecWitness* exec) const override {
+    return std::unique_ptr<Checker>(new Checker(arch, exec));
+  }
+
+  EventRel ppo(const ExecWitness& ew) const override {
+    assert(ew.po.Transitive());
+    return ew.po.Filter([](const Event& e1, const Event& e2) {
+      return !e1.AllType(Event::kWrite) || !e2.AllType(Event::kRead);
+    });
+  }
+
+  EventRel grf(const ExecWitness& ew) const override { return ew.rfe(); }
+
+  EventRel ab(const ExecWitness& ew) const override {
+    if (mfence.Empty()) {
+      return mfence;
     }
 
-    void clear() override
-    {
-        mfence.clear();
-    }
+    // Filter postar by only those events which are possibly relevent.
+    const auto postar = ew.po.Filter([&](const Event& e1, const Event& e2) {
+      // Only include those where first event is write or second
+      // is a read, all other are included in po regardless.
+      return e1.AllType(Event::kWrite) || e2.AllType(Event::kRead);
+    }).set_props(EventRel::kReflexiveClosure);
 
-    EventRel ppo(const ExecWitness& ew) const override
-    {
-        assert(ew.po.transitive());
-        return ew.po.filter([](const Event& e1, const Event& e2)
-                            { return !e1.all_type(Event::Write)
-                                  || !e2.all_type(Event::Read); });
-    }
+    return EventRelSeq({postar, mfence, postar}).EvalClear();
+  }
 
-    EventRel grf(const ExecWitness& ew) const override
-    {
-        return ew.rfe();
-    }
+  Event::TypeMask EventTypeRead() const override { return Event::kRead; }
 
-    EventRel ab(const ExecWitness& ew) const override
-    {
-        if (mfence.empty()) {
-            return mfence;
-        }
+  Event::TypeMask EventTypeWrite() const override { return Event::kWrite; }
 
-        // Filter postar by only those events which are possibly relevent.
-        const auto postar = ew.po.filter(
-                [&](const Event& e1, const Event& e2) {
-                    // Only include those where first event is write or second
-                    // is a read, all other are included in po regardless.
-                    return e1.all_type(Event::Write) || e2.all_type(Event::Read);
-                }).set_props(EventRel::ReflexiveClosure);
-
-        return EventRelSeq({postar, mfence, postar}).eval_clear();
-    }
-
-    Event::TypeMask eventTypeRead() const override
-    {
-        return Event::Read;
-    }
-
-    Event::TypeMask eventTypeWrite() const override
-    {
-        return Event::Write;
-    }
-
-  public:
-    EventRel mfence;
+ public:
+  EventRel mfence;
 };
 
-} /* namespace model12 */
-} /* namespace memconsistency */
-} /* namespace mc2lib */
+}  // namespace model12
+}  // namespace memconsistency
+}  // namespace mc2lib
 
 #endif /* MEMCONSISTENCY_MODEL12_HPP_ */
 
-/* vim: set ts=4 sts=4 sw=4 et : */
+/* vim: set ts=2 sts=2 sw=2 et : */

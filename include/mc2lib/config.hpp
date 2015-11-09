@@ -39,9 +39,9 @@
 
 #if defined(__GNUC__) && (__GNUC__ == 4 && (__GNUC_MINOR__ == 6))
 // GCC 4.6 does not yet support override
-#   define override
+#define override
 #endif
 
 #endif /* MC2LIB_CONFIG_HPP_ */
 
-/* vim: set ts=4 sts=4 sw=4 et : */
+/* vim: set ts=2 sts=2 sw=2 et : */
