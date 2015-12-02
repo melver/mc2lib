@@ -117,7 +117,7 @@ class Op {
     std::unordered_set<Op *> used;
 
     for (auto &op : (*container)) {
-      assert(op.get() != nullptr);
+      assert(op != nullptr);
 
       if (used.insert(op.get()).second) {
         // Using same instance of Op multiple times is not permitted.

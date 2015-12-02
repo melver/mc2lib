@@ -12,23 +12,30 @@ CLANG_FORMAT = clang-format
 CPPLINT = cpplint
 
 .PHONY: all
-all: test
+all: test_mc2lib
+
+TEST_SRC = $(shell find src -name "test_*.cpp")
 
 # Need to append $(LIBS) again for gcc 4.6
-test: src/test.cpp $(shell find include -type f -name "*.hpp")
-	$(CXX) $(CXXFLAGS) $(CFLAGS) $(LIBS) -o $@ $< $(LIBS)
+test_mc2lib: $(TEST_SRC) $(shell find include -type f -name "*.hpp")
+	$(CXX) $(CXXFLAGS) $(CFLAGS) $(LIBS) -o $@ $(TEST_SRC) $(LIBS)
 
 .PHONY: tidy
 tidy: compile_commands.json
 	$(CLANG_TIDY) \
 		-header-filter='.*' \
 		-checks='-*,clang-analyzer-*,google*,misc*' \
-		src/test.cpp
+		$(TEST_SRC)
 
 compile_commands.json: Makefile
-	echo '[ { "directory" : "$(PWD)",' \
-		'"command" : "/usr/bin/clang++ $(CXXFLAGS) $(CFLAGS) $(LIBS) -o test src/test.cpp",' \
-		'"file": "src/test.cpp" } ]' > compile_commands.json
+	echo "[" > compile_commands.json
+	for s in $(TEST_SRC); do \
+		echo "$${d}{ \"directory\" : \"$(PWD)\"," \
+			"\"command\" : \"/usr/bin/clang++ $(CXXFLAGS) $(CFLAGS) $(LIBS) -c -o $${s}.o $${s}\"," \
+			"\"file\": \"$${s}\" }" >> compile_commands.json; \
+		d=","; \
+	done
+	echo "]" >> compile_commands.json
 
 .PHONY: format
 format:
@@ -46,8 +53,8 @@ lint:
 		$(shell git ls-files | grep -E '\.(hpp|cpp)')
 
 .PHONY: check
-check: test
-	./test
+check: test_mc2lib
+	./test_mc2lib --report_level=detailed
 
 .PHONY: doc
 doc:
@@ -55,5 +62,5 @@ doc:
 	$(DOXYGEN) Doxyfile
 
 clean:
-	$(RM) test
+	$(RM) test_mc2lib
 

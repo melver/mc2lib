@@ -530,7 +530,7 @@ class Arch_ARMv7 : public Architecture {
     EventRel ic;
 
     std::size_t total_size = ci.size() + ii.size() + cc.size() + ic.size();
-    std::size_t prev_total_size = total_size;
+    std::size_t prev_total_size;
 
     // Fix-point computation
     do {
