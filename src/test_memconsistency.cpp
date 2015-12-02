@@ -1,6 +1,8 @@
 #include "mc2lib/memconsistency/cats.hpp"
 #include "mc2lib/memconsistency/model12.hpp"
 
+#include <string>
+
 #define BOOST_TEST_DYN_LINK
 #include <boost/test/unit_test.hpp>
 

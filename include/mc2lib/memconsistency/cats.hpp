@@ -437,11 +437,13 @@ class Arch_TSO : public Architecture {
     }
 
     // Filter postar by only those events which are possibly relevent.
-    const auto postar = ew.po.Filter([&](const Event& e1, const Event& e2) {
-      // Only include those where first event is write or second
-      // is a read, all other are included in po regardless.
-      return e1.AllType(Event::kWrite) || e2.AllType(Event::kRead);
-    }).set_props(EventRel::kReflexiveClosure);
+    const auto postar =
+        ew.po.Filter([&](const Event& e1, const Event& e2) {
+               // Only include those where first event is write or second
+               // is a read, all other are included in po regardless.
+               return e1.AllType(Event::kWrite) || e2.AllType(Event::kRead);
+             })
+            .set_props(EventRel::kReflexiveClosure);
 
     return EventRelSeq({postar, mfence, postar}).EvalClear();
   }
@@ -581,8 +583,9 @@ class Arch_ARMv7 : public Architecture {
     });
 
     propbase.set_props(EventRel::kReflexiveTransitiveClosure).EvalInplace();
-    result |= EventRelSeq({comstar, propbase /*star*/, proxy_->fences(ew),
-                           hbstar}).EvalClear();
+    result |=
+        EventRelSeq({comstar, propbase /*star*/, proxy_->fences(ew), hbstar})
+            .EvalClear();
     return result;
   }
 

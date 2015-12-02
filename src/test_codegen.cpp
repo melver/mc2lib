@@ -67,10 +67,10 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64) {
 #endif
 
 #ifdef OUTPUT_BIN_TO_TMP
-    memset(code + emit_len, 0x90, sizeof(code) - emit_len);
-    auto f = fopen("/tmp/mc2lib-test1.bin", "wb");
-    fwrite(code, sizeof(code), 1, f);
-    fclose(f);
+  memset(code + emit_len, 0x90, sizeof(code) - emit_len);
+  auto f = fopen("/tmp/mc2lib-test1.bin", "wb");
+  fwrite(code, sizeof(code), 1, f);
+  fclose(f);
 #endif
 }
 
@@ -108,9 +108,9 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux) {
   BOOST_CHECK_EQUAL(result, test_mem[0xf]);
 
 #ifdef OUTPUT_BIN_TO_TMP
-    auto f = fopen("/tmp/mc2lib-test2.bin", "wb");
-    fwrite(code, MAX_CODE_SIZE, 1, f);
-    fclose(f);
+  auto f = fopen("/tmp/mc2lib-test2.bin", "wb");
+  fwrite(code, MAX_CODE_SIZE, 1, f);
+  fclose(f);
 #endif
 
   munmap(code, MAX_CODE_SIZE);
@@ -118,4 +118,3 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux) {
 #endif
 
 BOOST_AUTO_TEST_SUITE_END()
-

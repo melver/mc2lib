@@ -83,7 +83,7 @@ using EventPtrs =
 template <class... Ts>
 inline auto MakeEventPtrs(const mc::Event *e1, Ts... en)
     -> EventPtrs<(1 + sizeof...(Ts)) * sizeof(types::WriteID)> {
-  EventPtrs<(1 + sizeof...(Ts)) *sizeof(types::WriteID)> es = {e1, en...};
+  EventPtrs<(1 + sizeof...(Ts)) * sizeof(types::WriteID)> es = {e1, en...};
   return es;
 }
 
