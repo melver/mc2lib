@@ -41,7 +41,7 @@
 #include "../config.hpp"
 #include "../sets.hpp"
 #include "../simplega.hpp"
-#include "compiler.hpp"
+#include "../types.hpp"
 
 namespace mc2lib {
 namespace codegen {
