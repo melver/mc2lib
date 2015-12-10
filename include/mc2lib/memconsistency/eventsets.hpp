@@ -39,7 +39,6 @@
 #include <sstream>
 #include <string>
 
-#include "../config.hpp"
 #include "../sets.hpp"
 #include "../types.hpp"
 

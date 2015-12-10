@@ -3,7 +3,7 @@
 #
 
 CXX = g++
-CXXFLAGS = -g -Wall -Werror -std=c++0x # -std=c++11
+CXXFLAGS = -g -Wall -Werror -std=c++11
 CFLAGS = -I./include
 LIBS = -lboost_unit_test_framework
 DOXYGEN = doxygen
@@ -16,9 +16,8 @@ all: test_mc2lib
 
 TEST_SRC = $(shell find src -name "test_*.cpp")
 
-# Need to append $(LIBS) again for gcc 4.6
 test_mc2lib: $(TEST_SRC) $(shell find include -type f -name "*.hpp")
-	$(CXX) $(CXXFLAGS) $(CFLAGS) $(LIBS) -o $@ $(TEST_SRC) $(LIBS)
+	$(CXX) $(CXXFLAGS) $(CFLAGS) $(LIBS) -o $@ $(TEST_SRC)
 
 .PHONY: tidy
 tidy: compile_commands.json

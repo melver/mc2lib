@@ -38,7 +38,6 @@
 #include <random>
 #include <vector>
 
-#include "../config.hpp"
 #include "../sets.hpp"
 #include "../simplega.hpp"
 #include "../types.hpp"

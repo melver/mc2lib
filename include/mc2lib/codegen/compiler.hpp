@@ -59,26 +59,14 @@ namespace codegen {
 
 namespace mc = memconsistency;
 
-#if defined(__GNUC__) && (__GNUC__ == 4 && (__GNUC_MINOR__ == 6))
-template <std::size_t max_size_bytes>
-struct EventPtrs : public std::array<const mc::Event *,
-                                     max_size_bytes / sizeof(types::WriteID)> {
-  template <class... Ts>
-  EventPtrs(Ts... en)
-      : std::array<const mc::Event *, max_size_bytes / sizeof(types::WriteID)>(
-            {{en...}}) {}
-};
-#else
-// Only works for GCC > 4.6
 template <std::size_t max_size_bytes>
 using EventPtrs =
     std::array<const mc::Event *, max_size_bytes / sizeof(types::WriteID)>;
-#endif
 
 template <class... Ts>
 inline auto MakeEventPtrs(const mc::Event *e1, Ts... en)
     -> EventPtrs<(1 + sizeof...(Ts)) * sizeof(types::WriteID)> {
-  EventPtrs<(1 + sizeof...(Ts)) * sizeof(types::WriteID)> es = {e1, en...};
+  EventPtrs<(1 + sizeof...(Ts)) * sizeof(types::WriteID)> es{{e1, en...}};
   return es;
 }
 

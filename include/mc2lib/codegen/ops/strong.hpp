@@ -37,7 +37,6 @@
 #include <algorithm>
 #include <random>
 
-#include "../../config.hpp"
 #include "../cats.hpp"
 #include "../compiler.hpp"
 

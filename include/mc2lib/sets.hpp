@@ -41,8 +41,6 @@
 #include <utility>
 #include <vector>
 
-#include "config.hpp"
-
 namespace mc2lib {
 
 /**
@@ -1366,14 +1364,8 @@ struct Types {
 
   typedef std::unordered_set<Element, Hash> SetContainer;
 
-#if defined(__GNUC__) && (__GNUC__ == 4 && (__GNUC_MINOR__ == 6))
-  template <class T>
-  class MapContainer : public std::unordered_map<Element, T, Hash> {};
-#else
-  // Only works for GCC > 4.6
   template <class T>
   using MapContainer = std::unordered_map<Element, T, Hash>;
-#endif
 };
 
 }  // namespace sets
