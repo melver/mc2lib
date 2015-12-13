@@ -299,47 +299,71 @@ class Compiler {
   typedef typename Operation::Callback Callback;
   typedef typename Operation::CallbackStack CallbackStack;
 
-  explicit Compiler(const AsmState &asms, const Threads *threads = nullptr)
-      : asms_(asms) {
-    Reset(threads);
+  /**
+   * Implies a reset of state in asms.
+   *
+   * @param asms Pointer to instance of AsmState as required by Operation. The
+   *             choice of unique_ptr here is deliberate, in that the class
+   *             that Operation requires may be a virtual base class, and
+   *             Compiler takes ownership.
+   */
+  explicit Compiler(std::unique_ptr<AsmState> asms) : asms_(std::move(asms)) {
+    Reset();
   }
 
-  void Reset(const Threads *threads = nullptr) {
-    threads_ = threads;
+  /**
+   * Implies a reset of state in asms and threads (the Ops contained).
+   *
+   * @param asms Pointer to instance of AsmState as required by Operation. The
+   *             choice of unique_ptr here is deliberate, in that the class
+   *             that Operation requires may be a virtual base class.
+   *             Takes ownership.
+   * @param[in,out] threads Threads container. The Ops pointed to by Threads may
+   *                        be modified.
+   */
+  explicit Compiler(std::unique_ptr<AsmState> asms, Threads &&threads)
+      : asms_(std::move(asms)) {
+    Reset(std::move(threads));
+  }
 
-    if (threads_ != nullptr) {
-      // Must ensure all Operation instances have been reset.
-      for (const auto &thread : (*threads_)) {
-        for (const auto &op : thread.second) {
-          op->Reset();
-        }
-      }
-    }
-
-    asms_.Reset();
+  void Reset() {
+    asms_->Reset();
     ip_to_op_.clear();
   }
 
-  const Threads *threads() { return threads_; }
+  void Reset(Threads &&threads) {
+    threads_ = std::move(threads);
 
-  const AsmState &asms() const { return asms_; }
+    // Must ensure all Operation instances have been reset.
+    for (const auto &thread : threads_) {
+      for (const auto &op : thread.second) {
+        op->Reset();
+      }
+    }
+
+    Reset();
+  }
+
+  const Threads &threads() { return threads_; }
+
+  const AsmState *asms() const { return asms_.get(); }
 
   std::size_t Emit(types::InstPtr base, Operation *op, void *code,
                    std::size_t len, ThreadConst *thread_const_ops,
                    CallbackStack *callback_stack) {
     // Prepare op for emit.
-    if (!op->EnableEmit(&asms_)) {
+    if (!op->EnableEmit(asms_.get())) {
       return 0;
     }
 
     // Generate program-order.
     if (thread_const_ops != nullptr) {
       assert(!thread_const_ops->empty());
-      op->InsertPo(--thread_const_ops->end(), &asms_);
+      op->InsertPo(--thread_const_ops->end(), asms_.get());
       thread_const_ops->push_back(op);
     } else {
       ThreadConst invalid{nullptr};
-      op->InsertPo(invalid.begin(), &asms_);
+      op->InsertPo(invalid.begin(), asms_.get());
     }
 
     std::size_t ctrl_len = 0;
@@ -349,7 +373,8 @@ class Compiler {
       for (auto &callback : (*callback_stack)) {
         // Pass in current base, e.g. to allow late resolving of branch
         // targets; allows inserting code for flow control.
-        const std::size_t s = callback(op, &backend_, base, &asms_, code, len);
+        const std::size_t s =
+            callback(op, &backend_, base, asms_.get(), code, len);
 
         assert(s < len);
         base += s;
@@ -363,7 +388,8 @@ class Compiler {
     }
 
     // Must be called *after* InsertPo and callback!
-    const std::size_t op_len = op->Emit(&backend_, base, &asms_, code, len);
+    const std::size_t op_len =
+        op->Emit(&backend_, base, asms_.get(), code, len);
     assert(op_len != 0);
 
     // Base IP must be unique!
@@ -376,11 +402,9 @@ class Compiler {
 
   std::size_t Emit(types::Pid pid, types::InstPtr base, void *code,
                    std::size_t len) {
-    assert(threads_ != nullptr);
+    auto thread = threads_.find(pid);
 
-    auto thread = threads_->find(pid);
-
-    if (thread == threads_->end()) {
+    if (thread == threads_.end()) {
       return 0;
     }
 
@@ -426,7 +450,7 @@ class Compiler {
     // Notify ops of completion
     for (auto &callback : callback_stack) {
       const std::size_t s = callback(nullptr, &backend_, base + emit_len,
-                                     &asms_, code, len - emit_len);
+                                     asms_.get(), code, len - emit_len);
 
       emit_len += s;
       assert(emit_len <= len);
@@ -444,7 +468,7 @@ class Compiler {
       return false;
     }
 
-    return op->UpdateObs(ip, part, addr, from_id, size, &asms_);
+    return op->UpdateObs(ip, part, addr, from_id, size, asms_.get());
   }
 
   Operation *IpToOp(types::InstPtr ip) {
@@ -473,9 +497,9 @@ class Compiler {
   typedef std::map<types::InstPtr, std::pair<types::InstPtr, Operation *>>
       InstPtr_Op;
 
-  AsmState asms_;
+  std::unique_ptr<AsmState> asms_;
   Backend backend_;
-  const Threads *threads_;
+  Threads threads_;
 
   // Each processor executes unique code, hence IP must be unique. Only stores
   // the start IP of Op's code.
