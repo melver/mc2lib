@@ -206,7 +206,11 @@ class AsmStateCats {
 
   mc::cats::ExecWitness *ew() { return ew_; }
 
+  const mc::cats::ExecWitness *ew() const { return ew_; }
+
   mc::cats::Architecture *arch() { return arch_; }
+
+  const mc::cats::Architecture *arch() const { return arch_; }
 
  private:
   typedef std::unordered_map<types::WriteID, const mc::Event *>

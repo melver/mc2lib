@@ -93,7 +93,7 @@ class Return : public Operation {
 
   bool EnableEmit(AsmStateCats *asms) override { return true; }
 
-  void InsertPo(Operation::SeqConstIt before, AsmStateCats *asms) override {}
+  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {}
 
   std::size_t Emit(const Backend *backend, types::InstPtr start,
                    AsmStateCats *asms, void *code, std::size_t len) override {
@@ -130,7 +130,7 @@ class Delay : public Operation {
 
   bool EnableEmit(AsmStateCats *asms) override { return true; }
 
-  void InsertPo(Operation::SeqConstIt before, AsmStateCats *asms) override {
+  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {
     before_ = *before;
   }
 
@@ -187,7 +187,7 @@ class Read : public MemOperation {
 
   bool EnableEmit(AsmStateCats *asms) override { return !asms->Exhausted(); }
 
-  void InsertPo(Operation::SeqConstIt before, AsmStateCats *asms) override {
+  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {
     event_ = asms->MakeRead(pid(), mc::Event::kRead, addr_)[0];
 
     if (*before != nullptr) {
@@ -292,7 +292,7 @@ class Write : public Read {
     write_id_ = 0;
   }
 
-  void InsertPo(Operation::SeqConstIt before, AsmStateCats *asms) override {
+  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {
     event_ = asms->MakeWrite(pid(), mc::Event::kWrite, addr_, &write_id_)[0];
 
     if (*before != nullptr) {
@@ -341,7 +341,7 @@ class ReadModifyWrite : public MemOperation {
 
   bool EnableEmit(AsmStateCats *asms) override { return !asms->Exhausted(); }
 
-  void InsertPo(Operation::SeqConstIt before, AsmStateCats *asms) override {
+  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {
     event_r_ = asms->MakeRead(pid(), mc::Event::kRead, addr_)[0];
     event_w_ = asms->MakeWrite(pid(), mc::Event::kWrite, addr_, &write_id_)[0];
 
@@ -452,7 +452,7 @@ class CacheFlush : public MemOperation {
 
   bool EnableEmit(AsmStateCats *asms) override { return true; }
 
-  void InsertPo(Operation::SeqConstIt before, AsmStateCats *asms) override {
+  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {
     before_ = *before;
   }
 
@@ -505,7 +505,7 @@ class ReadSequence : public NullOperation {
     }
   }
 
-  void AdvanceSeq(Operation::SeqItStack *it_stack) const override {
+  void AdvanceThread(Operation::ThreadItStack *it_stack) const override {
     ++(it_stack->back().first);
     it_stack->emplace_back(sequence_.begin(), sequence_.end());
   }
@@ -524,7 +524,7 @@ class ReadSequence : public NullOperation {
  protected:
   types::Addr min_addr_;
   types::Addr max_addr_;
-  Operation::Seq sequence_;
+  Operation::Thread sequence_;
 };
 
 /**
