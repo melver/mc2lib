@@ -3,39 +3,36 @@
 
 #include <string>
 
-#define BOOST_TEST_DYN_LINK
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 
 using namespace mc2lib::memconsistency;
 
-BOOST_AUTO_TEST_SUITE(memconsistency)
-
-BOOST_AUTO_TEST_CASE(Model12Empty) {
+TEST(MemConsistency, Model12Empty) {
   model12::ExecWitness ew;
   model12::Arch_SC sc;
   auto c = sc.MakeChecker(&sc, &ew);
 
-  BOOST_CHECK_NO_THROW(c->wf());
-  BOOST_CHECK(c->uniproc());
-  BOOST_CHECK(c->thin());
-  BOOST_CHECK(c->check_exec());
-  BOOST_CHECK_NO_THROW(c->valid_exec());
+  ASSERT_NO_THROW(c->wf());
+  ASSERT_TRUE(c->uniproc());
+  ASSERT_TRUE(c->thin());
+  ASSERT_TRUE(c->check_exec());
+  ASSERT_NO_THROW(c->valid_exec());
 }
 
-BOOST_AUTO_TEST_CASE(CatsEmpty) {
+TEST(MemConsistency, CatsEmpty) {
   cats::ExecWitness ew;
   cats::Arch_SC sc;
   auto c = sc.MakeChecker(&sc, &ew);
 
-  BOOST_CHECK_NO_THROW(c->wf());
-  BOOST_CHECK(c->sc_per_location());
-  BOOST_CHECK(c->no_thin_air());
-  BOOST_CHECK(c->observation());
-  BOOST_CHECK(c->propagation());
-  BOOST_CHECK_NO_THROW(c->valid_exec());
+  ASSERT_NO_THROW(c->wf());
+  ASSERT_TRUE(c->sc_per_location());
+  ASSERT_TRUE(c->no_thin_air());
+  ASSERT_TRUE(c->observation());
+  ASSERT_TRUE(c->propagation());
+  ASSERT_NO_THROW(c->valid_exec());
 }
 
-BOOST_AUTO_TEST_CASE(Model12DekkerValidSC) {
+TEST(MemConsistency, Model12DekkerValidSC) {
   model12::ExecWitness ew;
   model12::Arch_SC sc;
   auto c = sc.MakeChecker(&sc, &ew);
@@ -59,14 +56,14 @@ BOOST_AUTO_TEST_CASE(Model12DekkerValidSC) {
   ew.rf.Insert(Wx0, Rx1);
   ew.rf.Insert(Wy1, Ry0);
 
-  BOOST_CHECK_NO_THROW(c->wf());
-  BOOST_CHECK(c->uniproc());
-  BOOST_CHECK(c->thin());
-  BOOST_CHECK(c->check_exec());
-  BOOST_CHECK_NO_THROW(c->valid_exec());
+  ASSERT_NO_THROW(c->wf());
+  ASSERT_TRUE(c->uniproc());
+  ASSERT_TRUE(c->thin());
+  ASSERT_TRUE(c->check_exec());
+  ASSERT_NO_THROW(c->valid_exec());
 }
 
-BOOST_AUTO_TEST_CASE(CatsDekkerInvalidSCValidTSO) {
+TEST(MemConsistency, CatsDekkerInvalidSCValidTSO) {
   cats::ExecWitness ew;
   cats::Arch_SC sc;
   cats::Arch_TSO tso;
@@ -92,21 +89,23 @@ BOOST_AUTO_TEST_CASE(CatsDekkerInvalidSCValidTSO) {
   ew.rf.Insert(Ix, Rx1);
   ew.rf.Insert(Iy, Ry0);
 
-  BOOST_CHECK_NO_THROW(c_sc->wf());
-  BOOST_CHECK(c_sc->sc_per_location());
-  BOOST_CHECK(c_sc->no_thin_air());
-  BOOST_CHECK(c_sc->observation());
-  BOOST_CHECK(!c_sc->propagation());
-  BOOST_CHECK_EXCEPTION(c_sc->valid_exec(), Error, [](const Error& e) {
-    return std::string("PROPAGATION") == e.what();
-  });
+  ASSERT_NO_THROW(c_sc->wf());
+  ASSERT_TRUE(c_sc->sc_per_location());
+  ASSERT_TRUE(c_sc->no_thin_air());
+  ASSERT_TRUE(c_sc->observation());
+  ASSERT_TRUE(!c_sc->propagation());
 
-  BOOST_CHECK_NO_THROW(c_tso->wf());
-  BOOST_CHECK(c_tso->sc_per_location());
-  BOOST_CHECK(c_tso->no_thin_air());
-  BOOST_CHECK(c_tso->observation());
-  BOOST_CHECK(c_tso->propagation());
-  BOOST_CHECK_NO_THROW(c_tso->valid_exec());
+  try {
+    c_sc->valid_exec();
+    FAIL();
+  } catch (const Error& e) {
+    ASSERT_EQ(std::string("PROPAGATION"), e.what());
+  }
+
+  ASSERT_NO_THROW(c_tso->wf());
+  ASSERT_TRUE(c_tso->sc_per_location());
+  ASSERT_TRUE(c_tso->no_thin_air());
+  ASSERT_TRUE(c_tso->observation());
+  ASSERT_TRUE(c_tso->propagation());
+  ASSERT_NO_THROW(c_tso->valid_exec());
 }
-
-BOOST_AUTO_TEST_SUITE_END()

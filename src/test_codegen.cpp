@@ -2,16 +2,13 @@
 #include "mc2lib/codegen/ops/x86_64.hpp"
 #include "mc2lib/codegen/rit.hpp"
 
-#define BOOST_TEST_DYN_LINK
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 
 using namespace mc2lib;
 using namespace mc2lib::codegen;
 using namespace mc2lib::memconsistency;
 
-BOOST_AUTO_TEST_SUITE(codegen)
-
-BOOST_AUTO_TEST_CASE(CodeGen_X86_64) {
+TEST(CodeGen, X86_64) {
   std::default_random_engine urng(1238);
 
   cats::ExecWitness ew;
@@ -24,8 +21,8 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64) {
 
   auto threads = [&rit]() {
     auto result = rit.threads();
-    BOOST_CHECK_EQUAL(result.size(), 2);
-    BOOST_CHECK_EQUAL(threads_size(result), rit.Get().size());
+    EXPECT_EQ(result.size(), 2);
+    EXPECT_EQ(threads_size(result), rit.Get().size());
     return result;
   };
 
@@ -35,15 +32,15 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64) {
   char code[1024];
 
   std::size_t emit_len = compiler.Emit(0, 0xffff, code, sizeof(code));
-  BOOST_CHECK(emit_len != 0);
-  BOOST_CHECK(compiler.IpToOp(0xffff - 1) == nullptr);
-  BOOST_CHECK(compiler.IpToOp(0xffff + emit_len) == nullptr);
-  BOOST_CHECK(compiler.IpToOp(0x1234) == nullptr);
-  BOOST_CHECK(compiler.IpToOp(0xffff) != nullptr);
-  BOOST_CHECK(compiler.IpToOp(0xffff + emit_len - 1) != nullptr);
+  ASSERT_NE(emit_len, 0);
+  ASSERT_TRUE(compiler.IpToOp(0xffff - 1) == nullptr);
+  ASSERT_TRUE(compiler.IpToOp(0xffff + emit_len) == nullptr);
+  ASSERT_TRUE(compiler.IpToOp(0x1234) == nullptr);
+  ASSERT_TRUE(compiler.IpToOp(0xffff) != nullptr);
+  ASSERT_TRUE(compiler.IpToOp(0xffff + emit_len - 1) != nullptr);
 
   emit_len = compiler.Emit(1, 0, code, sizeof(code));
-  BOOST_CHECK(emit_len != 0);
+  ASSERT_NE(emit_len, 0);
 
 #if 1
   auto checker = arch.MakeChecker(&arch, &ew);
@@ -53,20 +50,20 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64) {
   types::WriteID wid = 0;
   // This test passing is dependent on the random number generator
   // implementation.
-  BOOST_CHECK(compiler.UpdateObs(0x42, 0, 0xccc5, &wid, 1));  // write 0xccc5
-  BOOST_CHECK(compiler.UpdateObs(0x62, 0, 0xccc5, &wid, 1));  // read  0xccc5
-  BOOST_CHECK(!checker->sc_per_location());
+  ASSERT_TRUE(compiler.UpdateObs(0x42, 0, 0xccc5, &wid, 1));  // write 0xccc5
+  ASSERT_TRUE(compiler.UpdateObs(0x62, 0, 0xccc5, &wid, 1));  // read  0xccc5
+  ASSERT_TRUE(!checker->sc_per_location());
 
   wid = 0x27;  // check replacement/update works
-  BOOST_CHECK(compiler.UpdateObs(0x62, 0, 0xccc5, &wid, 1));  // read  0xccc5
-  BOOST_CHECK(checker->sc_per_location());
+  ASSERT_TRUE(compiler.UpdateObs(0x62, 0, 0xccc5, &wid, 1));  // read  0xccc5
+  ASSERT_TRUE(checker->sc_per_location());
 
   // Check atomic works
   wid = 0;
-  BOOST_CHECK(compiler.UpdateObs(0xe9, 0, 0xccc1, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0xe9, 0, 0xccc1, &wid, 1));
   wid = 0x28;  // restart atomic
-  BOOST_CHECK(compiler.UpdateObs(0xe9, 0, 0xccc1, &wid, 1));
-  BOOST_CHECK(compiler.UpdateObs(0xe9, 1, 0xccc1, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0xe9, 0, 0xccc1, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0xe9, 1, 0xccc1, &wid, 1));
 #endif
 
 #ifdef OUTPUT_BIN_TO_TMP
@@ -79,7 +76,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64) {
 
 #if defined(__linux__) && defined(__x86_64__)
 #include <sys/mman.h>
-BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux) {
+TEST(CodeGen, X86_64_ExecLinux) {
   cats::ExecWitness ew;
   cats::Arch_TSO arch;
 
@@ -109,7 +106,7 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux) {
   unsigned char (*func)() = reinterpret_cast<unsigned char (*)()>(code);
   unsigned result = func();
 
-  BOOST_CHECK_EQUAL(result, test_mem[0xf]);
+  ASSERT_EQ(result, test_mem[0xf]);
 
 #ifdef OUTPUT_BIN_TO_TMP
   auto f = fopen("/tmp/mc2lib-test2.bin", "wb");
@@ -120,5 +117,3 @@ BOOST_AUTO_TEST_CASE(CodeGen_X86_64_ExecLinux) {
   munmap(code, MAX_CODE_SIZE);
 }
 #endif
-
-BOOST_AUTO_TEST_SUITE_END()

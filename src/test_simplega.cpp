@@ -2,12 +2,9 @@
 
 #include <vector>
 
-#define BOOST_TEST_DYN_LINK
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 
 using namespace mc2lib::simplega;
-
-BOOST_AUTO_TEST_SUITE(simplega)
 
 std::default_random_engine* generator_ptr = nullptr;
 
@@ -67,7 +64,7 @@ class GenomeAdd : public Genome<float> {
   }
 };
 
-BOOST_AUTO_TEST_CASE(SimpleGAAdd24) {
+TEST(SimpleGA, Add24) {
   std::default_random_engine generator(1234);
   generator_ptr = &generator;
 
@@ -85,18 +82,18 @@ BOOST_AUTO_TEST_CASE(SimpleGAAdd24) {
               evolve::CutSpliceMutate<std::default_random_engine, GenomeAdd,
                                       GenePool<GenomeAdd>::Population>,
               tournament_population, tournament_winners, elite);
-    BOOST_CHECK(pool.population_size() <= pool.target_population_size() + 1);
+    ASSERT_TRUE(pool.population_size() <= pool.target_population_size() + 1);
   }
 
   // This mainly checks that the discrete_distribution implementation works
   // as expected.
-  BOOST_CHECK(
+  ASSERT_TRUE(
       GenePool<GenomeAdd>(pool.SelectRoulette(generator, tournament_size))
           .AverageFitness() <
       GenePool<GenomeAdd>(pool.SelectUniform(generator, tournament_size))
           .AverageFitness());
 
-  BOOST_CHECK(pool.BestFitness() < pool.WorstFitness());
+  ASSERT_TRUE(pool.BestFitness() < pool.WorstFitness());
 
   auto gene = pool.SelectBest();
   float sum = 0.0f;
@@ -104,7 +101,5 @@ BOOST_AUTO_TEST_CASE(SimpleGAAdd24) {
     sum += f;
   }
 
-  BOOST_CHECK(sum >= 23.1f && sum <= 24.9);
+  ASSERT_TRUE(sum >= 23.1f && sum <= 24.9);
 }
-
-BOOST_AUTO_TEST_SUITE_END()

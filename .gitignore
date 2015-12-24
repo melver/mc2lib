@@ -1,6 +1,7 @@
 *.swp
 *.o
 .clang_complete
-test_mc2lib
 apidoc
+build
 compile_commands.json
+test_mc2lib

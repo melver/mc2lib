@@ -3,36 +3,54 @@
 #
 
 CXX = g++
-CXXFLAGS = -g -Wall -Werror -std=c++11
-CFLAGS = -I./include
-LIBS = -lboost_unit_test_framework
 DOXYGEN = doxygen
 CLANG_TIDY = clang-tidy
 CLANG_FORMAT = clang-format
 CPPLINT = cpplint
 
+GTEST_DIR = third_party/googletest/googletest
+GMOCK_DIR = third_party/googletest/googlemock
+
+CXXFLAGS = -g -std=c++11
+WARNFLAGS = -Wall -Werror
+CFLAGS = -pthread -isystem $(GTEST_DIR)/include -isystem $(GMOCK_DIR)/include -I./include
+LIBS = -lpthread
+
+gtestmock_MODULES = build/$(GTEST_DIR)/src/gtest-all.cc.o build/$(GMOCK_DIR)/src/gmock-all.cc.o
+
+HEADER_FILES = $(shell find include -name "*.hpp")
+
+test_mc2lib_MODULES = $(shell find src -name "*.cpp" -printf "build/src/%P.o\n")
+
 .PHONY: all
 all: test_mc2lib
 
-TEST_SRC = $(shell find src -name "test_*.cpp")
+test_mc2lib: $(gtestmock_MODULES) $(test_mc2lib_MODULES)
+	$(CXX) $(CXXFLAGS) $(WARNFLAGS) $(CFLAGS) $(LIBS) $^ -o $@
 
-test_mc2lib: $(TEST_SRC) $(shell find include -type f -name "*.hpp")
-	$(CXX) $(CXXFLAGS) $(CFLAGS) $(LIBS) -o $@ $(TEST_SRC)
+build/src/%.cpp.o: src/%.cpp $(HEADER_FILES)
+	@mkdir -pv $$(dirname $@)
+	$(CXX) $(CXXFLAGS) $(WARNFLAGS) $(CFLAGS) -c -o $@ $<
+
+build/third_party/googletest/%.cc.o: third_party/googletest/%.cc
+	@mkdir -pv $$(dirname $@)
+	$(CXX) $(CXXFLAGS) -I$(GTEST_DIR) -I$(GMOCK_DIR) $(CFLAGS) -c -o $@ $^
 
 .PHONY: tidy
 tidy: compile_commands.json
 	$(CLANG_TIDY) \
 		-header-filter='.*' \
 		-checks='-*,clang-analyzer-*,google*,misc*' \
-		$(TEST_SRC)
+		$(shell find src -name "*.cpp")
 
 compile_commands.json: Makefile
 	echo "[" > compile_commands.json
-	for s in $(TEST_SRC); do \
-		echo "$${d}{ \"directory\" : \"$(PWD)\"," \
-			"\"command\" : \"/usr/bin/clang++ $(CXXFLAGS) $(CFLAGS) $(LIBS) -c -o $${s}.o $${s}\"," \
-			"\"file\": \"$${s}\" }" >> compile_commands.json; \
-		d=","; \
+	for obj in $(test_mc2lib_MODULES); do \
+		src=$${obj%.o}; src=$${src#build/}; \
+		echo "$${delim}{ \"directory\" : \"$(PWD)\"," \
+			"\"command\" : \"/usr/bin/clang++ $(CXXFLAGS) $(WARNFLAGS) $(CFLAGS) -c -o $${obj} $${src}\"," \
+			"\"file\": \"$${src}\" }" >> compile_commands.json; \
+		delim=","; \
 	done
 	echo "]" >> compile_commands.json
 
@@ -53,13 +71,20 @@ lint:
 
 .PHONY: check
 check: test_mc2lib
-	./test_mc2lib --report_level=detailed
+	./test_mc2lib
 
 .PHONY: doc
 doc:
 	$(RM) -r apidoc/html
 	$(DOXYGEN) Doxyfile
 
+.PHONY: clean
 clean:
+	$(RM) $(test_mc2lib_MODULES)
 	$(RM) test_mc2lib
+
+.PHONY: cleanall
+cleanall: clean
+	$(RM) compile_commands.json
+	$(RM) -r build
 
