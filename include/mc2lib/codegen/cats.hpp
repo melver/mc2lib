@@ -48,7 +48,7 @@ namespace mc2lib {
 
 namespace codegen {
 
-class AsmStateCats {
+class EvtStateCats {
  public:
   // 1 Op can at most emit 2 write Events
   static constexpr std::size_t MAX_OP_SIZE = sizeof(types::WriteID) * 2;
@@ -71,7 +71,7 @@ class AsmStateCats {
 
   static_assert(MIN_OTHER > MAX_WRITE, "Invalid read/write ID limits!");
 
-  explicit AsmStateCats(mc::cats::ExecWitness *ew, mc::cats::Architecture *arch)
+  explicit EvtStateCats(mc::cats::ExecWitness *ew, mc::cats::Architecture *arch)
       : ew_(ew), arch_(arch) {}
 
   void Reset() {

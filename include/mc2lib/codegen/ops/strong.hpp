@@ -52,6 +52,8 @@ namespace strong {
 struct Backend {
   virtual ~Backend() {}
 
+  virtual void Reset() {}
+
   virtual std::size_t Return(void *code, std::size_t len) const = 0;
 
   virtual std::size_t Delay(std::size_t length, void *code,
@@ -77,9 +79,9 @@ struct Backend {
                                  std::size_t len) const = 0;
 };
 
-typedef Op<Backend, AsmStateCats> Operation;
-typedef MemOp<Backend, AsmStateCats> MemOperation;
-typedef NullOp<Backend, AsmStateCats> NullOperation;
+typedef Op<Backend, EvtStateCats> Operation;
+typedef MemOp<Backend, EvtStateCats> MemOperation;
+typedef NullOp<Backend, EvtStateCats> NullOperation;
 
 class Return : public Operation {
  public:
@@ -91,28 +93,28 @@ class Return : public Operation {
 
   void Reset() override {}
 
-  bool EnableEmit(AsmStateCats *asms) override { return true; }
+  bool EnableEmit(EvtStateCats *evts) override { return true; }
 
-  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {}
+  void InsertPo(Operation::ThreadConstIt before, EvtStateCats *evts) override {}
 
-  std::size_t Emit(const Backend *backend, types::InstPtr start,
-                   AsmStateCats *asms, void *code, std::size_t len) override {
+  std::size_t Emit(types::InstPtr start, Backend *backend, EvtStateCats *evts,
+                   void *code, std::size_t len) override {
     return backend->Return(code, len);
   }
 
   const mc::Event *LastEvent(const mc::Event *next_event,
-                             AsmStateCats *asms) const override {
+                             EvtStateCats *evts) const override {
     return nullptr;
   }
 
   const mc::Event *FirstEvent(const mc::Event *prev_event,
-                              AsmStateCats *asms) const override {
+                              EvtStateCats *evts) const override {
     return nullptr;
   }
 
   bool UpdateObs(types::InstPtr ip, int part, types::Addr addr,
                  const types::WriteID *from_id, std::size_t size,
-                 AsmStateCats *asms) override {
+                 EvtStateCats *evts) override {
     return true;
   }
 };
@@ -128,32 +130,32 @@ class Delay : public Operation {
 
   void Reset() override { before_ = nullptr; }
 
-  bool EnableEmit(AsmStateCats *asms) override { return true; }
+  bool EnableEmit(EvtStateCats *evts) override { return true; }
 
-  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {
+  void InsertPo(Operation::ThreadConstIt before, EvtStateCats *evts) override {
     before_ = *before;
   }
 
-  std::size_t Emit(const Backend *backend, types::InstPtr start,
-                   AsmStateCats *asms, void *code, std::size_t len) override {
+  std::size_t Emit(types::InstPtr start, Backend *backend, EvtStateCats *evts,
+                   void *code, std::size_t len) override {
     return backend->Delay(length_, code, len);
   }
 
   const mc::Event *LastEvent(const mc::Event *next_event,
-                             AsmStateCats *asms) const override {
+                             EvtStateCats *evts) const override {
     // Forward
     if (before_ != nullptr) {
-      return before_->LastEvent(next_event, asms);
+      return before_->LastEvent(next_event, evts);
     }
 
     return nullptr;
   }
 
   const mc::Event *FirstEvent(const mc::Event *prev_event,
-                              AsmStateCats *asms) const override {
+                              EvtStateCats *evts) const override {
     // Forward
     if (before_ != nullptr) {
-      return before_->FirstEvent(prev_event, asms);
+      return before_->FirstEvent(prev_event, evts);
     }
 
     return nullptr;
@@ -161,7 +163,7 @@ class Delay : public Operation {
 
   bool UpdateObs(types::InstPtr ip, int part, types::Addr addr,
                  const types::WriteID *from_id, std::size_t size,
-                 AsmStateCats *asms) override {
+                 EvtStateCats *evts) override {
     assert(false);
     return false;
   }
@@ -185,55 +187,55 @@ class Read : public MemOperation {
     from_ = nullptr;
   }
 
-  bool EnableEmit(AsmStateCats *asms) override { return !asms->Exhausted(); }
+  bool EnableEmit(EvtStateCats *evts) override { return !evts->Exhausted(); }
 
-  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {
-    event_ = asms->MakeRead(pid(), mc::Event::kRead, addr_)[0];
+  void InsertPo(Operation::ThreadConstIt before, EvtStateCats *evts) override {
+    event_ = evts->MakeRead(pid(), mc::Event::kRead, addr_)[0];
 
     if (*before != nullptr) {
-      auto event_before = (*before)->LastEvent(event_, asms);
+      auto event_before = (*before)->LastEvent(event_, evts);
       if (event_before != nullptr) {
-        asms->ew()->po.Insert(*event_before, *event_);
+        evts->ew()->po.Insert(*event_before, *event_);
       }
     }
   }
 
-  std::size_t Emit(const Backend *backend, types::InstPtr start,
-                   AsmStateCats *asms, void *code, std::size_t len) override {
+  std::size_t Emit(types::InstPtr start, Backend *backend, EvtStateCats *evts,
+                   void *code, std::size_t len) override {
     return backend->Read(addr_, start, code, len, &at_);
   }
 
   bool UpdateObs(types::InstPtr ip, int part, types::Addr addr,
                  const types::WriteID *from_id, std::size_t size,
-                 AsmStateCats *asms) override {
+                 EvtStateCats *evts) override {
     assert(event_ != nullptr);
     assert(ip == at_);
     assert(addr == addr_);
     assert(size == sizeof(types::WriteID));
 
     const mc::Event *from =
-        asms->GetWrite(MakeEventPtrs(event_), addr_, from_id)[0];
+        evts->GetWrite(MakeEventPtrs(event_), addr_, from_id)[0];
 
     if (from_ != nullptr) {
       // If from_ == from, we still need to continue to try to erase and
       // insert, in case the from-relation has been cleared.
 
-      EraseObsHelper(from_, event_, asms->ew());
+      EraseObsHelper(from_, event_, evts->ew());
     }
 
     from_ = from;
-    InsertObsHelper(from_, event_, asms->ew());
+    InsertObsHelper(from_, event_, evts->ew());
 
     return true;
   }
 
   const mc::Event *LastEvent(const mc::Event *next_event,
-                             AsmStateCats *asms) const override {
+                             EvtStateCats *evts) const override {
     return event_;
   }
 
   const mc::Event *FirstEvent(const mc::Event *prev_event,
-                              AsmStateCats *asms) const override {
+                              EvtStateCats *evts) const override {
     return event_;
   }
 
@@ -271,8 +273,8 @@ class ReadAddrDp : public Read {
   // computes the address with this one register.
   // NOTE: before can be used to traverse operations backwards before "before".
 
-  std::size_t Emit(const Backend *backend, types::InstPtr start,
-                   AsmStateCats *asms, void *code, std::size_t len) override {
+  std::size_t Emit(types::InstPtr start, Backend *backend, EvtStateCats *evts,
+                   void *code, std::size_t len) override {
     return backend->ReadAddrDp(addr_, start, code, len, &at_);
   }
 };
@@ -292,19 +294,19 @@ class Write : public Read {
     write_id_ = 0;
   }
 
-  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {
-    event_ = asms->MakeWrite(pid(), mc::Event::kWrite, addr_, &write_id_)[0];
+  void InsertPo(Operation::ThreadConstIt before, EvtStateCats *evts) override {
+    event_ = evts->MakeWrite(pid(), mc::Event::kWrite, addr_, &write_id_)[0];
 
     if (*before != nullptr) {
-      auto event_before = (*before)->LastEvent(event_, asms);
+      auto event_before = (*before)->LastEvent(event_, evts);
       if (event_before != nullptr) {
-        asms->ew()->po.Insert(*event_before, *event_);
+        evts->ew()->po.Insert(*event_before, *event_);
       }
     }
   }
 
-  std::size_t Emit(const Backend *backend, types::InstPtr start,
-                   AsmStateCats *asms, void *code, std::size_t len) override {
+  std::size_t Emit(types::InstPtr start, Backend *backend, EvtStateCats *evts,
+                   void *code, std::size_t len) override {
     return backend->Write(addr_, write_id_, start, code, len, &at_);
   }
 
@@ -339,36 +341,36 @@ class ReadModifyWrite : public MemOperation {
     write_id_ = 0;
   }
 
-  bool EnableEmit(AsmStateCats *asms) override { return !asms->Exhausted(); }
+  bool EnableEmit(EvtStateCats *evts) override { return !evts->Exhausted(); }
 
-  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {
-    event_r_ = asms->MakeRead(pid(), mc::Event::kRead, addr_)[0];
-    event_w_ = asms->MakeWrite(pid(), mc::Event::kWrite, addr_, &write_id_)[0];
+  void InsertPo(Operation::ThreadConstIt before, EvtStateCats *evts) override {
+    event_r_ = evts->MakeRead(pid(), mc::Event::kRead, addr_)[0];
+    event_w_ = evts->MakeWrite(pid(), mc::Event::kWrite, addr_, &write_id_)[0];
 
     if (*before != nullptr) {
-      auto event_before = (*before)->LastEvent(event_r_, asms);
+      auto event_before = (*before)->LastEvent(event_r_, evts);
       if (event_before != nullptr) {
-        asms->ew()->po.Insert(*event_before, *event_r_);
+        evts->ew()->po.Insert(*event_before, *event_r_);
 
-        if (dynamic_cast<mc::cats::Arch_TSO *>(asms->arch()) != nullptr) {
+        if (dynamic_cast<mc::cats::Arch_TSO *>(evts->arch()) != nullptr) {
           // Implied fence before atomic
-          auto arch_tso = dynamic_cast<mc::cats::Arch_TSO *>(asms->arch());
+          auto arch_tso = dynamic_cast<mc::cats::Arch_TSO *>(evts->arch());
           arch_tso->mfence.Insert(*event_before, *event_r_);
         }
       }
     }
 
-    asms->ew()->po.Insert(*event_r_, *event_w_);
+    evts->ew()->po.Insert(*event_r_, *event_w_);
   }
 
-  std::size_t Emit(const Backend *backend, types::InstPtr start,
-                   AsmStateCats *asms, void *code, std::size_t len) override {
+  std::size_t Emit(types::InstPtr start, Backend *backend, EvtStateCats *evts,
+                   void *code, std::size_t len) override {
     return backend->ReadModifyWrite(addr_, write_id_, start, code, len, &at_);
   }
 
   bool UpdateObs(types::InstPtr ip, int part, types::Addr addr,
                  const types::WriteID *from_id, std::size_t size,
-                 AsmStateCats *asms) override {
+                 EvtStateCats *evts) override {
     assert(event_r_ != nullptr);
     assert(event_w_ != nullptr);
     assert(ip == at_);
@@ -377,10 +379,10 @@ class ReadModifyWrite : public MemOperation {
 
     // This also alerts us if the read would be seeing the write's data.
     const mc::Event *from =
-        asms->GetWrite(MakeEventPtrs(event_w_), addr_, from_id)[0];
+        evts->GetWrite(MakeEventPtrs(event_w_), addr_, from_id)[0];
 
     auto part_event = event_r_;
-    auto obs_rel = &asms->ew()->rf;
+    auto obs_rel = &evts->ew()->rf;
 
     // TODO(melver): clean this up! Do we need ability to update squashed?
 
@@ -389,8 +391,8 @@ class ReadModifyWrite : public MemOperation {
 
       if (from_ != nullptr) {
         // Restart
-        asms->ew()->rf.Erase(*from_, *event_r_);
-        asms->ew()->co.Erase(*from_, *event_w_);
+        evts->ew()->rf.Erase(*from_, *event_r_);
+        evts->ew()->co.Erase(*from_, *event_w_);
       }
     } else {
       // Second part: write
@@ -401,7 +403,7 @@ class ReadModifyWrite : public MemOperation {
       assert(from == from_ && "Not atomic!");
 
       part_event = event_w_;
-      obs_rel = &asms->ew()->co;
+      obs_rel = &evts->ew()->co;
     }
 
     obs_rel->Insert(*from, *part_event, true);
@@ -412,10 +414,10 @@ class ReadModifyWrite : public MemOperation {
   }
 
   const mc::Event *LastEvent(const mc::Event *next_event,
-                             AsmStateCats *asms) const override {
-    if (dynamic_cast<mc::cats::Arch_TSO *>(asms->arch()) != nullptr) {
+                             EvtStateCats *evts) const override {
+    if (dynamic_cast<mc::cats::Arch_TSO *>(evts->arch()) != nullptr) {
       // Implied fence after atomic
-      auto arch_tso = dynamic_cast<mc::cats::Arch_TSO *>(asms->arch());
+      auto arch_tso = dynamic_cast<mc::cats::Arch_TSO *>(evts->arch());
       arch_tso->mfence.Insert(*event_w_, *next_event);
     }
 
@@ -423,7 +425,7 @@ class ReadModifyWrite : public MemOperation {
   }
 
   const mc::Event *FirstEvent(const mc::Event *prev_event,
-                              AsmStateCats *asms) const override {
+                              EvtStateCats *evts) const override {
     return event_r_;
   }
 
@@ -450,32 +452,32 @@ class CacheFlush : public MemOperation {
 
   void Reset() override { before_ = nullptr; }
 
-  bool EnableEmit(AsmStateCats *asms) override { return true; }
+  bool EnableEmit(EvtStateCats *evts) override { return true; }
 
-  void InsertPo(Operation::ThreadConstIt before, AsmStateCats *asms) override {
+  void InsertPo(Operation::ThreadConstIt before, EvtStateCats *evts) override {
     before_ = *before;
   }
 
-  std::size_t Emit(const Backend *backend, types::InstPtr start,
-                   AsmStateCats *asms, void *code, std::size_t len) override {
+  std::size_t Emit(types::InstPtr start, Backend *backend, EvtStateCats *evts,
+                   void *code, std::size_t len) override {
     return backend->CacheFlush(addr_, code, len);
   }
 
   const mc::Event *LastEvent(const mc::Event *next_event,
-                             AsmStateCats *asms) const override {
+                             EvtStateCats *evts) const override {
     // Forward
     if (before_ != nullptr) {
-      return before_->LastEvent(next_event, asms);
+      return before_->LastEvent(next_event, evts);
     }
 
     return nullptr;
   }
 
   const mc::Event *FirstEvent(const mc::Event *prev_event,
-                              AsmStateCats *asms) const override {
+                              EvtStateCats *evts) const override {
     // Forward
     if (before_ != nullptr) {
-      return before_->FirstEvent(prev_event, asms);
+      return before_->FirstEvent(prev_event, evts);
     }
 
     return nullptr;
@@ -483,7 +485,7 @@ class CacheFlush : public MemOperation {
 
   bool UpdateObs(types::InstPtr ip, int part, types::Addr addr,
                  const types::WriteID *from_id, std::size_t size,
-                 AsmStateCats *asms) override {
+                 EvtStateCats *evts) override {
     return true;
   }
 
@@ -586,7 +588,7 @@ struct RandomFactory {
     }
 
     std::uniform_int_distribution<types::Addr> dist_addr(
-        chunk_min_addr, chunk_max_addr - AsmStateCats::MAX_OP_SIZE);
+        chunk_min_addr, chunk_max_addr - EvtStateCats::MAX_OP_SIZE);
 
     // Sequence distribution
     std::uniform_int_distribution<std::size_t> dist_sequence(1, max_sequence_);

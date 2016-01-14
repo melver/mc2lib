@@ -27,7 +27,7 @@ TEST(CodeGen, X86_64) {
   };
 
   Compiler<strong::Operation, strong::Backend_X86_64> compiler(
-      std::unique_ptr<AsmStateCats>(new AsmStateCats(&ew, &arch)), threads());
+      std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)), threads());
 
   char code[1024];
 
@@ -81,7 +81,7 @@ TEST(CodeGen, X86_64_ExecLinux) {
   cats::Arch_TSO arch;
 
   Compiler<strong::Operation, strong::Backend_X86_64> compiler(
-      std::unique_ptr<AsmStateCats>(new AsmStateCats(&ew, &arch)));
+      std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)));
 
   unsigned char test_mem[] = {0x03, 0x14, 0x25, 0x36, 0x47, 0x58, 0x69, 0x7a,
                               0x8b, 0x9c, 0xad, 0xbe, 0xcf, 0xd0, 0xe1, 0xf2};
