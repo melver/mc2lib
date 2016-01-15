@@ -5,6 +5,8 @@ mc2lib
 A memory consistency model checking library implemented in C++11. This library
 provides the building blocks for the McVerSi framework [1]_.
 
+The McVerSi guest workload can be found in ``contrib/mcversi``.
+
 Citation
 ========
 
