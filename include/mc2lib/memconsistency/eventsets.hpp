@@ -108,40 +108,33 @@ class Event {
     }
   };
 
-  typedef std::uint32_t TypeMask;
+  typedef std::uint32_t Type;
 
-  enum Type {
-    kNone = 0x00000000,
+  // TYPE DEFINITIONS {{{
 
-    // Memory operations:
+  static constexpr Type kNone = 0x00000000;
 
-    kRead = 0x00000001,
+  // Memory operations
+  static constexpr Type kRead = 0x00000001;
+  static constexpr Type kWrite = 0x00000002;
+  static constexpr Type kAcquire = 0x00000004;
+  static constexpr Type kRelease = 0x00000008;
+  static constexpr Type kMemoryOperation = kRead | kWrite | kAcquire | kRelease;
 
-    kWrite = 0x00000002,
+  // Auxiliary attributes
+  static constexpr Type kRegInAddr = 0x00000010;
+  static constexpr Type kRegInData = 0x00000020;
+  static constexpr Type kRegOut = 0x00000040;
+  static constexpr Type kBranch = 0x00000080;
 
-    kAcquire = 0x00000004,
+  // User declared attributes
+  static constexpr Type kNext = 0x00000100;
 
-    kRelease = 0x00000008,
-
-    kMemoryOperation = kRead | kWrite | kAcquire | kRelease,
-
-    // Auxiliary attributes:
-
-    kRegInAddr = 0x00000010,
-
-    kRegInData = 0x00000020,
-
-    kRegOut = 0x00000040,
-
-    kBranch = 0x00000080,
-
-    // For user declared attributes
-    kNext = 0x00000100
-  };
+  // }}}
 
   Event() : addr(0), type(kNone) {}
 
-  Event(TypeMask type_, types::Addr addr_, Iiid iiid_)
+  Event(Type type_, types::Addr addr_, Iiid iiid_)
       : addr(addr_), type(type_), iiid(iiid_) {}
 
   operator std::string() const {
@@ -213,19 +206,19 @@ class Event {
   // ordered map.
   bool operator<(const Event& rhs) const { return iiid < rhs.iiid; }
 
-  bool AllType(TypeMask type_mask) const {
+  bool AllType(Type type_mask) const {
     assert(type_mask != kNone);
     return (type & type_mask) == type_mask;
   }
 
-  bool AnyType(TypeMask type_mask) const {
+  bool AnyType(Type type_mask) const {
     assert(type_mask != kNone);
     return (type & type_mask) != 0;
   }
 
  public:
   types::Addr addr;
-  TypeMask type;
+  Type type;
   Iiid iiid;
 };
 

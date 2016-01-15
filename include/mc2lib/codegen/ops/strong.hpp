@@ -588,7 +588,7 @@ struct RandomFactory {
     }
 
     std::uniform_int_distribution<types::Addr> dist_addr(
-        chunk_min_addr, chunk_max_addr - EvtStateCats::MAX_OP_SIZE);
+        chunk_min_addr, chunk_max_addr - EvtStateCats::kMaxOpSize);
 
     // Sequence distribution
     std::uniform_int_distribution<std::size_t> dist_sequence(1, max_sequence_);

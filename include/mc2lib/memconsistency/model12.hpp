@@ -167,12 +167,12 @@ class Architecture {
   /*
    * Should return the mask of all types that are classed as read.
    */
-  virtual Event::TypeMask EventTypeRead() const = 0;
+  virtual Event::Type EventTypeRead() const = 0;
 
   /*
    * Should return the mask of all types that are classed as write.
    */
-  virtual Event::TypeMask EventTypeWrite() const = 0;
+  virtual Event::Type EventTypeWrite() const = 0;
 };
 
 class Checker {
@@ -291,9 +291,9 @@ class Arch_SC : public Architecture {
 
   EventRel ab(const ExecWitness& ew) const override { return EventRel(); }
 
-  Event::TypeMask EventTypeRead() const override { return Event::kRead; }
+  Event::Type EventTypeRead() const override { return Event::kRead; }
 
-  Event::TypeMask EventTypeWrite() const override { return Event::kWrite; }
+  Event::Type EventTypeWrite() const override { return Event::kWrite; }
 };
 
 class Arch_TSO : public Architecture {
@@ -331,9 +331,9 @@ class Arch_TSO : public Architecture {
     return EventRelSeq({postar, mfence, postar}).EvalClear();
   }
 
-  Event::TypeMask EventTypeRead() const override { return Event::kRead; }
+  Event::Type EventTypeRead() const override { return Event::kRead; }
 
-  Event::TypeMask EventTypeWrite() const override { return Event::kWrite; }
+  Event::Type EventTypeWrite() const override { return Event::kWrite; }
 
  public:
   EventRel mfence;

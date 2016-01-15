@@ -309,19 +309,23 @@ class Relation {
 
   typedef std::vector<Element> Path;
 
-  /*
+  /**
    * Lazy operators as properties.
    *
    * All inplace operators (e.g. |=) evaluate the current relation in place
    * and clear properties.
    */
-  enum Property {
-    kNone = 0x0,
-    kTransitiveClosure = 0x1,
-    kReflexiveClosure = 0x2,
-    kReflexiveTransitiveClosure = kTransitiveClosure | kReflexiveClosure
-  };
   typedef unsigned Properties;
+
+  // Properties {{{
+
+  static constexpr Properties kNone = 0x0;
+  static constexpr Properties kTransitiveClosure = 0x1;
+  static constexpr Properties kReflexiveClosure = 0x2;
+  static constexpr Properties kReflexiveTransitiveClosure =
+      kTransitiveClosure | kReflexiveClosure;
+
+  // }}}
 
   Relation() : props_(kNone) {}
 

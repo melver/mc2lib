@@ -51,32 +51,32 @@ namespace codegen {
 class EvtStateCats {
  public:
   // 1 Op can at most emit 2 write Events
-  static constexpr std::size_t MAX_OP_SIZE = sizeof(types::WriteID) * 2;
-  static constexpr std::size_t MAX_OP_EVTS =
-      MAX_OP_SIZE / sizeof(types::WriteID);
+  static constexpr std::size_t kMaxOpSize = sizeof(types::WriteID) * 2;
+  static constexpr std::size_t kMaxOpEvents =
+      kMaxOpSize / sizeof(types::WriteID);
 
-  static constexpr types::Poi MIN_OTHER = static_cast<types::Poi>(1)
+  static constexpr types::Poi kMinOther = static_cast<types::Poi>(1)
                                           << (sizeof(types::Poi) * 8 - 1);
-  static constexpr types::Poi MAX_OTHER =
-      std::numeric_limits<types::Poi>::max() - (MAX_OP_EVTS - 1);
+  static constexpr types::Poi kMaxOther =
+      std::numeric_limits<types::Poi>::max() - (kMaxOpEvents - 1);
 
-  static constexpr types::WriteID INIT_WRITE =
+  static constexpr types::WriteID kInitWrite =
       std::numeric_limits<types::WriteID>::min();
-  static constexpr types::WriteID MIN_WRITE = INIT_WRITE + 1;
-  static constexpr types::WriteID MAX_WRITE =
-      (std::numeric_limits<types::WriteID>::max() < MIN_OTHER
+  static constexpr types::WriteID kMinWrite = kInitWrite + 1;
+  static constexpr types::WriteID kMaxWrite =
+      (std::numeric_limits<types::WriteID>::max() < kMinOther
            ? std::numeric_limits<types::WriteID>::max()
-           : MIN_OTHER - 1) -
-      (MAX_OP_EVTS - 1);
+           : kMinOther - 1) -
+      (kMaxOpEvents - 1);
 
-  static_assert(MIN_OTHER > MAX_WRITE, "Invalid read/write ID limits!");
+  static_assert(kMinOther > kMaxWrite, "Invalid read/write ID limits!");
 
   explicit EvtStateCats(mc::cats::ExecWitness *ew, mc::cats::Architecture *arch)
       : ew_(ew), arch_(arch) {}
 
   void Reset() {
-    last_write_id_ = MIN_WRITE - 1;
-    last_other_id = MIN_OTHER - 1;
+    last_write_id_ = kMinWrite - 1;
+    last_other_id = kMinOther - 1;
 
     writes_.clear();
     ew_->Clear();
@@ -84,14 +84,14 @@ class EvtStateCats {
   }
 
   bool Exhausted() const {
-    return last_write_id_ >= MAX_WRITE || last_other_id >= MAX_OTHER;
+    return last_write_id_ >= kMaxWrite || last_other_id >= kMaxOther;
   }
 
   template <std::size_t max_size_bytes, class Func>
   EventPtrs<max_size_bytes> MakeEvent(types::Pid pid, mc::Event::Type type,
                                       types::Addr addr, std::size_t size,
                                       Func mkevt) {
-    static_assert(max_size_bytes <= MAX_OP_SIZE, "Invalid size!");
+    static_assert(max_size_bytes <= kMaxOpSize, "Invalid size!");
     static_assert(sizeof(types::WriteID) <= max_size_bytes, "Invalid size!");
     static_assert(max_size_bytes % sizeof(types::WriteID) == 0,
                   "Invalid size!");
@@ -150,7 +150,7 @@ class EvtStateCats {
                                      types::Addr addr,
                                      const types::WriteID *from_id,
                                      std::size_t size = max_size_bytes) {
-    static_assert(max_size_bytes <= MAX_OP_SIZE, "Invalid size!");
+    static_assert(max_size_bytes <= kMaxOpSize, "Invalid size!");
     static_assert(sizeof(types::WriteID) <= max_size_bytes, "Invalid size!");
     static_assert(max_size_bytes % sizeof(types::WriteID) == 0,
                   "Invalid size!");
@@ -164,14 +164,14 @@ class EvtStateCats {
     for (std::size_t i = 0; i < size / sizeof(types::WriteID); ++i) {
       WriteID_EventPtr::const_iterator write;
 
-      const bool valid = from_id[i] != INIT_WRITE &&
+      const bool valid = from_id[i] != kInitWrite &&
                          (write = writes_.find(from_id[i])) != writes_.end() &&
                          write->second->addr == addr &&
                          write->second->iiid != after[i]->iiid;
       if (valid) {
         result[i] = write->second;
       } else {
-        if (from_id[i] != INIT_WRITE) {
+        if (from_id[i] != kInitWrite) {
           // While the checker works even if memory is not 0'ed out
           // completely, as the chances of reading a write-id from a
           // previous test that has already been used in this test is

@@ -169,12 +169,12 @@ class Architecture {
   /*
    * Should return the mask of all types that are classed as read.
    */
-  virtual Event::TypeMask EventTypeRead() const = 0;
+  virtual Event::Type EventTypeRead() const = 0;
 
   /*
    * Should return the mask of all types that are classed as write.
    */
-  virtual Event::TypeMask EventTypeWrite() const = 0;
+  virtual Event::Type EventTypeWrite() const = 0;
 
   void set_proxy(const Architecture* proxy) {
     assert(proxy != nullptr);
@@ -247,11 +247,9 @@ class ArchProxy : public Architecture {
     return memoized_hb_ ? hb_ : arch_->hb(ew);
   }
 
-  Event::TypeMask EventTypeRead() const override {
-    return arch_->EventTypeRead();
-  }
+  Event::Type EventTypeRead() const override { return arch_->EventTypeRead(); }
 
-  Event::TypeMask EventTypeWrite() const override {
+  Event::Type EventTypeWrite() const override {
     return arch_->EventTypeWrite();
   }
 
@@ -410,9 +408,9 @@ class Arch_SC : public Architecture {
     return proxy_->ppo(ew) | proxy_->fences(ew) | ew.rf | ew.fr();
   }
 
-  Event::TypeMask EventTypeRead() const override { return Event::kRead; }
+  Event::Type EventTypeRead() const override { return Event::kRead; }
 
-  Event::TypeMask EventTypeWrite() const override { return Event::kWrite; }
+  Event::Type EventTypeWrite() const override { return Event::kWrite; }
 };
 
 class Arch_TSO : public Architecture {
@@ -452,9 +450,9 @@ class Arch_TSO : public Architecture {
     return proxy_->ppo(ew) | proxy_->fences(ew) | ew.rfe() | ew.fr();
   }
 
-  Event::TypeMask EventTypeRead() const override { return Event::kRead; }
+  Event::Type EventTypeRead() const override { return Event::kRead; }
 
-  Event::TypeMask EventTypeWrite() const override { return Event::kWrite; }
+  Event::Type EventTypeWrite() const override { return Event::kWrite; }
 
  public:
   EventRel mfence;
@@ -589,9 +587,9 @@ class Arch_ARMv7 : public Architecture {
     return result;
   }
 
-  Event::TypeMask EventTypeRead() const override { return Event::kRead; }
+  Event::Type EventTypeRead() const override { return Event::kRead; }
 
-  Event::TypeMask EventTypeWrite() const override { return Event::kWrite; }
+  Event::Type EventTypeWrite() const override { return Event::kWrite; }
 
  public:
   EventRel dd_reg;
