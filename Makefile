@@ -2,11 +2,11 @@
 # Test Makefile for mc2lib
 #
 
-CXX = g++
-DOXYGEN = doxygen
-CLANG_TIDY = clang-tidy
-CLANG_FORMAT = clang-format
-CPPLINT = cpplint
+CXX ?= g++
+DOXYGEN ?= doxygen
+CLANG_TIDY ?= clang-tidy
+CLANG_FORMAT ?= clang-format
+CPPLINT ?= cpplint
 
 GTEST_DIR = third_party/googletest/googletest
 GMOCK_DIR = third_party/googletest/googlemock

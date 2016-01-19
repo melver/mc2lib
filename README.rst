@@ -2,6 +2,9 @@
 mc2lib
 ======
 
+.. image:: https://travis-ci.org/melver/mc2lib.svg?branch=master
+    :target: https://travis-ci.org/melver/mc2lib
+
 A memory consistency model checking library implemented in C++11. This library
 provides the building blocks for the `McVerSi
 <http://ac.marcoelver.com/research/mcversi>`_ framework [1]_.

@@ -1,0 +1,41 @@
+# vim: set ts=2 sw=2 sts=2 et :
+
+language: cpp
+
+matrix:
+  include:
+    # Oldest supported GCC
+    - os: linux
+      addons:
+        apt:
+          sources: ubuntu-toolchain-r-test
+          packages: g++-4.7
+      compiler: gcc-4.7
+      env: CXX_=g++-4.7
+
+    # Latest GCC
+    - os: linux
+      addons:
+        apt:
+          sources: ubuntu-toolchain-r-test
+          packages: g++-5
+      compiler: gcc-5
+      env: CXX_=g++-5
+
+    # Latest Clang
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.7
+          packages: clang-3.7
+      compiler: clang-3.7
+      env: CXX_=clang++-3.7
+
+script:
+  # Travis exports CXX after set via env. Fix.
+  - export CXX=$CXX_
+  - $CXX --version
+  # Test library
+  - make clean check
