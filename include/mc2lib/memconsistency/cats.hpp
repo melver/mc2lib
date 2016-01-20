@@ -43,7 +43,7 @@ namespace memconsistency {
 
 /**
  * @namespace mc2lib::memconsistency::cats
- * @brief Memory consistency model framework based on 2014 TOPLAS paper.
+ * @brief Memory consistency model framework based on "Herding cats".
  *
  * This memory consistency model framework is based upon [1], and [2].
  *

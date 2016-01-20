@@ -66,7 +66,7 @@ inline bool AllBitmask(unsigned mask, unsigned all) {
  *
  * @param mask Bit mask to check.
  * @param any Bit mask to check against.
- * @return True if at least any one of the bits in all is set in mask.
+ * @return True if at least any one of the bits in any is set in mask.
  */
 inline bool AnyBitmask(unsigned mask, unsigned any) {
   assert(any != 0);
