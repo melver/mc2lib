@@ -6,10 +6,10 @@
 
 using namespace mc2lib::simplega;
 
-std::default_random_engine* generator_ptr = nullptr;
-
 class GenomeAdd : public Genome<float> {
  public:
+  static std::default_random_engine* urng;
+
   GenomeAdd() {
     genome_.resize(5);
     MutateImpl(1.0f);
@@ -51,12 +51,12 @@ class GenomeAdd : public Genome<float> {
         static_cast<std::size_t>(static_cast<float>(genome_.size()) * rate);
 
     while (selection_count) {
-      auto idx = dist_idx(*generator_ptr);
+      auto idx = dist_idx(*urng);
       if (used.find(idx) != used.end()) {
         continue;
       }
 
-      genome_[idx] += dist_mut(*generator_ptr);
+      genome_[idx] += dist_mut(*urng);
 
       used.insert(idx);
       --selection_count;
@@ -64,9 +64,11 @@ class GenomeAdd : public Genome<float> {
   }
 };
 
+std::default_random_engine* GenomeAdd::urng = nullptr;
+
 TEST(SimpleGA, Add24) {
-  std::default_random_engine generator(1234);
-  generator_ptr = &generator;
+  std::default_random_engine urng(1234);
+  GenomeAdd::urng = &urng;
 
   GenePool<GenomeAdd> pool(25,     // population_size
                            0.3f);  // mutation_rate
@@ -76,9 +78,9 @@ TEST(SimpleGA, Add24) {
   std::size_t elite = tournament_winners;
 
   for (int i = 0; i < 50; ++i) {
-    auto tournament_population = pool.SelectUniform(generator, tournament_size);
+    auto tournament_population = pool.SelectUniform(urng, tournament_size);
     pool.SelectionSort(&tournament_population);
-    pool.Step(generator,
+    pool.Step(urng,
               evolve::CutSpliceMutate<std::default_random_engine, GenomeAdd,
                                       GenePool<GenomeAdd>::Population>,
               tournament_population, tournament_winners, elite);
@@ -87,11 +89,10 @@ TEST(SimpleGA, Add24) {
 
   // This mainly checks that the discrete_distribution implementation works
   // as expected.
-  ASSERT_TRUE(
-      GenePool<GenomeAdd>(pool.SelectRoulette(generator, tournament_size))
-          .AverageFitness() <
-      GenePool<GenomeAdd>(pool.SelectUniform(generator, tournament_size))
-          .AverageFitness());
+  ASSERT_TRUE(GenePool<GenomeAdd>(pool.SelectRoulette(urng, tournament_size))
+                  .AverageFitness() <
+              GenePool<GenomeAdd>(pool.SelectUniform(urng, tournament_size))
+                  .AverageFitness());
 
   ASSERT_TRUE(pool.BestFitness() < pool.WorstFitness());
 

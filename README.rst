@@ -7,10 +7,17 @@ mc2lib
 
 A memory consistency model checking library implemented in C++11. This library
 provides the building blocks for the `McVerSi
-<http://ac.marcoelver.com/research/mcversi>`_ framework [1]_. API documentation
-can be found `here <http://ac.marcoelver.com/ext/apidoc/mc2lib>`_.
+<http://ac.marcoelver.com/research/mcversi>`_ framework [1]_.
 
 The McVerSi guest workload can be found in ``contrib/mcversi``.
+
+Usage
+=====
+
+The library header-only and no compilation is required.
+
+API documentation can be found `here
+<http://ac.marcoelver.com/ext/apidoc/mc2lib>`_.
 
 Citation
 ========

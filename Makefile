@@ -20,7 +20,7 @@ gtestmock_MODULES = build/$(GTEST_DIR)/src/gtest-all.cc.o build/$(GMOCK_DIR)/src
 
 HEADER_FILES = $(shell find include -name "*.hpp")
 
-test_mc2lib_MODULES = $(shell find src -name "*.cpp" -printf "build/src/%P.o\n")
+test_mc2lib_MODULES = $(shell find src -name "test_*.cpp" -printf "build/src/%P.o\n")
 
 .PHONY: all
 all: test_mc2lib
