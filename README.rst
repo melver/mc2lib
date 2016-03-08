@@ -14,10 +14,12 @@ The McVerSi guest workload can be found in ``contrib/mcversi``.
 Usage
 =====
 
-The library is header-only and no compilation is required.
+The library is header-only.
 
 API documentation can be found `here
 <http://ac.marcoelver.com/ext/apidoc/mc2lib>`_.
+
+The provided ``Makefile`` is for unit testing and static analysis.
 
 Citation
 ========
