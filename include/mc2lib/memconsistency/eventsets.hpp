@@ -134,7 +134,7 @@ class Event {
 
   Event() : addr(0), type(kNone) {}
 
-  Event(Type type_, types::Addr addr_, Iiid iiid_)
+  Event(Type type_, types::Addr addr_, const Iiid& iiid_)
       : addr(addr_), type(type_), iiid(iiid_) {}
 
   operator std::string() const {

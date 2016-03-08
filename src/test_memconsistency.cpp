@@ -93,7 +93,7 @@ TEST(MemConsistency, CatsDekkerInvalidSCValidTSO) {
   ASSERT_TRUE(c_sc->sc_per_location());
   ASSERT_TRUE(c_sc->no_thin_air());
   ASSERT_TRUE(c_sc->observation());
-  ASSERT_TRUE(!c_sc->propagation());
+  ASSERT_FALSE(c_sc->propagation());
 
   try {
     c_sc->valid_exec();

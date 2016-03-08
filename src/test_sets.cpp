@@ -19,7 +19,7 @@ static const Event& NextEvt() {
 TEST(Sets, SimpleSet) {
   EventSet s = EventSet({NextEvt(), NextEvt(), NextEvt()});
   ASSERT_EQ((s * s).size(), 9);
-  ASSERT_TRUE(!s.Subset(s));
+  ASSERT_FALSE(s.Subset(s));
   ASSERT_TRUE(s.SubsetEq(s));
   ASSERT_TRUE(s == (s * s).Range());
   ASSERT_TRUE((s | s) == s);
@@ -34,9 +34,9 @@ TEST(Sets, CycleDetectionUnionNo) {
   er1.Insert(e2, e1 = NextEvt());
   er1.Insert(e3, e1);
 
-  ASSERT_TRUE(!er1.props());
+  ASSERT_FALSE(er1.props());
   ASSERT_TRUE(er1.Acyclic());
-  ASSERT_TRUE(!er1.props());
+  ASSERT_FALSE(er1.props());
 
   EventRel er2;
   er2.Insert(e1, e2 = NextEvt());
@@ -73,7 +73,7 @@ TEST(Sets, CycleDetectionYes) {
   er_.Insert(e2, NextEvt());
   er |= er_;
 
-  ASSERT_TRUE(!er.Acyclic());
+  ASSERT_FALSE(er.Acyclic());
 
   er.set_props(EventRel::kReflexiveTransitiveClosure);
   ASSERT_EQ(er.size(), 43);
@@ -102,7 +102,7 @@ TEST(Sets, CycleDetectionYes2) {
   }
 
   EventRel::Path p;
-  ASSERT_TRUE(!er.Acyclic(&p));
+  ASSERT_FALSE(er.Acyclic(&p));
   ASSERT_TRUE(p[1] == p.back());
   ASSERT_EQ(p.size(), 6);
 
@@ -182,7 +182,7 @@ TEST(Sets, EventRelIntersect) {
 
   d.set_props(EventRel::kReflexiveClosure);
   d &= er;
-  ASSERT_TRUE(!d.props());
+  ASSERT_FALSE(d.props());
   ASSERT_EQ(d.size(), 2);
 
   ASSERT_TRUE(d.Domain().Subset(er.Domain()));
@@ -206,7 +206,7 @@ TEST(Sets, EventRelInverse) {
 
   er.for_each([&inv](const Event& e1, const Event& e2) {
     ASSERT_TRUE(inv.R(e2, e1));
-    ASSERT_TRUE(!inv.R(e1, e2));
+    ASSERT_FALSE(inv.R(e1, e2));
   });
 
   er.set_props(EventRel::kReflexiveTransitiveClosure);
@@ -281,10 +281,10 @@ TEST(Sets, EventRelSeqIrrefl1) {
   er.Insert(e2, start);
   ers += er;
 
-  ASSERT_TRUE(!ers.Irreflexive());
+  ASSERT_FALSE(ers.Irreflexive());
 
   const EventRel evald = ers.Eval();
-  ASSERT_TRUE(!evald.Irreflexive());
+  ASSERT_FALSE(evald.Irreflexive());
 
   EventRel::Path p;
   ers.Irreflexive(&p);
@@ -310,13 +310,13 @@ TEST(Sets, EventRelSeqIrrefl2) {
   ASSERT_TRUE(er.Irreflexive());
 
   er.add_props(EventRel::kReflexiveClosure);
-  ASSERT_TRUE(!er.Irreflexive());
+  ASSERT_FALSE(er.Irreflexive());
   ers += er;
 
-  ASSERT_TRUE(!ers.Irreflexive());
+  ASSERT_FALSE(ers.Irreflexive());
 
   const EventRel evald = ers.Eval();
-  ASSERT_TRUE(!evald.Irreflexive());
+  ASSERT_FALSE(evald.Irreflexive());
 }
 
 TEST(Sets, EventRelReflexivePath) {
@@ -337,12 +337,12 @@ TEST(Sets, EventRelReflexivePath) {
   ers += er;
 
   EventRel::Path p;
-  ASSERT_TRUE(!er.Irreflexive(&p));
+  ASSERT_FALSE(er.Irreflexive(&p));
   ASSERT_EQ(p.size(), 2);
   ASSERT_TRUE(p[0] == p[1]);
 
   p.clear();
-  ASSERT_TRUE(!ers.Irreflexive(&p));
+  ASSERT_FALSE(ers.Irreflexive(&p));
   ASSERT_EQ(p.size(), 3);
   ASSERT_TRUE(p[0] == p[1]);
   ASSERT_TRUE(p[1] == p[2]);
@@ -361,11 +361,11 @@ TEST(Sets, EventRelSubset) {
   EventRel er2 = er1.Eval();
   ASSERT_TRUE(er2.SubsetEq(er1));
   ASSERT_TRUE(er1.SubsetEq(er2));
-  ASSERT_TRUE(!er2.Subset(er1));
+  ASSERT_FALSE(er2.Subset(er1));
 
   er2.Insert(e1, e2 = NextEvt());
   er2.Insert(e1, e2 = NextEvt());
 
-  ASSERT_TRUE(!er2.Subset(er1));
+  ASSERT_FALSE(er2.Subset(er1));
   ASSERT_TRUE(er1.Subset(er2));
 }

@@ -1,6 +1,6 @@
-#include "mc2lib/mcversi.hpp"
-#include "mc2lib/codegen/rit.hpp"
 #include "mc2lib/codegen/ops/strong.hpp"
+#include "mc2lib/codegen/rit.hpp"
+#include "mc2lib/mcversi.hpp"
 
 #include <gtest/gtest.h>
 

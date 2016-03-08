@@ -64,6 +64,7 @@ class GenomeAdd : public Genome<float> {
   }
 };
 
+// TODO(melver): Use proper test harness.
 std::default_random_engine* GenomeAdd::urng = nullptr;
 
 TEST(SimpleGA, Add24) {

@@ -1,6 +1,6 @@
-#include "mc2lib/memconsistency/cats.hpp"
 #include "mc2lib/codegen/ops/x86_64.hpp"
 #include "mc2lib/codegen/rit.hpp"
+#include "mc2lib/memconsistency/cats.hpp"
 
 #include <gtest/gtest.h>
 
@@ -52,7 +52,7 @@ TEST(CodeGen, X86_64) {
   // implementation.
   ASSERT_TRUE(compiler.UpdateObs(0x42, 0, 0xccc5, &wid, 1));  // write 0xccc5
   ASSERT_TRUE(compiler.UpdateObs(0x62, 0, 0xccc5, &wid, 1));  // read  0xccc5
-  ASSERT_TRUE(!checker->sc_per_location());
+  ASSERT_FALSE(checker->sc_per_location());
 
   wid = 0x27;  // check replacement/update works
   ASSERT_TRUE(compiler.UpdateObs(0x62, 0, 0xccc5, &wid, 1));  // read  0xccc5

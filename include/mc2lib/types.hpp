@@ -47,9 +47,9 @@ namespace types {
 /**
  * @brief Template class of common types, permitting specialization.
  *
- * Can be specialized to declare custom types without overwriting
- * types.hh; however, this appraoch depends on user specializing before
- * including any mc2lib header file.
+ * Can be specialized to declare custom types without overwriting types.hh;
+ * however, this appraoch depends on user specializing before including any
+ * mc2lib header file. Do *not* define more than 1 per project!
  */
 template <bool use_specialized>
 struct Types {
