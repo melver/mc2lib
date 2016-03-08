@@ -31,8 +31,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef MC2LIB_CODEGEN_OPS_STRONG_HPP_
-#define MC2LIB_CODEGEN_OPS_STRONG_HPP_
+#ifndef MC2LIB_CODEGEN_OPS_ARMv7_HPP_
+#define MC2LIB_CODEGEN_OPS_ARMv7_HPP_
 
 #include <algorithm>
 #include <random>
@@ -600,6 +600,6 @@ struct RandomFactory {
 }  // namespace codegen
 }  // namespace mc2lib
 
-#endif /* MC2LIB_CODEGEN_OPS_STRONG_HPP_ */
+#endif /* MC2LIB_CODEGEN_OPS_ARMv7_HPP_ */
 
 /* vim: set ts=2 sts=2 sw=2 et : */
