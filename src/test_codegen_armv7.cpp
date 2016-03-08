@@ -15,7 +15,7 @@ TEST(CodeGen, ARMv7) {
   cats::Arch_ARMv7 arch;
 
   const types::Addr offset = 0x0;
-  armv7::RandomFactory factory(0, 1, offset + 0xccc0, offset + 0xccca);
+  armv7::RandomFactory factory(0, 1, offset + 0xccc0, offset + 0xccc5);
   RandInstTest<std::default_random_engine, armv7::RandomFactory> rit(
       urng, &factory, 150);
 
@@ -44,12 +44,12 @@ TEST(CodeGen, ARMv7) {
   ew.co.set_props(mc::EventRel::kTransitiveClosure);
 
   types::WriteID wid = 0;
-  ASSERT_TRUE(compiler.UpdateObs(0x2a, 0, 0xccc7, &wid, 1));  // write 0xccc7
-  ASSERT_TRUE(compiler.UpdateObs(0x90, 0, 0xccc7, &wid, 1));  // read  0xccc7
+  ASSERT_TRUE(compiler.UpdateObs(0x2a, 0, 0xccc3, &wid, 1));  // write 0xccc3
+  ASSERT_TRUE(compiler.UpdateObs(0x68, 0, 0xccc3, &wid, 1));  // read  0xccc3
   ASSERT_FALSE(checker->sc_per_location());
 
   wid = 0x29;  // check replacement/update works
-  ASSERT_TRUE(compiler.UpdateObs(0x90, 0, 0xccc7, &wid, 1));  // read  0xccc7
+  ASSERT_TRUE(compiler.UpdateObs(0x68, 0, 0xccc3, &wid, 1));  // read  0xccc3
   ASSERT_TRUE(checker->sc_per_location());
 #endif
 
