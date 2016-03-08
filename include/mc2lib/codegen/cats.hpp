@@ -48,6 +48,10 @@ namespace mc2lib {
 
 namespace codegen {
 
+// Workaround for Wtype-limits warning.
+template <class T1, class T2>
+constexpr bool lt__(T1 a, T2 b) { return a < b; }
+
 class EvtStateCats {
  public:
   // 1 Op can at most emit 2 write Events
@@ -63,8 +67,9 @@ class EvtStateCats {
   static constexpr types::WriteID kInitWrite =
       std::numeric_limits<types::WriteID>::min();
   static constexpr types::WriteID kMinWrite = kInitWrite + 1;
+
   static constexpr types::WriteID kMaxWrite =
-      (std::numeric_limits<types::WriteID>::max() < kMinOther
+      (lt__(std::numeric_limits<types::WriteID>::max(), kMinOther)
            ? std::numeric_limits<types::WriteID>::max()
            : kMinOther - 1) -
       (kMaxOpEvents - 1);
