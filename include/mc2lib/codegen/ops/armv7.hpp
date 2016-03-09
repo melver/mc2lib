@@ -463,7 +463,7 @@ struct RandomFactory {
   Operation::Ptr operator()(URNG &urng, AddrFilterFunc addr_filter_func,
                             std::size_t max_fails = 0) const {
     // Choice distribution
-    std::uniform_int_distribution<std::size_t> dist_choice(0, 1000);
+    std::uniform_int_distribution<std::size_t> dist_choice(0, 1000 - 1);
 
     // Pid distribution
     std::uniform_int_distribution<types::Pid> dist_pid(min_pid_, max_pid_);
