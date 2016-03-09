@@ -140,13 +140,13 @@ thread_func(void *arg)
 	const pthread_t thread_self = pthread_self();
 
 	void *code = mmap(NULL, MAX_CODE_SIZE,
-			PROT_READ | PROT_WRITE | PROT_EXEC,
-			MAP_ANONYMOUS | MAP_PRIVATE,
-			0, 0);
+	                  PROT_READ | PROT_WRITE | PROT_EXEC,
+	                  MAP_ANONYMOUS | MAP_PRIVATE,
+	                  -1, 0);
 	assert(code != NULL);
 	memset(code, 0, MAX_CODE_SIZE);
 
-	void (*thread_test)() = (void (*)()) code;
+	void (*thread_test)() = GET_CALLABLE_THREAD(code);
 
 	void **used_addrs = NULL;
 #if MAX_USED_ADDRS_SIZE
@@ -178,7 +178,8 @@ thread_func(void *arg)
 
 			if (i + 1 < test_iterations
 			    && thread_self == thread_main_id) {
-				host_verify_reset_conflict(used_addrs, MAX_USED_ADDRS_SIZE);
+				host_verify_reset_conflict(used_addrs,
+				                           MAX_USED_ADDRS_SIZE);
 				reset_test_mem(used_addrs, MAX_USED_ADDRS_SIZE);
 			}
 		}
@@ -309,7 +310,8 @@ setup_sched(void)
 		perror("sched_setscheduler failed!");
 		exit(1);
 	} else {
-		printf("Set RT scheduler: %d @ %d\n", policy, sp.sched_priority);
+		printf("Set RT scheduler: %d @ %d\n", policy,
+		       sp.sched_priority);
 	}
 }
 
@@ -379,7 +381,8 @@ main(int argc, char *argv[])
 
 			assert(noise_mem != NULL);
 			printf("Noise memory: %zu bytes (stride=0x%zx) @ 0x%tx\n",
-			       noise_mem_bytes, noise_mem_stride, (ptrdiff_t)noise_mem);
+			       noise_mem_bytes, noise_mem_stride,
+			       (ptrdiff_t)noise_mem);
 		}
 	}
 

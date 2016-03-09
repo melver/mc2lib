@@ -66,16 +66,48 @@ flush_cache_line(volatile void *addr)
 	__asm__ __volatile__ ("clflush (%0)" :: "r" (addr) : "memory");
 }
 
-#else /* defined(__x86_64__) */
+#define host_make_test_thread m5_make_test_thread
+#define GET_CALLABLE_THREAD(code) ((void (*)()) code)
+
+#elif defined(__arm__)
+
+inline void
+full_memory_barrier(void)
+{
+	__asm__ __volatile__ (
+			"dsb" :::
+			"memory", "cc",
+			// Clobber registers used by test generator.
+			"r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7");
+}
+
+inline void
+flush_cache_line(volatile void *addr)
+{
+	// TODO: Implement me!
+}
+
+inline uint64_t
+host_make_test_thread(void *code, uint64_t len)
+{
+	len = m5_make_test_thread(code, len);
+	__clear_cache(code, code + len);
+	return len;
+}
+
+// Thumb
+#define GET_CALLABLE_THREAD(code) ((void (*)()) ((ptrdiff_t)code | 1))
+
+// With latest Gem5 and current async barrier implementation, using quiesce
+// seems to cause lock up eventually.
+#undef  BARRIER_USE_QUIESCE
+#define BARRIER_USE_QUIESCE 0
+
+#else
 #  error "Unsupported architecture!"
 #endif
 
-/*
- * Host pseudo-op wrapper functions.
- */
-
 #define host_mark_test_mem_range m5_mark_test_mem_range
-#define host_make_test_thread m5_make_test_thread
 
 inline void
 host_verify_reset_conflict(void **used_addrs, uint64_t len)
