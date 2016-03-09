@@ -178,7 +178,7 @@ thread_func(void *arg)
 
 			if (i + 1 < test_iterations
 			    && thread_self == thread_main_id) {
-				host_verify_reset_from(used_addrs, MAX_USED_ADDRS_SIZE);
+				host_verify_reset_conflict(used_addrs, MAX_USED_ADDRS_SIZE);
 				reset_test_mem(used_addrs, MAX_USED_ADDRS_SIZE);
 			}
 		}

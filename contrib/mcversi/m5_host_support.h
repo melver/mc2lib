@@ -78,9 +78,9 @@ flush_cache_line(volatile void *addr)
 #define host_make_test_thread m5_make_test_thread
 
 inline void
-host_verify_reset_from(void **used_addrs, uint64_t len)
+host_verify_reset_conflict(void **used_addrs, uint64_t len)
 {
-	while(!m5_verify_reset_from(used_addrs, len));
+	while(!m5_verify_reset_conflict(used_addrs, len));
 }
 
 inline void
