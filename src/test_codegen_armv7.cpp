@@ -14,8 +14,7 @@ TEST(CodeGen, ARMv7) {
   cats::ExecWitness ew;
   cats::Arch_ARMv7 arch;
 
-  const types::Addr offset = 0x0;
-  armv7::RandomFactory factory(0, 1, offset + 0xccc0, offset + 0xccc5);
+  armv7::RandomFactory factory(0, 1, 0xccc0, 0xccc5);
   RandInstTest<std::default_random_engine, armv7::RandomFactory> rit(
       urng, &factory, 150);
 
@@ -29,7 +28,7 @@ TEST(CodeGen, ARMv7) {
   Compiler<armv7::Operation, armv7::Backend> compiler(
       std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)), threads());
 
-#define MAX_CODE_SIZE (1024 / sizeof(std::uint16_t))
+  constexpr std::size_t MAX_CODE_SIZE = 1024 / sizeof(std::uint16_t);
   std::uint16_t code0[MAX_CODE_SIZE];
   std::uint16_t code1[MAX_CODE_SIZE];
 
@@ -60,4 +59,26 @@ TEST(CodeGen, ARMv7) {
   fwrite(code1, sizeof(code1), 1, f);
   fclose(f);
 #endif
+}
+
+// Should be able to handle exhausting write-ids gracefully.
+TEST(CodeGen, ARMv7_Exhaust) {
+  std::default_random_engine urng(42);
+
+  cats::ExecWitness ew;
+  cats::Arch_ARMv7 arch;
+
+  armv7::RandomFactory factory(0, 1, 0xbeef, 0xfeed);
+  RandInstTest<std::default_random_engine, armv7::RandomFactory> rit(
+      urng, &factory, 1234);
+
+  Compiler<armv7::Operation, armv7::Backend> compiler(
+      std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)),
+      rit.threads());
+
+  constexpr std::size_t MAX_CODE_SIZE = 4096*2;
+  char code[MAX_CODE_SIZE];
+
+  ASSERT_NE(0, compiler.Emit(0, 0,                  code, sizeof(code)));
+  ASSERT_NE(0, compiler.Emit(1, MAX_CODE_SIZE << 1, code, sizeof(code)));
 }

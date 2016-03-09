@@ -14,8 +14,7 @@ TEST(CodeGen, X86_64) {
   cats::ExecWitness ew;
   cats::Arch_TSO arch;
 
-  const types::Addr offset = 0x0;
-  strong::RandomFactory factory(0, 1, offset + 0xccc0, offset + 0xccca);
+  strong::RandomFactory factory(0, 1, 0xccc0, 0xccca);
   RandInstTest<std::default_random_engine, strong::RandomFactory> rit(
       urng, &factory, 150);
 

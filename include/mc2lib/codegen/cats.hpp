@@ -104,8 +104,6 @@ class EvtStateCats {
     assert(sizeof(types::WriteID) <= size);
     assert(size % sizeof(types::WriteID) == 0);
 
-    assert(!Exhausted());
-
     EventPtrs<max_size_bytes> result;
 
     for (std::size_t i = 0; i < size / sizeof(types::WriteID); ++i) {
@@ -116,6 +114,7 @@ class EvtStateCats {
   }
 
   mc::Event MakeOther(types::Pid pid, mc::Event::Type type, types::Addr addr) {
+    assert(!Exhausted());
     return mc::Event(type, addr, mc::Iiid(pid, ++last_other_id));
   }
 
@@ -123,6 +122,7 @@ class EvtStateCats {
   EventPtrs<max_size_bytes> MakeRead(types::Pid pid, mc::Event::Type type,
                                      types::Addr addr,
                                      std::size_t size = max_size_bytes) {
+    assert(!Exhausted());
     ++last_other_id;
     return MakeEvent<max_size_bytes>(
         pid, type, addr, size, [&](types::Addr offset) {
@@ -137,6 +137,7 @@ class EvtStateCats {
   EventPtrs<max_size_bytes> MakeWrite(types::Pid pid, mc::Event::Type type,
                                       types::Addr addr, types::WriteID *data,
                                       std::size_t size = max_size_bytes) {
+    assert(!Exhausted());
     ++last_write_id_;
     return MakeEvent<max_size_bytes>(
         pid, type, addr, size, [&](types::Addr offset) {
