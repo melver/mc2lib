@@ -61,24 +61,24 @@ TEST(CodeGen, ARMv7_Exhaust) {
       std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)),
       rit.threads());
 
-  constexpr std::size_t MAX_CODE_SIZE = 4096*2;
+  constexpr std::size_t MAX_CODE_SIZE = 4096 * 2;
   char code[MAX_CODE_SIZE];
 
-  ASSERT_NE(0, compiler.Emit(0, 0,                  code, sizeof(code)));
+  ASSERT_NE(0, compiler.Emit(0, 0, code, sizeof(code)));
   ASSERT_NE(0, compiler.Emit(1, MAX_CODE_SIZE << 1, code, sizeof(code)));
 }
 
 TEST(CodeGen, ARMv7_SC_PER_LOCATION) {
   std::vector<codegen::armv7::Operation::Ptr> threads = {
-    // p0
-    std::make_shared<armv7::Write>(0xf0, 0), // @0x0a
-    std::make_shared<armv7::Read>(0xf0, armv7::Backend::r1, 0), // @0x14
-    std::make_shared<armv7::Read>(0xf0, armv7::Backend::r2, 0), // @0x1e
-    std::make_shared<armv7::Read>(0xf1, armv7::Backend::r3, 0), // @0x28
-    std::make_shared<armv7::Read>(0xf1, armv7::Backend::r4, 0), // @0x32
+      // p0
+      std::make_shared<armv7::Write>(0xf0, 0),                     // @0x0a
+      std::make_shared<armv7::Read>(0xf0, armv7::Backend::r1, 0),  // @0x14
+      std::make_shared<armv7::Read>(0xf0, armv7::Backend::r2, 0),  // @0x1e
+      std::make_shared<armv7::Read>(0xf1, armv7::Backend::r3, 0),  // @0x28
+      std::make_shared<armv7::Read>(0xf1, armv7::Backend::r4, 0),  // @0x32
 
-    // p1
-    std::make_shared<armv7::Write>(0xf1, 1),
+      // p1
+      std::make_shared<armv7::Write>(0xf1, 1),
   };
 
   cats::ExecWitness ew;
@@ -89,7 +89,7 @@ TEST(CodeGen, ARMv7_SC_PER_LOCATION) {
 
   char* code[128];
 
-  ASSERT_NE(0, compiler.Emit(0, 0,      code, sizeof(code)));
+  ASSERT_NE(0, compiler.Emit(0, 0, code, sizeof(code)));
   ASSERT_NE(0, compiler.Emit(1, 0xffff, code, sizeof(code)));
 
   auto checker = arch.MakeChecker(&arch, &ew);
@@ -108,7 +108,7 @@ TEST(CodeGen, ARMv7_SC_PER_LOCATION) {
 
   // Read-from external
   wid = 0;
-  ASSERT_TRUE(compiler.UpdateObs(0xffff+0x0a, 0, 0xf1, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0xffff + 0x0a, 0, 0xf1, &wid, 1));
   wid = 2;
   ASSERT_TRUE(compiler.UpdateObs(0x28, 0, 0xf1, &wid, 1));
   wid = 0;

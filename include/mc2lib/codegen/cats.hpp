@@ -50,7 +50,9 @@ namespace codegen {
 
 // Workaround for Wtype-limits warning.
 template <class T1, class T2>
-constexpr bool lt__(T1 a, T2 b) { return a < b; }
+constexpr bool lt__(T1 a, T2 b) {
+  return a < b;
+}
 
 class EvtStateCats {
  public:
