@@ -481,9 +481,7 @@ class Arch_ARMv7 : public Architecture {
 
   EventRel ppo(const ExecWitness& ew) const override {
     assert(ew.po.Transitive());
-
-    // TODO(melver): comment this once verified.
-    assert(dd_reg.SubsetEq(ew.po));
+    // assert(dd_reg.SubsetEq(ew.po.Eval().set_props(EventRel::kReflexiveClosure)));
 
     // 1. Obtain dependencies
     //
@@ -562,8 +560,16 @@ class Arch_ARMv7 : public Architecture {
     return result;
   }
 
+  // Ensure fences is transitive
   EventRel fences(const ExecWitness& ew) const override {
-    return dmb | dsb | dmb_st | dsb_st;
+    const auto postar = ew.po.Eval().set_props(EventRel::kReflexiveClosure);
+    const auto postar_WW = postar.Filter([&](const Event& e1, const Event& e2) {
+      return e1.AllType(Event::kWrite) && e2.AllType(Event::kWrite);
+    });
+
+    auto ff = EventRelSeq({postar, (dmb | dsb), postar}).EvalClear();
+    ff |= EventRelSeq({postar_WW, (dmb_st | dsb_st), postar_WW}).EvalClear();
+    return ff;
   }
 
   EventRel prop(const ExecWitness& ew) const override {

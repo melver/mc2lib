@@ -16,7 +16,7 @@ TEST(CodeGen, ARMv7_Short) {
 
   armv7::RandomFactory factory(0, 1, 0xccc0, 0xccca);
   RandInstTest<std::default_random_engine, armv7::RandomFactory> rit(
-      urng, &factory, 150);
+      urng, &factory, 200);
 
   auto threads = [&rit]() {
     auto result = rit.threads();
@@ -28,20 +28,19 @@ TEST(CodeGen, ARMv7_Short) {
   Compiler<armv7::Operation, armv7::Backend> compiler(
       std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)), threads());
 
-  constexpr std::size_t MAX_CODE_SIZE = 1024 / sizeof(std::uint16_t);
-  std::uint16_t code0[MAX_CODE_SIZE];
-  std::uint16_t code1[MAX_CODE_SIZE];
+  constexpr std::size_t MAX_CODE_SIZE = 4096 / sizeof(std::uint16_t);
+  std::uint16_t code[MAX_CODE_SIZE];
 
-  std::size_t emit_len = compiler.Emit(0, 0xffff, code0, sizeof(code0));
+  std::size_t emit_len = compiler.Emit(0, 0xffff, code, sizeof(code));
   ASSERT_NE(emit_len, 0);
-  emit_len = compiler.Emit(1, 0, code1, sizeof(code1));
+  emit_len = compiler.Emit(1, 0, code, sizeof(code));
   ASSERT_NE(emit_len, 0);
 
 #ifdef OUTPUT_BIN_TO_TMP
-  std::fill(code1 + (emit_len / sizeof(std::uint16_t)), code1 + MAX_CODE_SIZE,
+  std::fill(code + (emit_len / sizeof(std::uint16_t)), code + MAX_CODE_SIZE,
             0xbf00);
   auto f = fopen("/tmp/mc2lib-armv7-test.bin", "wb");
-  fwrite(code1, sizeof(code1), 1, f);
+  fwrite(code, sizeof(code), 1, f);
   fclose(f);
 #endif
 }
@@ -119,4 +118,55 @@ TEST(CodeGen, ARMv7_SC_PER_LOCATION) {
   wid = 2;
   ASSERT_TRUE(compiler.UpdateObs(0x32, 0, 0xf1, &wid, 1));
   ASSERT_TRUE(checker->sc_per_location());
+}
+
+TEST(CodeGen, ARMv7_OBSERVATION) {
+  std::vector<codegen::armv7::Operation::Ptr> threads = {
+      // p0
+      std::make_shared<armv7::Read>(0xf0, armv7::Backend::r1, 0),  // @0x08
+      std::make_shared<armv7::Read>(0xf1, armv7::Backend::r3, 0),  // @0x12
+      std::make_shared<armv7::ReadAddrDp>(0xf1, armv7::Backend::r2,
+                                          armv7::Backend::r1, 0),  // @0x1e
+
+      // p1
+      std::make_shared<armv7::DMB_ST>(1),       // check boundary condition
+      std::make_shared<armv7::Write>(0xf1, 1),  // 0x0e
+      std::make_shared<armv7::Delay>(1, 1),     //
+      std::make_shared<armv7::DMB_ST>(1),       //
+      std::make_shared<armv7::Delay>(1, 1),     //
+      std::make_shared<armv7::Write>(0xfa, 1),  // 0x20
+      std::make_shared<armv7::Write>(0xf0, 1),  // 0x2c
+      std::make_shared<armv7::DMB_ST>(1),       // check boundary condition
+  };
+
+  cats::ExecWitness ew;
+  cats::Arch_ARMv7 arch;
+  Compiler<armv7::Operation, armv7::Backend> compiler(
+      std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)),
+      ExtractThreads(&threads));
+
+  char* code[128];
+
+  ASSERT_NE(0, compiler.Emit(0, 0, code, sizeof(code)));
+  ASSERT_NE(0, compiler.Emit(1, 0xffff, code, sizeof(code)));
+
+  auto checker = arch.MakeChecker(&arch, &ew);
+  ew.po.set_props(mc::EventRel::kTransitiveClosure);
+  ew.co.set_props(mc::EventRel::kTransitiveClosure);
+
+  types::WriteID wid = 0;
+  ASSERT_TRUE(compiler.UpdateObs(0xffff + 0x0e, 0, 0xf1, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0xffff + 0x22, 0, 0xfa, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0xffff + 0x2e, 0, 0xf0, &wid, 1));
+
+  wid = 3;
+  ASSERT_TRUE(compiler.UpdateObs(0x08, 0, 0xf0, &wid, 1));
+  wid = 0;
+  ASSERT_TRUE(compiler.UpdateObs(0x12, 0, 0xf1, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0x1e, 0, 0xf1, &wid, 1));
+  ASSERT_FALSE(checker->observation());
+
+  wid = 1;
+  ASSERT_TRUE(compiler.UpdateObs(0x1e, 0, 0xf1, &wid, 1));
+  ASSERT_TRUE(checker->observation());
 }

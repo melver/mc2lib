@@ -45,7 +45,9 @@ namespace codegen {
 
 /**
  * @namespace mc2lib::codegen::armv7
- * @brief Implementations of Operations for ARMv7.
+ * @brief Implementations of Operations for ARMv7 (incomplete).
+ *
+ * The current operations do not exercise all aspects of the MCM.
  */
 namespace armv7 {
 
@@ -68,6 +70,8 @@ class Backend {
  public:
   void Reset() {}
 
+  // Currently supports single byte operations only; to test for single-copy
+  // atomicity, implement multi-byte operations support.
   static_assert(sizeof(types::WriteID) == 1, "Unsupported read/write size!");
 
   enum Reg {
@@ -97,16 +101,42 @@ class Backend {
     ASM_PROLOGUE;
   }
 
-  std::size_t Read(types::Addr addr, Reg reg, types::InstPtr start, void *code,
+  std::size_t DMB_ST(void *code, std::size_t len) const {
+    ASM_PRELUDE;
+    // dmb st
+    ASM16(0xf3bf);
+    ASM16(0x8f5e);
+    ASM_PROLOGUE;
+  }
+
+  std::size_t Read(types::Addr addr, Reg out, types::InstPtr start, void *code,
                    std::size_t len, types::InstPtr *at) const {
     ASM_PRELUDE;
 
     Helper h(cnext__, code, len);
     h.MovImm32(r6__, addr);
 
-    // ldrb reg, [r6, #0]
+    // ldrb out, [r6, #0]
     *at = ASM_AT;
-    ASM16(0x7830 | reg);
+    ASM16(0x7830 | out);
+
+    ASM_PROLOGUE;
+  }
+
+  std::size_t ReadAddrDp(types::Addr addr, Reg out, Reg dp,
+                         types::InstPtr start, void *code, std::size_t len,
+                         types::InstPtr *at) const {
+    ASM_PRELUDE;
+
+    Helper h(cnext__, code, len);
+    h.MovImm32(r6__, addr);
+
+    // eor dp, dp
+    ASM16(0x4040 | (dp << 3) | dp);
+
+    // ldrb out, [r6, dp]
+    *at = ASM_AT;
+    ASM16(0x5c30 | (dp << 6) | out);
 
     ASM_PROLOGUE;
   }
@@ -274,10 +304,10 @@ class Delay : public Operation {
 
 class Read : public MemOperation {
  public:
-  explicit Read(types::Addr addr, Backend::Reg reg, types::Pid pid = -1)
+  explicit Read(types::Addr addr, Backend::Reg out, types::Pid pid = -1)
       : MemOperation(pid),
         addr_(addr),
-        reg_(reg),
+        out_(out),
         event_(nullptr),
         from_(nullptr) {}
 
@@ -305,7 +335,7 @@ class Read : public MemOperation {
 
   std::size_t Emit(types::InstPtr start, Backend *backend, EvtStateCats *evts,
                    void *code, std::size_t len) override {
-    return backend->Read(addr_, reg_, start, code, len, &at_);
+    return backend->Read(addr_, out(), start, code, len, &at_);
   }
 
   bool UpdateObs(types::InstPtr ip, int part, types::Addr addr,
@@ -344,12 +374,60 @@ class Read : public MemOperation {
 
   types::Addr addr() const override { return addr_; }
 
+  Backend::Reg out() const { return out_; }
+
  protected:
   types::Addr addr_;
-  Backend::Reg reg_;
+  Backend::Reg out_;
   const mc::Event *event_;
   const mc::Event *from_;
   types::InstPtr at_;
+};
+
+class ReadAddrDp : public Read {
+ public:
+  explicit ReadAddrDp(types::Addr addr, Backend::Reg reg, Backend::Reg dp,
+                      types::Pid pid = -1)
+      : Read(addr, reg, pid), dp_(dp) {}
+
+  Operation::Ptr Clone() const override {
+    return std::make_shared<ReadAddrDp>(*this);
+  }
+
+  void InsertPo(Operation::ThreadConstIt before, EvtStateCats *evts) override {
+    event_ = evts->MakeRead(pid(), mc::Event::kRead | mc::Event::kRegInAddr,
+                            addr_)[0];
+
+    if (*before != nullptr) {
+      auto event_before = (*before)->LastEvent(event_, evts);
+      if (event_before != nullptr) {
+        evts->ew()->po.Insert(*event_before, *event_);
+
+        // Find read dependency.
+        auto arch = dynamic_cast<mc::cats::Arch_ARMv7 *>(evts->arch());
+        assert(arch != nullptr);
+
+        do {
+          auto potential_dp_read = dynamic_cast<const Read *>(*before);
+          if (potential_dp_read != nullptr) {
+            if (potential_dp_read->out() == dp_) {
+              auto event_dp = potential_dp_read->LastEvent(event_, evts);
+              arch->dd_reg.Insert(*event_dp, *event_);
+              break;
+            }
+          }
+        } while (*(--before) != nullptr);
+      }
+    }
+  }
+
+  std::size_t Emit(types::InstPtr start, Backend *backend, EvtStateCats *evts,
+                   void *code, std::size_t len) override {
+    return backend->ReadAddrDp(addr_, out(), dp_, start, code, len, &at_);
+  }
+
+ protected:
+  Backend::Reg dp_;
 };
 
 class Write : public MemOperation {
@@ -427,6 +505,95 @@ class Write : public MemOperation {
   const mc::Event *event_;
   const mc::Event *from_;
   types::InstPtr at_;
+};
+
+class DMB_ST : public Operation {
+ public:
+  explicit DMB_ST(types::Pid pid = -1)
+      : Operation(pid), before_(nullptr), first_write_before_(nullptr) {}
+
+  Operation::Ptr Clone() const override {
+    return std::make_shared<DMB_ST>(*this);
+  }
+
+  void Reset() override {
+    before_ = nullptr;
+    first_write_before_ = nullptr;
+  }
+
+  bool EnableEmit(EvtStateCats *evts) override { return true; }
+
+  void InsertPo(Operation::ThreadConstIt before, EvtStateCats *evts) override {
+    before_ = *before;
+
+    while (*before != nullptr) {
+      auto potential_write = dynamic_cast<const Write *>(*before);
+      if (potential_write != nullptr) {
+        first_write_before_ = potential_write;
+        break;
+      }
+      --before;
+    }
+  }
+
+  void RegisterCallback(Operation::CallbackStack *callback_stack) override {
+    callback_stack->push_back([this](Operation *after, types::InstPtr start,
+                                     Backend *backend, EvtStateCats *evts,
+                                     void *code, std::size_t len) {
+      if (first_write_before_ != nullptr) {
+        auto potential_write = dynamic_cast<const Write *>(after);
+        if (potential_write != nullptr) {
+          auto event_before = first_write_before_->LastEvent(nullptr, evts);
+          auto event_after = potential_write->FirstEvent(nullptr, evts);
+          auto arch = dynamic_cast<mc::cats::Arch_ARMv7 *>(evts->arch());
+          assert(arch != nullptr);
+          assert(event_before != nullptr);
+          assert(event_after != nullptr);
+
+          arch->dmb_st.Insert(*event_before, *event_after);
+          // cats::ARMv7 takes care of transitivity.
+          first_write_before_ = nullptr;
+        }
+      }
+      return 0;
+    });
+  }
+
+  std::size_t Emit(types::InstPtr start, Backend *backend, EvtStateCats *evts,
+                   void *code, std::size_t len) override {
+    return backend->DMB_ST(code, len);
+  }
+
+  const mc::Event *LastEvent(const mc::Event *next_event,
+                             EvtStateCats *evts) const override {
+    // Forward
+    if (before_ != nullptr) {
+      return before_->LastEvent(next_event, evts);
+    }
+
+    return nullptr;
+  }
+
+  const mc::Event *FirstEvent(const mc::Event *prev_event,
+                              EvtStateCats *evts) const override {
+    // Forward
+    if (before_ != nullptr) {
+      return before_->FirstEvent(prev_event, evts);
+    }
+
+    return nullptr;
+  }
+
+  bool UpdateObs(types::InstPtr ip, int part, types::Addr addr,
+                 const types::WriteID *from_id, std::size_t size,
+                 EvtStateCats *evts) override {
+    assert(false);
+    return false;
+  }
+
+ protected:
+  const Operation *before_;
+  const Operation *first_write_before_;
 };
 
 /**
@@ -524,10 +691,14 @@ struct RandomFactory {
       return static_cast<Backend::Reg>(dist_reg(urng));
     };
 
-    if (choice < 570) {  // 57%
+    if (choice < 320) {  // 32%
       return std::make_shared<Read>(addr(), reg(), pid);
-    } else if (choice < 990) {  // 42%
+    } else if (choice < 560) {  // 24%
+      return std::make_shared<ReadAddrDp>(addr(), reg(), reg(), pid);
+    } else if (choice < 980) {  // 42%
       return std::make_shared<Write>(addr(), pid);
+    } else if (choice < 990) {  // 1%
+      return std::make_shared<DMB_ST>(pid);
     } else if (choice < 1000) {  // 1%
       return std::make_shared<Delay>(sequence(), pid);
     }
