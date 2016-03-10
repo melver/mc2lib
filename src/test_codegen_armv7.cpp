@@ -118,6 +118,10 @@ TEST(CodeGen, ARMv7_SC_PER_LOCATION) {
   wid = 2;
   ASSERT_TRUE(compiler.UpdateObs(0x32, 0, 0xf1, &wid, 1));
   ASSERT_TRUE(checker->sc_per_location());
+
+  ASSERT_TRUE(checker->no_thin_air());
+  ASSERT_TRUE(checker->observation());
+  ASSERT_TRUE(checker->propagation());
 }
 
 TEST(CodeGen, ARMv7_OBSERVATION) {
@@ -169,4 +173,8 @@ TEST(CodeGen, ARMv7_OBSERVATION) {
   wid = 1;
   ASSERT_TRUE(compiler.UpdateObs(0x1e, 0, 0xf1, &wid, 1));
   ASSERT_TRUE(checker->observation());
+
+  ASSERT_TRUE(checker->no_thin_air());
+  ASSERT_TRUE(checker->observation());
+  ASSERT_TRUE(checker->propagation());
 }

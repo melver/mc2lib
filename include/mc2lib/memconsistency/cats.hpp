@@ -463,7 +463,7 @@ class Arch_TSO : public Architecture {
  */
 class Arch_ARMv7 : public Architecture {
  public:
-  Arch_ARMv7() { dd_reg.set_props(EventRel::kReflexiveTransitiveClosure); }
+  Arch_ARMv7() { dd_reg.set_props(EventRel::kTransitiveClosure); }
 
   void Clear() override {
     dd_reg.Clear();
@@ -481,7 +481,7 @@ class Arch_ARMv7 : public Architecture {
 
   EventRel ppo(const ExecWitness& ew) const override {
     assert(ew.po.Transitive());
-    // assert(dd_reg.SubsetEq(ew.po.Eval().set_props(EventRel::kReflexiveClosure)));
+    assert(dd_reg.SubsetEq(ew.po));
 
     // 1. Obtain dependencies
     //
