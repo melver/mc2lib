@@ -8,13 +8,13 @@ using namespace mc2lib;
 using namespace mc2lib::codegen;
 using namespace mc2lib::memconsistency;
 
-TEST(CodeGen, ARMv7) {
-  std::default_random_engine urng(1238);
+TEST(CodeGen, ARMv7_Short) {
+  std::default_random_engine urng(42);
 
   cats::ExecWitness ew;
   cats::Arch_ARMv7 arch;
 
-  armv7::RandomFactory factory(0, 1, 0xccc0, 0xccc5);
+  armv7::RandomFactory factory(0, 1, 0xccc0, 0xccca);
   RandInstTest<std::default_random_engine, armv7::RandomFactory> rit(
       urng, &factory, 150);
 
@@ -36,21 +36,6 @@ TEST(CodeGen, ARMv7) {
   ASSERT_NE(emit_len, 0);
   emit_len = compiler.Emit(1, 0, code1, sizeof(code1));
   ASSERT_NE(emit_len, 0);
-
-#if 1
-  auto checker = arch.MakeChecker(&arch, &ew);
-  ew.po.set_props(mc::EventRel::kTransitiveClosure);
-  ew.co.set_props(mc::EventRel::kTransitiveClosure);
-
-  types::WriteID wid = 0;
-  ASSERT_TRUE(compiler.UpdateObs(0x2a, 0, 0xccc3, &wid, 1));  // write 0xccc3
-  ASSERT_TRUE(compiler.UpdateObs(0x68, 0, 0xccc3, &wid, 1));  // read  0xccc3
-  ASSERT_FALSE(checker->sc_per_location());
-
-  wid = 0x29;  // check replacement/update works
-  ASSERT_TRUE(compiler.UpdateObs(0x68, 0, 0xccc3, &wid, 1));  // read  0xccc3
-  ASSERT_TRUE(checker->sc_per_location());
-#endif
 
 #ifdef OUTPUT_BIN_TO_TMP
   std::fill(code1 + (emit_len / sizeof(std::uint16_t)), code1 + MAX_CODE_SIZE,
@@ -81,4 +66,57 @@ TEST(CodeGen, ARMv7_Exhaust) {
 
   ASSERT_NE(0, compiler.Emit(0, 0,                  code, sizeof(code)));
   ASSERT_NE(0, compiler.Emit(1, MAX_CODE_SIZE << 1, code, sizeof(code)));
+}
+
+TEST(CodeGen, ARMv7_SC_PER_LOCATION) {
+  std::vector<codegen::armv7::Operation::Ptr> threads = {
+    // p0
+    std::make_shared<armv7::Write>(0xf0, 0), // @0x0a
+    std::make_shared<armv7::Read>(0xf0, armv7::Backend::r1, 0), // @0x14
+    std::make_shared<armv7::Read>(0xf0, armv7::Backend::r2, 0), // @0x1e
+    std::make_shared<armv7::Read>(0xf1, armv7::Backend::r3, 0), // @0x28
+    std::make_shared<armv7::Read>(0xf1, armv7::Backend::r4, 0), // @0x32
+
+    // p1
+    std::make_shared<armv7::Write>(0xf1, 1),
+  };
+
+  cats::ExecWitness ew;
+  cats::Arch_ARMv7 arch;
+  Compiler<armv7::Operation, armv7::Backend> compiler(
+      std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)),
+      ExtractThreads(&threads));
+
+  char* code[128];
+
+  ASSERT_NE(0, compiler.Emit(0, 0,      code, sizeof(code)));
+  ASSERT_NE(0, compiler.Emit(1, 0xffff, code, sizeof(code)));
+
+  auto checker = arch.MakeChecker(&arch, &ew);
+  ew.po.set_props(mc::EventRel::kTransitiveClosure);
+  ew.co.set_props(mc::EventRel::kTransitiveClosure);
+
+  types::WriteID wid = 0;
+  ASSERT_TRUE(compiler.UpdateObs(0x0a, 0, 0xf0, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0x14, 0, 0xf0, &wid, 1));
+  ASSERT_FALSE(checker->sc_per_location());
+
+  // Check update works.
+  wid = 1;
+  ASSERT_TRUE(compiler.UpdateObs(0x14, 0, 0xf0, &wid, 1));
+  ASSERT_TRUE(checker->sc_per_location());
+
+  // Read-from external
+  wid = 0;
+  ASSERT_TRUE(compiler.UpdateObs(0xffff+0x0a, 0, 0xf1, &wid, 1));
+  wid = 2;
+  ASSERT_TRUE(compiler.UpdateObs(0x28, 0, 0xf1, &wid, 1));
+  wid = 0;
+  ASSERT_TRUE(compiler.UpdateObs(0x32, 0, 0xf1, &wid, 1));
+  ASSERT_FALSE(checker->sc_per_location());
+
+  // update
+  wid = 2;
+  ASSERT_TRUE(compiler.UpdateObs(0x32, 0, 0xf1, &wid, 1));
+  ASSERT_TRUE(checker->sc_per_location());
 }
