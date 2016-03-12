@@ -75,7 +75,7 @@ inline void
 full_memory_barrier(void)
 {
 	__asm__ __volatile__ (
-			"dsb" :::
+			"dsb; isb" :::
 			"memory", "cc",
 			// Clobber registers used by test generator.
 			"r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7");
