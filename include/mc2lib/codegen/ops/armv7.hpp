@@ -674,6 +674,9 @@ struct RandomFactory {
       for (std::size_t tries = 0; tries < max_fails + 1; ++tries) {
         result = dist_addr(urng);
         result -= result % stride();
+        if (result < chunk_min_addr) result += stride();
+        assert(result >= chunk_min_addr);
+        assert(result <= chunk_max_addr - EvtStateCats::kMaxOpSize);
 
         if (addr_filter_func(result)) {
           return result;
