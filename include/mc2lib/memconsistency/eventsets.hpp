@@ -207,13 +207,11 @@ class Event {
   bool operator<(const Event& rhs) const { return iiid < rhs.iiid; }
 
   bool AllType(Type type_mask) const {
-    assert(type_mask != kNone);
-    return (type & type_mask) == type_mask;
+    return sets::AllBitmask(type, type_mask);
   }
 
   bool AnyType(Type type_mask) const {
-    assert(type_mask != kNone);
-    return (type & type_mask) != 0;
+    return sets::AnyBitmask(type, type_mask);
   }
 
  public:

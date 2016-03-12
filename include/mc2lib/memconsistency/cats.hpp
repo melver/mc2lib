@@ -47,12 +47,13 @@ namespace memconsistency {
  *
  * This memory consistency model framework is based upon [1], and [2].
  *
- * References:
+ * [1] <a href="http://dx.doi.org/10.1145/2627752">
+ *      J. Alglave, L. Maranget, M.  Tautschnig, "Herding cats: Modelling,
+ *      Simulation, Testing, and Data Mining for Weak Memory", 2014.</a>
  *
- * [1] J. Alglave, L. Maranget, M. Tautschnig, "Herding cats", 2014.
- *
- * [2] J. Alglave, L. Maranget, S. Sarkar, and P. Sewell. "Fences in weak memory
- *      models", 2012.
+ * [2] <a href="http://dx.doi.org/10.1007/s10703-011-0135-z">
+ *      J. Alglave, L. Maranget, S. Sarkar, and P. Sewell. "Fences in weak
+ *      memory models", 2012.</a>
 */
 namespace cats {
 

@@ -47,10 +47,9 @@ namespace memconsistency {
  *
  * This memory consistency model framework is based upon [1].
  *
- * References:
- *
- * [1] J. Alglave, L. Maranget, S. Sarkar, and P. Sewell. "Fences in weak memory
- *      models", 2012.
+ * [1] <a href="http://dx.doi.org/10.1007/s10703-011-0135-z">
+ *      J. Alglave, L. Maranget, S. Sarkar, and P. Sewell. "Fences in weak
+ *      memory models", 2012.</a>
 */
 namespace model12 {
 

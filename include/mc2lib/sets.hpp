@@ -56,7 +56,8 @@ namespace sets {
  * @param all Bit mask to check against.
  * @return True if all bits in all are also set in mask, false otherwise.
  */
-inline bool AllBitmask(unsigned mask, unsigned all) {
+template <class T>
+inline bool AllBitmask(T mask, T all) {
   assert(all != 0);
   return (mask & all) == all;
 }
@@ -68,7 +69,8 @@ inline bool AllBitmask(unsigned mask, unsigned all) {
  * @param any Bit mask to check against.
  * @return True if at least any one of the bits in any is set in mask.
  */
-inline bool AnyBitmask(unsigned mask, unsigned any) {
+template <class T>
+inline bool AnyBitmask(T mask, T any) {
   assert(any != 0);
   return (mask & any) != 0;
 }
@@ -140,7 +142,7 @@ class Set {
 
   bool Contains(const Element& e) const { return set_.find(e) != set_.end(); }
 
-  /*
+  /**
    * Set union.
    */
   Set& operator|=(const Set& rhs) {
@@ -161,7 +163,7 @@ class Set {
     return *this;
   }
 
-  /*
+  /**
    * Set difference.
    */
   Set& operator-=(const Set& rhs) {
@@ -179,7 +181,7 @@ class Set {
     return *this;
   }
 
-  /*
+  /**
    * Set intersection
    */
   Set& operator&=(const Set& rhs) {
@@ -331,8 +333,8 @@ class Relation {
 
   explicit Relation(const Container& r) : props_(kNone), rel_(r) {}
 
-  /*
-   * Avoid accessing rel_ directly. Uses of raw should be well justified.
+  /**
+   * Avoid accessing rel_ directly! Uses of Raw() should be justified.
    */
   const Container& Raw() const { return rel_; }
 
@@ -434,9 +436,11 @@ class Relation {
     return std::move(func);
   }
 
-  /*
+  /**
    * Provide Eval() for evaluated view of the relation (with properties
    * evaluated).
+   *
+   * @return Evaluated Relation.
    */
   Relation Eval() const {
     if (props() == kNone) {
@@ -491,7 +495,7 @@ class Relation {
     return result;
   }
 
-  /*
+  /**
    * Relation union.
    */
   Relation& operator|=(const Relation& rhs) {
@@ -511,7 +515,7 @@ class Relation {
     return *this;
   }
 
-  /*
+  /**
    * Relation difference.
    */
   Relation& operator-=(const Relation& rhs) {
@@ -531,7 +535,7 @@ class Relation {
     return *this;
   }
 
-  /*
+  /**
    * Relation intersection
    */
   Relation& operator&=(const Relation& rhs) {
@@ -564,8 +568,13 @@ class Relation {
            (rhs.props() ? rhs.Eval() : rhs).rel_;
   }
 
-  /*
-   * Return true if two elements are ordered.
+  /**
+   * Query relation.
+   *
+   * @param e1 first element.
+   * @param e2 second element
+   * @param path Optional; return path from e1 to e2.
+   * @return true if (e1, e2) is in the relation.
    */
   bool R(const Element& e1, const Element& e2, Path* path = nullptr) const {
     if (e1 == e2 && all_props(kReflexiveClosure)) {
@@ -595,10 +604,13 @@ class Relation {
     return R_search(e1, &e2, &visited);
   }
 
-  /*
+  /**
    * Returns all rechable elements from a start element without the start
    * itself, but includes start if start can reach itself (e.g. through
    * cycle).
+   *
+   * @param e Start element.
+   * @return Set of reachable elements.
    */
   Set<Ts> Reachable(const Element& e) const {
     Set<Ts> visited;
@@ -634,7 +646,7 @@ class Relation {
     return Irreflexive(kTransitiveClosure, cyclic);
   }
 
-  /*
+  /**
    * x→y ∧ y→z ⇒ x→z
    */
   bool Transitive() const {
@@ -658,7 +670,7 @@ class Relation {
     return true;
   }
 
-  /*
+  /**
    * ∀(x,y) ∈ on×on, x→y ∨ y→x
    */
   bool TotalOn(const Set<Ts>& on) const {
@@ -673,7 +685,7 @@ class Relation {
     return true;
   }
 
-  /*
+  /**
    * ∀(x,y) ∈ on×on, x→y ∨ y→x ∨ x=y
    */
   bool ConnexOn(const Set<Ts>& on) const {
