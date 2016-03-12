@@ -405,18 +405,18 @@ class ReadAddrDp : public Read {
 
         // Find read dependency.
         auto arch = dynamic_cast<mc::cats::Arch_ARMv7 *>(evts->arch());
-        assert(arch != nullptr);
-
-        do {
-          auto potential_dp_read = dynamic_cast<const Read *>(*before);
-          if (potential_dp_read != nullptr) {
-            if (potential_dp_read->out() == dp_) {
-              auto event_dp = potential_dp_read->LastEvent(event_, evts);
-              arch->dd_reg.Insert(*event_dp, *event_);
-              break;
+        if (arch != nullptr) {
+          do {
+            auto potential_dp_read = dynamic_cast<const Read *>(*before);
+            if (potential_dp_read != nullptr) {
+              if (potential_dp_read->out() == dp_) {
+                auto event_dp = potential_dp_read->LastEvent(event_, evts);
+                arch->dd_reg.Insert(*event_dp, *event_);
+                break;
+              }
             }
-          }
-        } while (*(--before) != nullptr);
+          } while (*(--before) != nullptr);
+        }
       }
     }
   }
@@ -543,15 +543,16 @@ class DMB_ST : public Operation {
       if (first_write_before_ != nullptr) {
         auto potential_write = dynamic_cast<const Write *>(after);
         if (potential_write != nullptr) {
-          auto event_before = first_write_before_->LastEvent(nullptr, evts);
-          auto event_after = potential_write->FirstEvent(nullptr, evts);
           auto arch = dynamic_cast<mc::cats::Arch_ARMv7 *>(evts->arch());
-          assert(arch != nullptr);
-          assert(event_before != nullptr);
-          assert(event_after != nullptr);
+          if (arch != nullptr) {
+            auto event_before = first_write_before_->LastEvent(nullptr, evts);
+            auto event_after = potential_write->FirstEvent(nullptr, evts);
+            assert(event_before != nullptr);
+            assert(event_after != nullptr);
 
-          arch->dmb_st.Insert(*event_before, *event_after);
-          // cats::ARMv7 takes care of transitivity.
+            arch->dmb_st.Insert(*event_before, *event_after);
+            // cats::ARMv7 takes care of transitivity.
+          }
           first_write_before_ = nullptr;
         }
       }
