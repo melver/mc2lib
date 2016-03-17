@@ -225,7 +225,15 @@ typedef sets::Relation<sets::Types<Event>> EventRel;
 typedef sets::RelationSeq<sets::Types<Event>> EventRelSeq;
 
 class Error : public std::logic_error {
+ public:
+#if 0
+  // constructor inheritance not supported by gcc 4.7
   using std::logic_error::logic_error;
+#else
+  explicit Error(const std::string& what_arg) : std::logic_error(what_arg) {}
+
+  explicit Error(const char* what_arg) : std::logic_error(what_arg) {}
+#endif
 };
 
 }  // namespace memconsistency

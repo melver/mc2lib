@@ -402,9 +402,9 @@ class ReadModifyWrite : public MemOperation {
       // Check atomicity.
       if (*from != *from_) {
         std::ostringstream oss;
-        oss << "RMW NOT ATOMIC: expected <"
-            << static_cast<std::string>(*from_) << ">, but overwriting <"
-            << static_cast<std::string>(*from) << ">!";
+        oss << "RMW NOT ATOMIC: expected <" << static_cast<std::string>(*from_)
+            << ">, but overwriting <" << static_cast<std::string>(*from)
+            << ">!";
         throw mc::Error(oss.str());
       }
 

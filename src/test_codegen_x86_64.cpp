@@ -52,12 +52,12 @@ TEST(CodeGen, X86_64) {
 TEST(CodeGen, X86_64_SC_PER_LOCATION) {
   std::vector<codegen::strong::Operation::Ptr> threads = {
       // p0
-      std::make_shared<strong::Write>(0xf0, 0), // @0x0
-      std::make_shared<strong::Read>(0xf0, 0),  // @0x8
-      std::make_shared<strong::ReadModifyWrite>(0xf1, 0), // 0x17
+      std::make_shared<strong::Write>(0xf0, 0),            // @0x0
+      std::make_shared<strong::Read>(0xf0, 0),             // @0x8
+      std::make_shared<strong::ReadModifyWrite>(0xf1, 0),  // 0x17
 
       // p1
-      std::make_shared<strong::Write>(0xf1, 1), // 0x0
+      std::make_shared<strong::Write>(0xf1, 1),  // 0x0
   };
 
   cats::ExecWitness ew;
@@ -86,7 +86,7 @@ TEST(CodeGen, X86_64_SC_PER_LOCATION) {
 
   // Check atomic works
   wid = 0;
-  ASSERT_TRUE(compiler.UpdateObs(0xffff+0x0, 0, 0xf1, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0xffff + 0x0, 0, 0xf1, &wid, 1));
   ASSERT_TRUE(compiler.UpdateObs(0x17, 0, 0xf1, &wid, 1));
 
   try {
