@@ -175,6 +175,6 @@ TEST(CodeGen, ARMv7_OBSERVATION) {
   ASSERT_TRUE(checker->observation());
 
   ASSERT_TRUE(checker->no_thin_air());
-  ASSERT_TRUE(checker->observation());
+  ASSERT_TRUE(checker->sc_per_location());
   ASSERT_TRUE(checker->propagation());
 }

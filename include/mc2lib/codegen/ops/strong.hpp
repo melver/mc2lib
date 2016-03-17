@@ -36,6 +36,7 @@
 
 #include <algorithm>
 #include <random>
+#include <sstream>
 
 #include "../cats.hpp"
 #include "../compiler.hpp"
@@ -398,9 +399,14 @@ class ReadModifyWrite : public MemOperation {
       // Second part: write
       assert(part > last_part_);
 
-      // Assert atomicity; pointer comparison is fine, as get_write
-      // returns unique instances for each Event.
-      assert(from == from_ && "Not atomic!");
+      // Check atomicity.
+      if (*from != *from_) {
+        std::ostringstream oss;
+        oss << "RMW NOT ATOMIC: expected <"
+            << static_cast<std::string>(*from_) << ">, but overwriting <"
+            << static_cast<std::string>(*from) << ">!";
+        throw mc::Error(oss.str());
+      }
 
       part_event = event_w_;
       obs_rel = &evts->ew()->co;

@@ -34,9 +34,9 @@
 #ifndef MC2LIB_MEMCONSISTENCY_EVENTSETS_HPP_
 #define MC2LIB_MEMCONSISTENCY_EVENTSETS_HPP_
 
-#include <exception>
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 #include "../sets.hpp"
@@ -224,14 +224,8 @@ typedef sets::Set<sets::Types<Event>> EventSet;
 typedef sets::Relation<sets::Types<Event>> EventRel;
 typedef sets::RelationSeq<sets::Types<Event>> EventRelSeq;
 
-class Error : public std::exception {
- public:
-  explicit Error(const char* w) : what_(w) {}
-
-  const char* what() const noexcept override { return what_; }
-
- private:
-  const char* what_;
+class Error : public std::logic_error {
+  using std::logic_error::logic_error;
 };
 
 }  // namespace memconsistency

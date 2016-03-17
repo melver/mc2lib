@@ -41,36 +41,70 @@ TEST(CodeGen, X86_64) {
   emit_len = compiler.Emit(1, 0, code, sizeof(code));
   ASSERT_NE(emit_len, 0);
 
-#if 1
-  auto checker = arch.MakeChecker(&arch, &ew);
-  ew.po.set_props(mc::EventRel::kTransitiveClosure);
-  ew.co.set_props(mc::EventRel::kTransitiveClosure);
-
-  types::WriteID wid = 0;
-  // This test passing is dependent on the random number generator
-  // implementation.
-  ASSERT_TRUE(compiler.UpdateObs(0x42, 0, 0xccc5, &wid, 1));  // write 0xccc5
-  ASSERT_TRUE(compiler.UpdateObs(0x62, 0, 0xccc5, &wid, 1));  // read  0xccc5
-  ASSERT_FALSE(checker->sc_per_location());
-
-  wid = 0x27;  // check replacement/update works
-  ASSERT_TRUE(compiler.UpdateObs(0x62, 0, 0xccc5, &wid, 1));  // read  0xccc5
-  ASSERT_TRUE(checker->sc_per_location());
-
-  // Check atomic works
-  wid = 0;
-  ASSERT_TRUE(compiler.UpdateObs(0xe9, 0, 0xccc1, &wid, 1));
-  wid = 0x28;  // restart atomic
-  ASSERT_TRUE(compiler.UpdateObs(0xe9, 0, 0xccc1, &wid, 1));
-  ASSERT_TRUE(compiler.UpdateObs(0xe9, 1, 0xccc1, &wid, 1));
-#endif
-
 #ifdef OUTPUT_BIN_TO_TMP
   memset(code + emit_len, 0x90, sizeof(code) - emit_len);
   auto f = fopen("/tmp/mc2lib-test1.bin", "wb");
   fwrite(code, sizeof(code), 1, f);
   fclose(f);
 #endif
+}
+
+TEST(CodeGen, X86_64_SC_PER_LOCATION) {
+  std::vector<codegen::strong::Operation::Ptr> threads = {
+      // p0
+      std::make_shared<strong::Write>(0xf0, 0), // @0x0
+      std::make_shared<strong::Read>(0xf0, 0),  // @0x8
+      std::make_shared<strong::ReadModifyWrite>(0xf1, 0), // 0x17
+
+      // p1
+      std::make_shared<strong::Write>(0xf1, 1), // 0x0
+  };
+
+  cats::ExecWitness ew;
+  cats::Arch_TSO arch;
+  Compiler<strong::Operation, strong::Backend_X86_64> compiler(
+      std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)),
+      ExtractThreads(&threads));
+
+  char* code[128];
+
+  ASSERT_NE(0, compiler.Emit(0, 0, code, sizeof(code)));
+  ASSERT_NE(0, compiler.Emit(1, 0xffff, code, sizeof(code)));
+
+  auto checker = arch.MakeChecker(&arch, &ew);
+  ew.po.set_props(mc::EventRel::kTransitiveClosure);
+  ew.co.set_props(mc::EventRel::kTransitiveClosure);
+
+  types::WriteID wid = 0;
+  ASSERT_TRUE(compiler.UpdateObs(0x0, 0, 0xf0, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0x8, 0, 0xf0, &wid, 1));
+  ASSERT_FALSE(checker->sc_per_location());
+
+  wid = 0x1;  // check replacement/update works
+  ASSERT_TRUE(compiler.UpdateObs(0x8, 0, 0xf0, &wid, 1));
+  ASSERT_TRUE(checker->sc_per_location());
+
+  // Check atomic works
+  wid = 0;
+  ASSERT_TRUE(compiler.UpdateObs(0xffff+0x0, 0, 0xf1, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0x17, 0, 0xf1, &wid, 1));
+
+  try {
+    wid = 3;
+    compiler.UpdateObs(0x17, 1, 0xf1, &wid, 1);
+    FAIL();
+  } catch (const Error& e) {
+    ASSERT_NE(std::string(e.what()).find("NOT ATOMIC"), std::string::npos);
+  }
+
+  wid = 3;  // restart atomic
+  ASSERT_TRUE(compiler.UpdateObs(0x17, 0, 0xf1, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0x17, 1, 0xf1, &wid, 1));
+
+  ASSERT_TRUE(checker->sc_per_location());
+  ASSERT_TRUE(checker->no_thin_air());
+  ASSERT_TRUE(checker->observation());
+  ASSERT_TRUE(checker->propagation());
 }
 
 #if defined(__linux__) && defined(__x86_64__)
