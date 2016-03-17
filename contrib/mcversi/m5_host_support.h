@@ -45,7 +45,13 @@
 #endif
 
 #ifndef BARRIER_USE_QUIESCE
-#  define BARRIER_USE_QUIESCE 1
+// This is a performance optimization and (with the evaluated version of Gem5
+// used for McVerSi) speeds up execution (when using barrier_wait_coarse)
+// significantly with larger number of processors.
+//
+// With latest Gem5 and current async barrier implementation, using quiesce
+// seems to cause lock up, regardless of ISA; disable by default.
+#  define BARRIER_USE_QUIESCE 0
 #endif
 
 #ifdef M5OP_ADDR
@@ -97,11 +103,6 @@ host_make_test_thread(void *code, uint64_t len)
 
 // Thumb
 #define GET_CALLABLE_THREAD(code) ((void (*)()) ((ptrdiff_t)code | 1))
-
-// With latest Gem5 and current async barrier implementation, using quiesce
-// seems to cause lock up eventually.
-#undef  BARRIER_USE_QUIESCE
-#define BARRIER_USE_QUIESCE 0
 
 #else
 #  error "Unsupported architecture!"
