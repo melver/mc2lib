@@ -44,6 +44,17 @@
 #  define CACHELINE_SIZE 64
 #endif
 
+#ifndef HOST_ZERO_TEST_MEM
+// 0 -- Host does not zero test-memory.
+// 1 -- Host zeroes test-memory in *reset* and mark_test_mem_range functions.
+#  define HOST_ZERO_TEST_MEM 1
+#endif
+
+#ifndef MAX_USED_ADDRS_SIZE
+// >0 -- Host must provide used addresses with *reset* functions.
+#  define MAX_USED_ADDRS_SIZE (4096*8)
+#endif
+
 #ifndef BARRIER_USE_QUIESCE
 // This is a performance optimization and (with the evaluated version of Gem5
 // used for McVerSi) speeds up execution (when using barrier_wait_coarse)

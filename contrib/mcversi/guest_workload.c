@@ -44,19 +44,8 @@
 
 #include "host_support.h"
 
-#ifndef HOST_ZERO_TEST_MEM
-// 0 -- host does not zero test-memory.
-// 1 -- host does zero test-memory.
-#  define HOST_ZERO_TEST_MEM 1
-#endif
-
 #ifndef MAX_CODE_SIZE
 #  define MAX_CODE_SIZE (4096*16)
-#endif
-
-#ifndef MAX_USED_ADDRS_SIZE
-// >0 -- host must provide used addresses with *reset* functions.
-#  define MAX_USED_ADDRS_SIZE (4096*8)
 #endif
 
 #ifndef MAX_THREADS
@@ -83,6 +72,7 @@ reset_test_mem(void **used_addrs, size_t len)
 	if (used_addrs != NULL) {
 		// NULL marks end of list.
 		for (size_t i = 0; i < len && used_addrs[i]; ++i) {
+			// Mask stride due encoding (see mc2lib RandomFactory)
 			memset(used_addrs[i], 0, (test_mem_stride & 0xffff));
 		}
 	} else {
