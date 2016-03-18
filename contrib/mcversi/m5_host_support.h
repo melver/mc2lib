@@ -63,7 +63,11 @@ void *m5_mem = NULL;
 inline void
 full_memory_barrier(void)
 {
-	__asm__ __volatile__ ( "mfence" ::: "memory" );
+	__asm__ __volatile__ (
+			"mfence\n\t"
+			"mov $0, %%eax\n\t"
+			"cpuid\n\t" ::: "memory", "cc",
+			"rax", "rbx", "rcx", "rdx");
 }
 
 inline void
