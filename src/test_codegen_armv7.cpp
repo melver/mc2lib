@@ -86,7 +86,7 @@ TEST(CodeGen, ARMv7_SC_PER_LOCATION) {
       std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)),
       ExtractThreads(&threads));
 
-  char* code[128];
+  char code[128];
 
   ASSERT_NE(0, compiler.Emit(0, 0, code, sizeof(code)));
   ASSERT_NE(0, compiler.Emit(1, 0xffff, code, sizeof(code)));
@@ -149,7 +149,7 @@ TEST(CodeGen, ARMv7_OBSERVATION) {
       std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)),
       ExtractThreads(&threads));
 
-  char* code[128];
+  char code[128];
 
   ASSERT_NE(0, compiler.Emit(0, 0, code, sizeof(code)));
   ASSERT_NE(0, compiler.Emit(1, 0xffff, code, sizeof(code)));

@@ -54,6 +54,27 @@ constexpr bool lt__(T1 a, T2 b) {
   return a < b;
 }
 
+/**
+ * @brief Interface to memconsistency::cats data structures.
+ *
+ * This class serves as a helper to interface with data structures in
+ * memconsistency::cats. Its primary function is the creation of new events by
+ * Operations.
+ *
+ * Furthermore, as this is the interface to the consistency model descriptions
+ * and checker, we can encode efficient support for virtual address synonyms
+ * here by transforming the address used to construct events (see
+ * EvtStateCats::set_addr_mask). As described in [1], if we are working at the
+ * virtual address level, we are checking VAMC (Virtual Address
+ * Memory Consistency). Here we only consider the problem of synonym sets of
+ * virtual addresses mapping to the same physical address, and add simple
+ * support for it.
+ *
+ * [1] <a href="http://dx.doi.org/10.1145/1736020.1736057">
+ *      Bogdan F. Romanescu, Alvin R. Lebeck, Daniel J. Sorin, "Specifying and
+ *      dynamically verifying address translation-aware memory consistency",
+ *      2010.</a>
+ */
 class EvtStateCats {
  public:
   // 1 Op can at most emit 2 write Events
@@ -79,7 +100,7 @@ class EvtStateCats {
   static_assert(kMinOther > kMaxWrite, "Invalid read/write ID limits!");
 
   explicit EvtStateCats(mc::cats::ExecWitness *ew, mc::cats::Architecture *arch)
-      : ew_(ew), arch_(arch) {}
+      : ew_(ew), arch_(arch), addr_mask_(~0) {}
 
   void Reset() {
     last_write_id_ = kMinWrite - 1;
@@ -96,8 +117,7 @@ class EvtStateCats {
 
   template <std::size_t max_size_bytes, class Func>
   EventPtrs<max_size_bytes> MakeEvent(types::Pid pid, mc::Event::Type type,
-                                      types::Addr addr, std::size_t size,
-                                      Func mkevt) {
+                                      std::size_t size, Func mkevt) {
     static_assert(max_size_bytes <= kMaxOpSize, "Invalid size!");
     static_assert(sizeof(types::WriteID) <= max_size_bytes, "Invalid size!");
     static_assert(max_size_bytes % sizeof(types::WriteID) == 0,
@@ -117,6 +137,7 @@ class EvtStateCats {
 
   mc::Event MakeOther(types::Pid pid, mc::Event::Type type, types::Addr addr) {
     assert(!Exhausted());
+    addr &= addr_mask_;
     return mc::Event(type, addr, mc::Iiid(pid, ++last_other_id));
   }
 
@@ -125,9 +146,10 @@ class EvtStateCats {
                                      types::Addr addr,
                                      std::size_t size = max_size_bytes) {
     assert(!Exhausted());
+    addr &= addr_mask_;
     ++last_other_id;
     return MakeEvent<max_size_bytes>(
-        pid, type, addr, size, [&](types::Addr offset) {
+        pid, type, size, [&](types::Addr offset) {
           const mc::Event event =
               mc::Event(type, addr + offset, mc::Iiid(pid, last_other_id));
 
@@ -140,9 +162,10 @@ class EvtStateCats {
                                       types::Addr addr, types::WriteID *data,
                                       std::size_t size = max_size_bytes) {
     assert(!Exhausted());
+    addr &= addr_mask_;
     ++last_write_id_;
     return MakeEvent<max_size_bytes>(
-        pid, type, addr, size, [&](types::Addr offset) {
+        pid, type, size, [&](types::Addr offset) {
           const types::WriteID write_id = last_write_id_;
 
           const mc::Event event =
@@ -165,6 +188,7 @@ class EvtStateCats {
     assert(size <= max_size_bytes);
     assert(sizeof(types::WriteID) <= size);
     assert(size % sizeof(types::WriteID) == 0);
+    addr &= addr_mask_;
 
     EventPtrs<max_size_bytes> result;
     result.fill(nullptr);  // init
@@ -220,6 +244,18 @@ class EvtStateCats {
 
   const mc::cats::Architecture *arch() const { return arch_; }
 
+  /**
+   * When using virtual addresses, this can be used to mask test memory
+   * addresses, s.t. synonyms map to the same address used by the checker.
+   * Although we could modify the checker to permit sets of addresses, this
+   * would be much more expensive in terms of storage and hash-map lookup by
+   * the checker. Assumes that synonym range start addresses are multiples of
+   * 2**n (the size of memory).
+   */
+  void set_addr_mask(types::Addr val) { addr_mask_ = val; }
+
+  types::Addr addr_mask() const { return addr_mask_; }
+
  private:
   typedef std::unordered_map<types::WriteID, const mc::Event *>
       WriteID_EventPtr;
@@ -231,6 +267,8 @@ class EvtStateCats {
 
   types::WriteID last_write_id_;
   types::Poi last_other_id;
+
+  types::Addr addr_mask_;
 };
 
 }  // namespace codegen

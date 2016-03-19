@@ -288,6 +288,9 @@ class NullOp : public Op<Backend, EvtState> {
   }
 };
 
+/**
+ * @brief Top level class used to manage code generation (compiler).
+ */
 template <class Operation, class Backend>
 class Compiler {
  public:
@@ -348,6 +351,8 @@ class Compiler {
   const Threads &threads() { return threads_; }
 
   const EvtState *evts() const { return evts_.get(); }
+
+  EvtState *evts() { return evts_.get(); }
 
   std::size_t Emit(types::InstPtr base, Operation *op, void *code,
                    std::size_t len, ThreadConst *thread_const_ops,

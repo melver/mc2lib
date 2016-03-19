@@ -9,7 +9,7 @@ A memory consistency model checking library implemented in C++11. This library
 provides the building blocks for the `McVerSi
 <http://ac.marcoelver.com/research/mcversi>`_ framework [1]_.
 
-The McVerSi guest workload can be found in ``contrib/mcversi``.
+The McVerSi guest workload can be found in `<contrib/mcversi>`_.
 
 Usage
 =====
@@ -19,7 +19,7 @@ The library is header-only.
 API documentation can be found `here
 <http://ac.marcoelver.com/ext/apidoc/mc2lib>`_.
 
-The provided ``Makefile`` is for unit testing and static analysis.
+The provided `<Makefile>`_ is for unit testing and static analysis.
 
 Citation
 ========
@@ -39,6 +39,15 @@ appreciate if you cite the McVerSi paper:
       year      = {2016},
       venue     = {Barcelona, Spain}
     }
+
+Extensions
+==========
+
+Notable extensions that have been added after publication of the McVerSi paper:
+
+* Support for synonym sets of virtual addresses mapping to same physical
+  address -- see `EvtStateCats <include/mc2lib/codegen/cats.hpp>`_ and
+  `guest_workload <contrib/mcversi/guest_workload.c>`_.
 
 References
 ==========

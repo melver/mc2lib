@@ -84,10 +84,26 @@ full_memory_barrier(void)
 inline void
 flush_cache_line(volatile void *addr)
 {
+	// Note that, not all protocols support this; in the McVerSi paper, we
+	// implemented support for clflush for the protocols we used.
 	__asm__ __volatile__ ("clflush (%0)" :: "r" (addr) : "memory");
 }
 
-#define host_make_test_thread m5_make_test_thread
+inline uint64_t
+host_make_test_thread(void *code, uint64_t len)
+{
+	len = m5_make_test_thread(code, len);
+	for (int i = 0; i < 0x42; ++i) {
+		// It seems that Gem5's O3 CPU still prefetches instructions somehow;
+		// work-around by not giving it the chance to prefetch the previous
+		// test. My assumption is, that if we had actual self-modifying code
+		// (and not the host writing the instructions to memory), it should not
+		// have this problem.
+		full_memory_barrier();
+	}
+	return len;
+}
+
 #define GET_CALLABLE_THREAD(code) ((void (*)()) code)
 
 #elif defined(__arm__)

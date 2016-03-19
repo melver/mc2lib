@@ -41,6 +41,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/shm.h>
 
 #include "host_support.h"
 
@@ -57,10 +58,6 @@ static size_t num_threads = 0;
 static char *test_mem = NULL;
 static size_t test_mem_bytes = 0;
 static size_t test_mem_stride = 0;
-
-static char *noise_mem = NULL;
-static size_t noise_mem_bytes = 0;
-static size_t noise_mem_stride = 0;
 
 static pthread_barrier_t barrier;
 static pthread_t thread_main_id;
@@ -97,23 +94,6 @@ reset_test_mem(void **used_addrs, size_t len)
 	}
 
 	full_memory_barrier();
-}
-
-static inline void
-access_noise_mem(size_t part, size_t split_size)
-{
-	if (!noise_mem) return;
-	part %= split_size;
-
-	const size_t chunk_bytes = noise_mem_bytes / split_size;
-	const size_t chunk_start = chunk_bytes * part;
-	const size_t chunk_end = chunk_bytes * (part + 1);
-	const size_t read_offset = noise_mem_stride / 2;
-
-	for (size_t i = chunk_start; i < chunk_end; i += noise_mem_stride) {
-		((volatile char*)noise_mem)[i] = 0xab;
-		(void)((volatile char*)noise_mem)[i + read_offset];
-	}
 }
 
 static inline void
@@ -157,8 +137,6 @@ thread_func(void *arg)
 			barrier_wait_precise(num_threads);
 
 			full_memory_barrier();
-
-			access_noise_mem(thread_self, num_threads);
 
 			thread_test();
 
@@ -309,8 +287,8 @@ static void
 usage(const char *progname)
 {
 	printf("Usage: %s <num-threads> <test-iterations> <test-mem-bytes> "
-	       "<test-mem-stride> [<test-mem-addr> [<noise-mem-bytes> "
-	       "<noise-mem-stride>]]\n", progname);
+	       "<test-mem-stride> [<test-mem-addr> [<synonym-count>]]\n",
+	       progname);
 
 	exit(42);
 }
@@ -341,12 +319,31 @@ main(int argc, char *argv[])
 	if (!test_mem_stride) usage(argv[0]);
 
 	assert(test_mem == NULL);
+	size_t synonym_count = 0;
 	if (argc > 5) {
 		// Optionally set test-memory base address.
 		test_mem = (char*)strtoull(argv[5], NULL, 0);
+
+		if (test_mem && argc > 6) {
+			synonym_count = strtoull(argv[6], NULL, 0);
+		}
 	}
 
-	if (test_mem) {
+	int shm_id;
+	if (synonym_count) {
+		shm_id = shmget(IPC_PRIVATE, test_mem_bytes,
+				IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+		assert(shm_id != -1);
+		test_mem = (char*)shmat(shm_id, test_mem, 0);
+
+		for (size_t i = 0; i < synonym_count; ++i) {
+			char* synonym_mem = (char*)shmat(shm_id,
+					test_mem + (test_mem_bytes * (i+1)), 0);
+			assert(synonym_mem != (char*)-1);
+			printf("Test memory synonym @ 0x%tx\n",
+			       (ptrdiff_t)synonym_mem);
+		}
+	} else if (test_mem) {
 		test_mem = (char*)mmap(test_mem, test_mem_bytes,
 				       PROT_READ | PROT_WRITE,
 				       MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED,
@@ -360,25 +357,7 @@ main(int argc, char *argv[])
 	printf("Test memory: %zu bytes (stride=0x%zx) @ 0x%tx\n",
 	       test_mem_bytes, test_mem_stride, (ptrdiff_t)test_mem);
 
-	// Initialize noise memory (optional)
-	if (argc > 6) {
-		noise_mem_bytes = strtoull(argv[6], NULL, 0);
-		noise_mem_stride = strtoull(argv[7], NULL, 0);
-		if (!noise_mem_stride) usage(argv[0]);
-
-		if (noise_mem_bytes) {
-			noise_mem = (char*)malloc(noise_mem_bytes);
-
-			assert(noise_mem != NULL);
-			printf("Noise memory: %zu bytes (stride=0x%zx) @ 0x%tx\n",
-			       noise_mem_bytes, noise_mem_stride,
-			       (ptrdiff_t)noise_mem);
-		}
-	}
-
 	// Let host know of memory range
-	assert(test_mem != NULL);
-
 #if HOST_ZERO_TEST_MEM
 	// Need to access memory once if host wants to access page-table
 	// entries.
@@ -392,22 +371,27 @@ main(int argc, char *argv[])
 	full_memory_barrier();
 #endif
 
-	host_mark_test_mem_range(test_mem, (test_mem + test_mem_bytes - 1),
-	                         test_mem_stride);
+	host_mark_test_mem_range(test_mem,
+			(test_mem + (test_mem_bytes * (synonym_count+1)) - 1),
+			test_mem_stride,
+			(synonym_count ? (void*)(test_mem_bytes - 1) : NULL));
 
 	reset_test_mem(NULL, 0);
 
 	spawn_threads(test_iterations);
 
 	// cleanup
-	if (argc > 5 && strtoull(argv[5], NULL, 0)) {
+	if (synonym_count) {
+		shmdt(test_mem);
+		for (size_t i = 0; i < synonym_count; ++i) {
+			char* synonym_mem = test_mem + (test_mem_bytes * (i+1));
+			shmdt(synonym_mem);
+		}
+		shmctl(shm_id, IPC_RMID, 0);
+	} else if (argc > 5 && strtoull(argv[5], NULL, 0)) {
 		munmap(test_mem, test_mem_bytes);
 	} else {
 		free(test_mem);
-	}
-
-	if (noise_mem) {
-		free(noise_mem);
 	}
 
 	return EXIT_SUCCESS;

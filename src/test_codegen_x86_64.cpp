@@ -66,7 +66,7 @@ TEST(CodeGen, X86_64_SC_PER_LOCATION) {
       std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)),
       ExtractThreads(&threads));
 
-  char* code[128];
+  char code[128];
 
   ASSERT_NE(0, compiler.Emit(0, 0, code, sizeof(code)));
   ASSERT_NE(0, compiler.Emit(1, 0xffff, code, sizeof(code)));
@@ -101,6 +101,48 @@ TEST(CodeGen, X86_64_SC_PER_LOCATION) {
   ASSERT_TRUE(compiler.UpdateObs(0x17, 0, 0xf1, &wid, 1));
   ASSERT_TRUE(compiler.UpdateObs(0x17, 1, 0xf1, &wid, 1));
 
+  ASSERT_TRUE(checker->sc_per_location());
+  ASSERT_TRUE(checker->no_thin_air());
+  ASSERT_TRUE(checker->observation());
+  ASSERT_TRUE(checker->propagation());
+}
+
+TEST(CodeGen, X86_64_VA_Synonyms) {
+  std::vector<codegen::strong::Operation::Ptr> threads = {
+      // p0
+      std::make_shared<strong::Write>(0x1ff, 0),            // @0x0
+      std::make_shared<strong::Read>(0x2ff, 0),             // @0x8
+
+      // p1
+      std::make_shared<strong::Write>(0x3ff, 1),  // 0x0
+      std::make_shared<strong::Write>(0x3fe, 1),  // 0x8
+  };
+
+  cats::ExecWitness ew;
+  cats::Arch_TSO arch;
+  Compiler<strong::Operation, strong::Backend_X86_64> compiler(
+      std::unique_ptr<EvtStateCats>(new EvtStateCats(&ew, &arch)),
+      ExtractThreads(&threads));
+  compiler.evts()->set_addr_mask(0xff);
+
+  char code[128];
+
+  ASSERT_NE(0, compiler.Emit(0, 0, code, sizeof(code)));
+  ASSERT_NE(0, compiler.Emit(1, 0xffff, code, sizeof(code)));
+
+  auto checker = arch.MakeChecker(&arch, &ew);
+  ew.po.set_props(mc::EventRel::kTransitiveClosure);
+  ew.co.set_props(mc::EventRel::kTransitiveClosure);
+
+  types::WriteID wid = 0;
+  ASSERT_TRUE(compiler.UpdateObs(0x0, 0, 0x1ff, &wid, 1));
+  ASSERT_TRUE(compiler.UpdateObs(0xffff + 0x8, 0, 0x3fe, &wid, 1));
+  wid = 1;
+  ASSERT_TRUE(compiler.UpdateObs(0xffff + 0x0, 0, 0x3ff, &wid, 1));
+  wid = 2;
+  ASSERT_TRUE(compiler.UpdateObs(0x8, 0, 0x2ff, &wid, 1));
+
+  ASSERT_NO_THROW(checker->wf());
   ASSERT_TRUE(checker->sc_per_location());
   ASSERT_TRUE(checker->no_thin_air());
   ASSERT_TRUE(checker->observation());
