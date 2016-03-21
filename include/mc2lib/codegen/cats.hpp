@@ -126,7 +126,8 @@ class EvtStateCats {
     assert(sizeof(types::WriteID) <= size);
     assert(size % sizeof(types::WriteID) == 0);
 
-    EventPtrs<max_size_bytes> result;
+    // Initialize to avoid uninitialized warning with some older compilers.
+    EventPtrs<max_size_bytes> result{{nullptr}};
 
     for (std::size_t i = 0; i < size / sizeof(types::WriteID); ++i) {
       result[i] = mkevt(i * sizeof(types::WriteID));
@@ -148,13 +149,12 @@ class EvtStateCats {
     assert(!Exhausted());
     addr &= addr_mask_;
     ++last_other_id;
-    return MakeEvent<max_size_bytes>(
-        pid, type, size, [&](types::Addr offset) {
-          const mc::Event event =
-              mc::Event(type, addr + offset, mc::Iiid(pid, last_other_id));
+    return MakeEvent<max_size_bytes>(pid, type, size, [&](types::Addr offset) {
+      const mc::Event event =
+          mc::Event(type, addr + offset, mc::Iiid(pid, last_other_id));
 
-          return &ew_->events.Insert(event, true);
-        });
+      return &ew_->events.Insert(event, true);
+    });
   }
 
   template <std::size_t max_size_bytes = sizeof(types::WriteID)>
@@ -164,16 +164,15 @@ class EvtStateCats {
     assert(!Exhausted());
     addr &= addr_mask_;
     ++last_write_id_;
-    return MakeEvent<max_size_bytes>(
-        pid, type, size, [&](types::Addr offset) {
-          const types::WriteID write_id = last_write_id_;
+    return MakeEvent<max_size_bytes>(pid, type, size, [&](types::Addr offset) {
+      const types::WriteID write_id = last_write_id_;
 
-          const mc::Event event =
-              mc::Event(type, addr + offset, mc::Iiid(pid, write_id));
+      const mc::Event event =
+          mc::Event(type, addr + offset, mc::Iiid(pid, write_id));
 
-          *(data + offset) = write_id;
-          return (writes_[write_id] = &ew_->events.Insert(event, true));
-        });
+      *(data + offset) = write_id;
+      return (writes_[write_id] = &ew_->events.Insert(event, true));
+    });
   }
 
   template <std::size_t max_size_bytes = sizeof(types::WriteID)>

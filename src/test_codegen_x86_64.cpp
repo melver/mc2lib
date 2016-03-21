@@ -110,8 +110,8 @@ TEST(CodeGen, X86_64_SC_PER_LOCATION) {
 TEST(CodeGen, X86_64_VA_Synonyms) {
   std::vector<codegen::strong::Operation::Ptr> threads = {
       // p0
-      std::make_shared<strong::Write>(0x1ff, 0),            // @0x0
-      std::make_shared<strong::Read>(0x2ff, 0),             // @0x8
+      std::make_shared<strong::Write>(0x1ff, 0),  // @0x0
+      std::make_shared<strong::Read>(0x2ff, 0),   // @0x8
 
       // p1
       std::make_shared<strong::Write>(0x3ff, 1),  // 0x0

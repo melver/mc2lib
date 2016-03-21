@@ -62,8 +62,7 @@ namespace armv7 {
     cnext__ += 2;                                      \
   } while (0)
 
-#define ASM_PROLOGUE \
-  return static_cast<std::size_t>(cnext__ - static_cast<char *>(code));
+#define ASM_PROLOGUE return ASM_LEN;
 
 // Thumb
 class Backend {
@@ -159,7 +158,7 @@ class Backend {
     ASM_PROLOGUE;
   }
 
- private:
+ protected:
   class Helper {
    public:
     Helper(char *&cnext, void *&code, std::size_t len)
@@ -195,7 +194,7 @@ class Backend {
           | (imm32_t & 0x00ff));
     }
 
-   private:
+   protected:
     char *&cnext__;
     void *&code;
     const std::size_t len;
