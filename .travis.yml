@@ -39,3 +39,4 @@ script:
   - $CXX --version
   # Test library
   - make clean check
+  - make clean check BUILDFLAGS='-O2 -DNDEBUG'

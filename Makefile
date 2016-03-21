@@ -11,10 +11,11 @@ CPPLINT ?= cpplint
 GTEST_DIR = third_party/googletest/googletest
 GMOCK_DIR = third_party/googletest/googlemock
 
-CXXFLAGS = -g -std=c++11
+BUILDFLAGS = -g
 WARNFLAGS = -Wall -Werror
-CFLAGS = -pthread -isystem $(GTEST_DIR)/include -isystem $(GMOCK_DIR)/include -I./include
-LIBS = -lpthread
+INCLUDES = -isystem $(GTEST_DIR)/include -isystem $(GMOCK_DIR)/include -I./include
+CXXFLAGS = -std=c++11 -pthread
+LIBS =
 
 gtestmock_MODULES = build/$(GTEST_DIR)/src/gtest-all.cc.o build/$(GMOCK_DIR)/src/gmock-all.cc.o
 
@@ -26,15 +27,15 @@ test_mc2lib_MODULES = $(shell find src -name "test_*.cpp" -printf "build/src/%P.
 all: test_mc2lib
 
 test_mc2lib: $(gtestmock_MODULES) $(test_mc2lib_MODULES)
-	$(CXX) $(CXXFLAGS) $(WARNFLAGS) $(CFLAGS) $(LIBS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $(BUILDFLAGS) $(WARNFLAGS) $(LIBS) $^ -o $@
 
 build/src/%.cpp.o: src/%.cpp $(HEADER_FILES)
 	@mkdir -pv $$(dirname $@)
-	$(CXX) $(CXXFLAGS) $(WARNFLAGS) $(CFLAGS) -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(BUILDFLAGS) $(WARNFLAGS) $(INCLUDES) -c -o $@ $<
 
 build/third_party/googletest/%.cc.o: third_party/googletest/%.cc
 	@mkdir -pv $$(dirname $@)
-	$(CXX) $(CXXFLAGS) -I$(GTEST_DIR) -I$(GMOCK_DIR) $(CFLAGS) -c -o $@ $^
+	$(CXX) $(CXXFLAGS) $(BUILDFLAGS) -I$(GTEST_DIR) -I$(GMOCK_DIR) $(INCLUDES) -c -o $@ $^
 
 .PHONY: tidy
 tidy: compile_commands.json
@@ -48,7 +49,7 @@ compile_commands.json: Makefile
 	for obj in $(test_mc2lib_MODULES); do \
 		src=$${obj%.o}; src=$${src#build/}; \
 		echo "$${delim}{ \"directory\" : \"$(PWD)\"," \
-			"\"command\" : \"/usr/bin/clang++ $(CXXFLAGS) $(WARNFLAGS) $(CFLAGS) -c -o $${obj} $${src}\"," \
+			"\"command\" : \"/usr/bin/clang++ $(CXXFLAGS) $(BUILDFLAGS) $(WARNFLAGS) $(INCLUDES) -c -o $${obj} $${src}\"," \
 			"\"file\": \"$${src}\" }" >> compile_commands.json; \
 		delim=","; \
 	done
@@ -87,4 +88,3 @@ clean:
 cleanall: clean
 	$(RM) compile_commands.json
 	$(RM) -r build
-
