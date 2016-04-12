@@ -59,13 +59,12 @@ namespace cats {
 
 class ExecWitness {
  public:
-  /*
-   * Use of Raw() in rf is justified, as we do not expect (according to
-   * wf_rf), the rf-relation to have any additional properties.
-   */
   template <class FilterFunc>
   EventRel fr(FilterFunc filter_func) const {
     EventRel er;
+
+    // Use of Raw() is justified, as we do not expect (according to wf_rf), the
+    // rf-relation to have any additional properties.
     for (const auto& rf_tuples : rf.Raw()) {
       const auto co_reach = co.Reachable(rf_tuples.first);
       for (const auto& co_w : co_reach.Get()) {
@@ -77,6 +76,7 @@ class ExecWitness {
         }
       }
     }
+
     return er;
   }
 
@@ -153,7 +153,7 @@ class Architecture {
 
   virtual void Clear() {}
 
-  /*
+  /**
    * Creates a checker compatible with this Architecture.
    */
   virtual std::unique_ptr<Checker> MakeChecker(
@@ -167,12 +167,12 @@ class Architecture {
     return ew.rfe() | proxy_->ppo(ew) | proxy_->fences(ew);
   }
 
-  /*
+  /**
    * Should return the mask of all types that are classed as read.
    */
   virtual Event::Type EventTypeRead() const = 0;
 
-  /*
+  /**
    * Should return the mask of all types that are classed as write.
    */
   virtual Event::Type EventTypeWrite() const = 0;
@@ -388,8 +388,10 @@ class Checker {
 };
 
 /*
- * Some common memory models.
- */
+=============================
+Some common memory models.
+=============================
+*/
 
 class Arch_SC : public Architecture {
  public:

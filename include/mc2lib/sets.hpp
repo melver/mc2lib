@@ -314,7 +314,7 @@ class Relation {
   /**
    * Lazy operators as properties.
    *
-   * All inplace operators (e.g. |=) evaluate the current relation in place
+   * All in-place operators (e.g. |=) evaluate the current relation in place
    * and clear properties.
    */
   typedef unsigned Properties;
@@ -405,6 +405,12 @@ class Relation {
     }
   }
 
+  /**
+   * Total size of the relation (i.e. number of tuples or edges); uses
+   * properties.
+   *
+   * @return Total number of tuples (or edges).
+   */
   std::size_t size() const {
     std::size_t total = 0;
 
@@ -422,6 +428,11 @@ class Relation {
     return total;
   }
 
+  /**
+   * Iterates over each tuple in the relation (uses properties).
+   *
+   * @param func A function taking two parameters of type Element.
+   */
   template <class Func>
   Func for_each(Func func) const {
     const auto dom = Domain();
@@ -437,8 +448,7 @@ class Relation {
   }
 
   /**
-   * Provide Eval() for evaluated view of the relation (with properties
-   * evaluated).
+   * Evaluated view of the relation, with properties evaluated.
    *
    * @return Evaluated Relation.
    */
@@ -456,6 +466,11 @@ class Relation {
     return result;
   }
 
+  /**
+   * Evaluate all properties in-place.
+   *
+   * @return Reference to this object.
+   */
   Relation& EvalInplace() {
     if (props() == kNone) {
       return *this;
@@ -485,6 +500,9 @@ class Relation {
     return result;
   }
 
+  /**
+   * @return R^-1 = {(y,x) | (x,y) ∈ R}
+   */
   Relation Inverse() const {
     Relation result;
 
@@ -569,7 +587,8 @@ class Relation {
   }
 
   /**
-   * Query relation.
+   * Check if (e1, e2) is in the relation. This effectively does a search if
+   * there is an edge from e1 to e2.
    *
    * @param e1 first element.
    * @param e2 second element
@@ -818,10 +837,34 @@ class Relation {
  protected:
   typedef typename Ts::template MapContainer<bool> FlagSet;
 
-  enum class SearchMode { kRelated, kRelatedVisitAll, kFindCycle };
+  /**
+   * Search mode.
+   */
+  enum class SearchMode {
+    /**
+     * Check if two elements are related.
+     */
+    kRelated,
 
+    /**
+     * Check if two elements are related, but visit all elements.
+     */
+    kRelatedVisitAll,
+
+    /**
+     * Only find a cycle from a given element (node).
+     */
+    kFindCycle
+  };
+
+  /**
+   * @return true if e in rel_.
+   */
   bool Contains__(const Element& e) const { return rel_.find(e) != rel_.end(); }
 
+  /**
+   * Get path from start to end.
+   */
   void GetPath(Path* out, const Element* start, const Element* end,
                FlagSet* visiting,
                SearchMode mode = SearchMode::kRelated) const {
@@ -867,6 +910,14 @@ class Relation {
     }
   }
 
+  /**
+   * Check that relation is irreflexive.
+   *
+   * @param local_props Call specific properties.
+   * @param cyclic Optional parameter, in which the cycle is returned, if
+   *               result is false.
+   * @return true if irreflexive, false otherwise.
+   */
   bool Irreflexive(Properties local_props, Path* cyclic) const {
     local_props |= props_;
 
@@ -899,7 +950,17 @@ class Relation {
   }
 
   /**
-   * Directed graph search.
+   * Check if two elements are related, i.e. there exists an edge or path from
+   * e1 to e2. This is implemented as a directed graph search.
+   *
+   * @param e1 First element.
+   * @param e2 Second element.
+   * @param visited Visited element (node) set.
+   * @param visiting Currently visiting elements (nodes).
+   * @param local_props Call specific properties.
+   * @param mode Search mode.
+   *
+   * @return true if there exists an edge or path, false otherwise.
    */
   bool R_search(const Element& e1, const Element* e2, Set<Ts>* visited,
                 FlagSet* visiting = nullptr, Properties local_props = kNone,
@@ -936,6 +997,9 @@ class Relation {
     return search.DfsRec(e1, *e2);
   }
 
+  /**
+   * Helper class to check if two elements are related.
+   */
   class R_impl {
    public:
     R_impl(const Relation* src, Set<Ts>* visited, FlagSet* visiting,
@@ -946,6 +1010,10 @@ class Relation {
           is_tran_cl_(is_tran_cl),
           mode_(mode) {}
 
+    /**
+     * Recursive DFS implementation, searching if there exists a path from e1
+     * to e2.
+     */
     bool DfsRec(const Element& e1, const Element& e2) const {
       const auto tuples = src_->Raw().find(e1);
 
@@ -997,6 +1065,10 @@ class Relation {
       return result;
     }
 
+    /**
+     * DFS optimized to just find a cycle; elides some branches that are not
+     * needed compared to DfsRec.
+     */
     bool DfsRecFindCycle(const Element& start) const {
       // assert(is_tran_cl_);
       // assert(mode_ == SearchMode::kFindCycle);
@@ -1139,6 +1211,7 @@ inline Relation<Ts> operator&(Relation<Ts>&& lhs, Relation<Ts>&& rhs) {
 }
 
 /**
+ * Relation operator base class.
  * No derived class shall define a destructor!
  */
 template <class Ts>
@@ -1157,14 +1230,30 @@ class RelationOp {
    * assignment operators.
   */
 
+  /**
+   * Evaluate in-place, where postcondition is rels_.size() <= 1. This avoids
+   * some of the copying overhead of Eval(), and can therefore be more
+   * efficient.
+   *
+   * @return Reference to this object.
+   */
   virtual RelationOp& EvalInplace() = 0;
 
+  /**
+   * Evaluate operator, computing the result of the opertor.
+   *
+   * @return Relation representing view of operator.
+   */
   virtual Relation<Ts> Eval() const = 0;
 
   void Clear() { rels_.clear(); }
 
   /**
-   * Optimized for move.
+   * Evaluate operator in-place, and clearing it, returning the evaluated
+   * Relation. Optimized for move, and should be used where the operator is
+   * used as a temporary.
+   *
+   * @return Relation representing view of operator before call.
    */
   Relation<Ts> EvalClear() {
     if (rels_.empty()) {
@@ -1194,6 +1283,9 @@ class RelationOp {
   std::vector<Relation<Ts>> rels_;
 };
 
+/**
+ * Operator ";".
+ */
 template <class Ts>
 class RelationSeq : public RelationOp<Ts> {
  public:
@@ -1266,6 +1358,15 @@ class RelationSeq : public RelationOp<Ts> {
     return er;
   }
 
+  /**
+   * Check if (e1, e2) is in the relation. This effectively does a search if
+   * there is an edge from e1 to e2.
+   *
+   * @param e1 First element.
+   * @param e2 Second element.
+   * @param path Optional; return path from e1 to e2.
+   * @return true if related, false otherwise.
+   */
   bool R(const Element& e1, const Element& e2,
          typename Relation<Ts>::Path* path = nullptr,
          std::size_t seq = 0) const {
@@ -1304,6 +1405,13 @@ class RelationSeq : public RelationOp<Ts> {
     return this->rels_[seq].R(e1, e2, path);
   }
 
+  /**
+   * Check if irreflexive.
+   *
+   * @param cyclic Optional parameter, in which the cycle is returned, if
+   *               result is false.
+   * @return true if irreflexive, false otherwise.
+   */
   bool Irreflexive(typename Relation<Ts>::Path* cyclic = nullptr) const {
     if (this->rels_.empty()) {
       return true;
@@ -1374,6 +1482,13 @@ inline RelationSeq<Ts> operator+(RelationSeq<Ts>&& lhs, RelationSeq<Ts>&& rhs) {
   return std::move(lhs);
 }
 
+/**
+ * @brief Helper class to instantiate types used by Set, Relation, etc.
+ *
+ * Set, Relation, etc. take a template parameter that provides Element, and
+ * SetContainer or MapContainer; this class can be used to instantiate a class
+ * to be passed as the template parameter to Set and Relation.
+ */
 template <class E, class Hash = typename E::Hash>
 struct Types {
   typedef E Element;

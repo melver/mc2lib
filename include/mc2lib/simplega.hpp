@@ -59,8 +59,9 @@ namespace simplega {
  */
 namespace evolve {
 
-/*
- * Cut & splice. one_point == true turns it into one-point crossover.
+/**
+ * Cut & splice. If template parameter one_point is set, turns this into
+ * one-point crossover.
  *
  * Assumes that GenomeT implements Get() and uses a vector-like structure to
  * represent the genome.
@@ -215,17 +216,17 @@ class Genome {
   Container genome_;
 };
 
-/*
- * GenePool
+/**
+ * @brief Helper to manages and evolve a populates.
  *
- * Helps evolve a population, and provides various primitives for implementing
- * selection operators.
+ * Helps manage and evolve a population, and provides various primitives for
+ * implementing selection operators.
  */
 template <class GenomeT>
 class GenePool {
  public:
-  /*
-   * Use a list for the population pool, as this permits O(1) removal of
+  /**
+   * Using a list for the population pool, as this permits O(1) removal of
    * elements.
    */
   typedef std::list<GenomeT> Population;
@@ -308,8 +309,8 @@ class GenePool {
     return std::min_element(population_.begin(), population_.end())->Fitness();
   }
 
-  /*
-   * Sorts the population based on fitness.
+  /**
+   * Sorts (in-place) the population based on fitness.
    */
   void Sort() { population_.Sort(); }
 
@@ -317,8 +318,8 @@ class GenePool {
     return *std::min_element(population_.begin(), population_.end());
   }
 
-  /*
-   * Return the entire population.
+  /**
+   * @return Entire population as Selection.
    */
   Selection SelectAll() {
     Selection result;
@@ -329,8 +330,8 @@ class GenePool {
     return result;
   }
 
-  /*
-   * Return random subset of population, using distribution dist to select.
+  /**
+   * @return Random subset of population, using distribution dist to select.
    */
   template <class URNG, class DIST>
   Selection SelectDist(URNG& urng, DIST& dist, std::size_t count) {
@@ -355,9 +356,9 @@ class GenePool {
     return result;
   }
 
-  /*
-   * Return random subset of population, where a higher fitness means an
-   * individual is more likely to be selected.
+  /**
+   * @return Random subset of population, where a higher fitness means an
+   *         individual is more likely to be selected.
    */
   template <class URNG>
   Selection SelectRoulette(URNG& urng, std::size_t count) {
@@ -366,9 +367,9 @@ class GenePool {
     return SelectDist(urng, dist, count);
   }
 
-  /*
-   * Return a random subset of the population, where each individual has the
-   * same probability of being selected.
+  /**
+   * @return Random subset of the population, where each individual has the
+   *         same probability of being selected.
    */
   template <class URNG>
   Selection SelectUniform(URNG& urng, std::size_t count) {
@@ -376,8 +377,8 @@ class GenePool {
     return SelectDist(urng, dist, count);
   }
 
-  /*
-   * Sorts a selection based on fitness.
+  /**
+   * Sorts (in-place) a Selection based on fitness.
    */
   void SelectionSort(Selection* v) {
     std::sort(v->begin(), v->end(), [](const GenomeT* lhs, const GenomeT* rhs) {
@@ -385,13 +386,12 @@ class GenePool {
     });
   }
 
-  /*
-   * Takes a selection and mates the initial selection[:mates]
-   * individuals.
+  /**
+   * Takes a selection and mates the initial selection[:mates] individuals.
    *
    * The elements in selection also determine which individuals are to be
-   * removed from the population; selection[keep:] are removed from
-   * population (can e.g. be used for elitism).
+   * removed from the population; selection[keep:] are removed from population
+   * (can e.g. be used for elitism).
    */
   template <class URNG, class CrossoverMutateFunc>
   void Step(URNG& urng, CrossoverMutateFunc crossover_mutate,
