@@ -142,7 +142,7 @@ class Genome {
    *
    * @param g A raw vector of type T genes forming this new Genome.
    */
-  explicit Genome(const Container& g) : genome_(g) {}
+  explicit Genome(Container g) : genome_(std::move(g)) {}
 
   virtual ~Genome() {}
 
@@ -252,7 +252,7 @@ class GenePool {
       : target_population_size_(population.size()),
         mutation_rate_(mutation_rate),
         steps_(0),
-        population_(population) {}
+        population_(std::move(population)) {}
 
   explicit GenePool(Selection selection, float mutation_rate = 0.02f)
       : target_population_size_(selection.size()),

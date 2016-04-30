@@ -89,7 +89,7 @@ class Set {
 
   Set() {}
 
-  explicit Set(const Container& s) : set_(s) {}
+  explicit Set(Container s) : set_(std::move(s)) {}
 
   /**
    * Provide access to underlying container.
@@ -109,6 +109,19 @@ class Set {
    */
   const Element& Insert(const Element& e, bool assert_unique = false) {
     auto result = set_.insert(e);
+    assert(!assert_unique || result.second);
+    return *result.first;
+  }
+
+  /**
+   * Insert element.
+   *
+   * @param e Element to be inserted.
+   * @param assert_unique Assert that element does not exist in container.
+   * @return Reference to inserted Element.
+   */
+  const Element& Insert(Element&& e, bool assert_unique = false) {
+    auto result = set_.emplace(std::move(e));
     assert(!assert_unique || result.second);
     return *result.first;
   }
@@ -331,7 +344,7 @@ class Relation {
 
   Relation() : props_(kNone) {}
 
-  explicit Relation(const Container& r) : props_(kNone), rel_(r) {}
+  explicit Relation(Container r) : props_(kNone), rel_(std::move(r)) {}
 
   /**
    * Avoid accessing rel_ directly! Uses of Raw() should be justified.
@@ -368,6 +381,10 @@ class Relation {
   void Insert(const Element& e1, const Element& e2,
               bool assert_unique = false) {
     rel_[e1].Insert(e2, assert_unique);
+  }
+
+  void Insert(const Element& e1, Element&& e2, bool assert_unique = false) {
+    rel_[e1].Insert(std::move(e2), assert_unique);
   }
 
   void Insert(const Element& e1, const Set<Ts>& e2s) {
@@ -1219,9 +1236,7 @@ class RelationOp {
  public:
   RelationOp() {}
 
-  explicit RelationOp(const std::vector<Relation<Ts>>& rels) : rels_(rels) {}
-
-  explicit RelationOp(std::vector<Relation<Ts>>&& rels)
+  explicit RelationOp(std::vector<Relation<Ts>> rels)
       : rels_(std::move(rels)) {}
 
   /*//virtual ~RelationOp()
@@ -1293,10 +1308,7 @@ class RelationSeq : public RelationOp<Ts> {
 
   RelationSeq() {}
 
-  explicit RelationSeq(const std::vector<Relation<Ts>>& v)
-      : RelationOp<Ts>(v) {}
-
-  explicit RelationSeq(std::vector<Relation<Ts>>&& v)
+  explicit RelationSeq(std::vector<Relation<Ts>> v)
       : RelationOp<Ts>(std::move(v)) {}
 
   RelationSeq& operator+=(const Relation<Ts>& rhs) {

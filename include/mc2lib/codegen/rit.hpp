@@ -64,8 +64,8 @@ class RandInstTest
 
   explicit RandInstTest(const RandInstTest& parent1,
                         const RandInstTest& parent2,
-                        const std::vector<typename Operation::Ptr>& g)
-      : simplega::Genome<typename Operation::Ptr>(g),
+                        std::vector<typename Operation::Ptr> g)
+      : simplega::Genome<typename Operation::Ptr>(std::move(g)),
         urng_(parent1.urng_),
         factory_(parent1.factory_),
         fitness_(0.0f) {}

@@ -7,11 +7,11 @@ using namespace mc2lib;
 using namespace mc2lib::memconsistency;
 
 static Event base_event;
-static const Event& ResetEvt() {
+static Event ResetEvt() {
   base_event.iiid.poi = 0;
   return base_event;
 }
-static const Event& NextEvt() {
+static Event NextEvt() {
   ++base_event.iiid;
   return base_event;
 }
