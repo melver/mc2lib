@@ -477,7 +477,7 @@ class Compiler {
     return op->UpdateObs(ip, part, addr, from_id, size, evts_.get());
   }
 
-  Operation *IpToOp(types::InstPtr ip) {
+  Operation *IpToOp(types::InstPtr ip) const {
     if (ip_to_op_.empty()) {
       // Can be legally empty if no code has yet been emitted, i.e. right
       // after host system startup. By not faulting here, the host can
