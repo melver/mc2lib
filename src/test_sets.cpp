@@ -22,7 +22,7 @@ TEST(Sets, SimpleSet) {
   ASSERT_FALSE(s.Subset(s));
   ASSERT_TRUE(s.SubsetEq(s));
   ASSERT_TRUE(s == (s * s).Range());
-  ASSERT_TRUE((s | s) == s);
+  ASSERT_FALSE((s | s) != s);
 }
 
 TEST(Sets, CycleDetectionUnionNo) {
@@ -245,6 +245,7 @@ TEST(Sets, EventRelSeqR) {
   auto ers_copy = ers;
   const EventRel evald_inplace = ers_copy.EvalClear();
   ASSERT_TRUE(evald == evald_inplace);
+  ASSERT_FALSE(evald != evald_inplace);
 
   ers.EvalInplace();
   // Should be same result after eval_inplace

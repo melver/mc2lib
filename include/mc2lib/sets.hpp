@@ -100,6 +100,8 @@ class Set {
 
   bool operator==(const Set& rhs) const { return set_ == rhs.set_; }
 
+  bool operator!=(const Set& rhs) const { return set_ != rhs.set_; }
+
   /**
    * Insert element.
    *
@@ -602,6 +604,8 @@ class Relation {
     return (props() ? Eval() : *this).rel_ ==
            (rhs.props() ? rhs.Eval() : rhs).rel_;
   }
+
+  bool operator!=(const Relation& rhs) const { return !((*this) == rhs); }
 
   /**
    * Check if (e1, e2) is in the relation. This effectively does a search if
