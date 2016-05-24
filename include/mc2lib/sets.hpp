@@ -169,7 +169,7 @@ class Set {
   }
 
   Set& operator|=(Set&& rhs) {
-    if (Empty()) {
+    if (empty()) {
       set_ = std::move(rhs.set_);
     } else {
       set_.insert(rhs.set_.begin(), rhs.set_.end());
@@ -216,7 +216,7 @@ class Set {
 
   std::size_t size() const { return set_.size(); }
 
-  bool Empty() const { return set_.empty(); }
+  bool empty() const { return set_.empty(); }
 
   bool SubsetEq(const Set& s) const {
     if (size() > s.size()) return false;
@@ -390,12 +390,12 @@ class Relation {
   }
 
   void Insert(const Element& e1, const Set<Ts>& e2s) {
-    if (e2s.Empty()) return;
+    if (e2s.empty()) return;
     rel_[e1] |= e2s;
   }
 
   void Insert(const Element& e1, Set<Ts>&& e2s) {
-    if (e2s.Empty()) return;
+    if (e2s.empty()) return;
     rel_[e1] |= std::move(e2s);
   }
 
@@ -404,7 +404,7 @@ class Relation {
     if (Contains__(e1)) {
       bool result = rel_[e1].Erase(e2, assert_exists);
 
-      if (rel_[e1].Empty()) {
+      if (rel_[e1].empty()) {
         rel_.erase(e1);
       }
 
@@ -418,7 +418,7 @@ class Relation {
     if (Contains__(e1)) {
       rel_[e1] -= e2s;
 
-      if (rel_[e1].Empty()) {
+      if (rel_[e1].empty()) {
         rel_.erase(e1);
       }
     }
@@ -581,7 +581,7 @@ class Relation {
     for (auto it = rel_.begin(); it != rel_.end();) {
       it->second &= rhs.Reachable(it->first);
 
-      if (it->second.Empty()) {
+      if (it->second.empty()) {
         it = rel_.erase(it);
         continue;
       }
@@ -594,7 +594,7 @@ class Relation {
 
   void Clear() { rel_.clear(); }
 
-  bool Empty() const {
+  bool empty() const {
     // Upon erasure, we ensure that an element is not related to an empty
     // set, i.e. in that case it is deleted.
     return rel_.empty();
@@ -848,7 +848,7 @@ class Relation {
 
   bool SubsetEq(const Relation& rhs) const {
     const Relation diff = (*this - rhs);
-    return diff.Empty();
+    return diff.empty();
   }
 
   bool Subset(const Relation& rhs) const {
@@ -942,7 +942,7 @@ class Relation {
   bool Irreflexive(Properties local_props, Path* cyclic) const {
     local_props |= props_;
 
-    if (AllBitmask(local_props, kReflexiveClosure) && !Empty()) {
+    if (AllBitmask(local_props, kReflexiveClosure) && !empty()) {
       if (cyclic != nullptr) {
         // Pick arbitrary.
         cyclic->push_back(rel_.begin()->first);

@@ -433,7 +433,7 @@ class Arch_TSO : public Architecture {
   }
 
   EventRel fences(const ExecWitness& ew) const override {
-    if (mfence.Empty()) {
+    if (mfence.empty()) {
       return mfence;
     }
 

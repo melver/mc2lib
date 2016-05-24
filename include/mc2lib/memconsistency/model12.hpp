@@ -314,7 +314,7 @@ class Arch_TSO : public Architecture {
   EventRel grf(const ExecWitness& ew) const override { return ew.rfe(); }
 
   EventRel ab(const ExecWitness& ew) const override {
-    if (mfence.Empty()) {
+    if (mfence.empty()) {
       return mfence;
     }
 
