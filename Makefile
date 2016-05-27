@@ -41,7 +41,7 @@ build/third_party/googletest/%.cc.o: third_party/googletest/%.cc
 tidy: compile_commands.json
 	$(CLANG_TIDY) \
 		-header-filter='.*' \
-		-checks='-*,clang-analyzer-*,google*,misc*' \
+		-checks='-*,clang-analyzer-*,google*,misc*,-misc-unused-parameters,performance*' \
 		$(shell find src -name "*.cpp")
 
 compile_commands.json: Makefile
