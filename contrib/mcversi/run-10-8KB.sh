@@ -1,5 +1,8 @@
 #!/bin/sh
 #
+# This code is licensed under the BSD 3-Clause license. See the LICENSE file in
+# the project root for license terms.
+#
 # 8KB configuration from McVerSi paper.
 
 # Optionally set this to one of:

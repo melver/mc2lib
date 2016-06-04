@@ -1,3 +1,6 @@
+// This code is licensed under the BSD 3-Clause license. See the LICENSE file
+// in the project root for license terms.
+
 #include "mc2lib/memconsistency/eventsets.hpp"
 #include "mc2lib/sets.hpp"
 

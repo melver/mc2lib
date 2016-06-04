@@ -1,3 +1,6 @@
+// This code is licensed under the BSD 3-Clause license. See the LICENSE file
+// in the project root for license terms.
+
 #include "mc2lib/codegen/ops/x86_64.hpp"
 #include "mc2lib/codegen/rit.hpp"
 #include "mc2lib/memconsistency/cats.hpp"
