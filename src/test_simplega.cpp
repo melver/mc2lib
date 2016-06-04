@@ -19,7 +19,7 @@ class GenomeAdd : public Genome<float> {
             const std::vector<float>& g)
       : Genome<float>(g) {}
 
-  void Mutate(float rate) override { MutateImpl(rate); };
+  void Mutate(float rate) override { MutateImpl(rate); }
 
   float Fitness() const override {
     float total = 0.0;
