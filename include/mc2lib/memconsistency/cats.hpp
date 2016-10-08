@@ -63,12 +63,12 @@ class ExecWitness {
   EventRel fr(FilterFunc filter_func) const {
     EventRel er;
 
-    // Use of Raw() is justified, as we do not expect (according to wf_rf), the
+    // Use of get() is justified, as we do not expect (according to wf_rf), the
     // rf-relation to have any additional properties.
-    for (const auto& rf_tuples : rf.Raw()) {
+    for (const auto& rf_tuples : rf.get()) {
       const auto co_reach = co.Reachable(rf_tuples.first);
-      for (const auto& co_w : co_reach.Get()) {
-        for (const auto& rf_r : rf_tuples.second.Get()) {
+      for (const auto& co_w : co_reach.get()) {
+        for (const auto& rf_r : rf_tuples.second.get()) {
           if (filter_func(std::make_pair(rf_tuples.first, rf_r),
                           std::make_pair(rf_tuples.first, co_w))) {
             er.Insert(rf_r, co_w);
@@ -278,12 +278,12 @@ class Checker {
   virtual void wf_rf() const {
     EventSet reads;
 
-    for (const auto& tuples : exec_->rf.Raw()) {
+    for (const auto& tuples : exec_->rf.get()) {
       if (!tuples.first.AnyType(arch_->EventTypeWrite())) {
         throw Error("WF_RF_NOT_FROM_WRITE");
       }
 
-      for (const auto& e : tuples.second.Get()) {
+      for (const auto& e : tuples.second.get()) {
         if (!e.AnyType(arch_->EventTypeRead()) || tuples.first.addr != e.addr) {
           throw Error("WF_RF_NOT_SAME_LOC");
         }
@@ -301,10 +301,10 @@ class Checker {
     std::unordered_set<types::Addr> addrs;
 
     // Assert writes ordered captured in ws are to the same location.
-    for (const auto& tuples : exec_->co.Raw()) {
+    for (const auto& tuples : exec_->co.get()) {
       addrs.insert(tuples.first.addr);
 
-      for (const auto& e : tuples.second.Get()) {
+      for (const auto& e : tuples.second.get()) {
         if (tuples.first.addr != e.addr) {
           throw Error("WF_CO_NOT_SAME_LOC");
         }
@@ -439,11 +439,12 @@ class Arch_TSO : public Architecture {
 
     // Filter postar by only those events which are possibly relevent.
     const auto postar =
-        ew.po.Filter([&](const Event& e1, const Event& e2) {
-               // Only include those where first event is write or second
-               // is a read, all other are included in po regardless.
-               return e1.AllType(Event::kWrite) || e2.AllType(Event::kRead);
-             })
+        ew.po
+            .Filter([&](const Event& e1, const Event& e2) {
+              // Only include those where first event is write or second
+              // is a read, all other are included in po regardless.
+              return e1.AllType(Event::kWrite) || e2.AllType(Event::kRead);
+            })
             .set_props(EventRel::kReflexiveClosure);
 
     return EventRelSeq({postar, mfence, postar}).EvalClear();

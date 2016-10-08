@@ -92,7 +92,8 @@ class Op {
   // Callback type: optionally, previous Ops get called back with new Ops.
   // E.g. for lazily constructing control flow graph with random branches.
   typedef std::function<std::size_t(Op *, types::InstPtr, Backend *, EvtState *,
-                                    void *, std::size_t)> Callback;
+                                    void *, std::size_t)>
+      Callback;
   typedef std::vector<Callback> CallbackStack;
 
   template <class T>
@@ -257,31 +258,31 @@ class NullOp : public Op<Backend, EvtState> {
 
   void InsertPo(typename Op<Backend, EvtState>::ThreadConstIt before,
                 EvtState *evts) override {
-    throw std::logic_error("Not supported!");
+    throw std::logic_error("Not supported");
   }
 
   std::size_t Emit(types::InstPtr start, Backend *backend, EvtState *evts,
                    void *code, std::size_t len) override {
-    throw std::logic_error("Not supported!");
+    throw std::logic_error("Not supported");
     return 0;
   }
 
   bool UpdateObs(types::InstPtr ip, int part, types::Addr addr,
                  const types::WriteID *from_id, std::size_t size,
                  EvtState *evts) override {
-    throw std::logic_error("Not supported!");
+    throw std::logic_error("Not supported");
     return false;
   }
 
   const mc::Event *LastEvent(const mc::Event *next_event,
                              EvtState *evts) const override {
-    throw std::logic_error("Not supported!");
+    throw std::logic_error("Not supported");
     return nullptr;
   }
 
   const mc::Event *FirstEvent(const mc::Event *prev_event,
                               EvtState *evts) const override {
-    throw std::logic_error("Not supported!");
+    throw std::logic_error("Not supported");
     return nullptr;
   }
 };

@@ -63,7 +63,7 @@ namespace evolve {
  * Cut & splice. If template parameter one_point is set, turns this into
  * one-point crossover.
  *
- * Assumes that GenomeT implements Get() and uses a vector-like structure to
+ * Assumes that GenomeT implements get() and uses a vector-like structure to
  * represent the genome.
  */
 template <class URNG, class GenomeT, class C, bool one_point = false,
@@ -71,11 +71,11 @@ template <class URNG, class GenomeT, class C, bool one_point = false,
 inline void CutSpliceMutate(URNG& urng, const GenomeT& mate1,
                             const GenomeT& mate2, float mutation_rate,
                             C* container) {
-  assert(!mate1.Get().empty());
-  assert(!mate2.Get().empty());
+  assert(!mate1.get().empty());
+  assert(!mate2.get().empty());
 
-  std::uniform_int_distribution<std::size_t> dist1(0, mate1.Get().size() - 1);
-  std::uniform_int_distribution<std::size_t> dist2(0, mate2.Get().size() - 1);
+  std::uniform_int_distribution<std::size_t> dist1(0, mate1.get().size() - 1);
+  std::uniform_int_distribution<std::size_t> dist2(0, mate2.get().size() - 1);
 
   const std::size_t cut1 = dist1(urng);
   const std::size_t cut2 = one_point ? cut1 : dist2(urng);
@@ -83,19 +83,19 @@ inline void CutSpliceMutate(URNG& urng, const GenomeT& mate1,
   // a[0:cut_a] + b[cut_b:]
   auto cut_and_splice = [](const GenomeT& a, const GenomeT& b,
                            std::size_t cut_a, std::size_t cut_b) {
-    auto result = a.Get();
+    auto result = a.get();
     auto ita = result.begin();
     std::advance(ita, cut_a);
     result.erase(ita, result.end());
-    auto itb = b.Get().begin();
+    auto itb = b.get().begin();
     std::advance(itb, cut_b);
-    result.insert(result.end(), itb, b.Get().end());
+    result.insert(result.end(), itb, b.get().end());
     return GenomeT(a, b, result);
   };
 
   // child1 = mate1[0:cut1] + mate2[cut2:]
   GenomeT child1 = cut_and_splice(mate1, mate2, cut1, cut2);
-  if (child1.Get().size()) {
+  if (child1.get().size()) {
     child1.Mutate(mutation_rate);
     container->push_back(std::move(child1));
   }
@@ -103,7 +103,7 @@ inline void CutSpliceMutate(URNG& urng, const GenomeT& mate1,
   if (!theone) {
     // child2 = mate2[0:cut2] + mate1[cut1:]
     GenomeT child2 = cut_and_splice(mate2, mate1, cut2, cut1);
-    if (child2.Get().size()) {
+    if (child2.get().size()) {
       child2.Mutate(mutation_rate);
       container->push_back(std::move(child2));
     }
@@ -151,14 +151,14 @@ class Genome {
    *
    * @return Const reference to vector of genes.
    */
-  const Container& Get() const { return genome_; }
+  const Container& get() const { return genome_; }
 
   /**
    * @brief Modifiable genome accessor.
    *
    * @return Pointer to vector of genes.
    */
-  Container* GetPtr() { return &genome_; }
+  Container* get_ptr() { return &genome_; }
 
   /**
    * @brief Less than comparison operator.
@@ -277,9 +277,9 @@ class GenePool {
     return oss.str();
   }
 
-  const Population& Get() const { return population_; }
+  const Population& get() const { return population_; }
 
-  Population* GetPtr() { return &population_; }
+  Population* get_ptr() { return &population_; }
 
   float mutation_rate() const { return mutation_rate_; }
 

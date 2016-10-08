@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 
 #include "../cats.hpp"
 #include "../compiler.hpp"
@@ -165,7 +166,7 @@ class Delay : public Operation {
   bool UpdateObs(types::InstPtr ip, int part, types::Addr addr,
                  const types::WriteID *from_id, std::size_t size,
                  EvtStateCats *evts) override {
-    assert(false);
+    throw std::logic_error("Unexpected UpdateObs");
     return false;
   }
 
@@ -655,7 +656,7 @@ struct RandomFactory {
     }
 
     // should never get here
-    assert(false);
+    throw std::logic_error("Not exhaustive");
     return nullptr;
   }
 

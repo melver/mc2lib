@@ -137,7 +137,7 @@ TEST(Sets, EventRelDiff) {
   d.set_props(EventRel::kReflexiveTransitiveClosure);
   auto evald = d.Eval();
   ASSERT_TRUE(d == evald);
-  ASSERT_TRUE(d.Raw() != evald.Raw());
+  ASSERT_TRUE(d.get() != evald.get());
   ASSERT_EQ(d.size(), 5);
 }
 

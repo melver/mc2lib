@@ -102,13 +102,15 @@ class RandInstTest
 
   typename Operation::Ptr MakeRandom(const AddrSet& subset_addrs,
                                      std::size_t max_tries = 1000) const {
-    return (*factory_)(urng_, [&subset_addrs](types::Addr addr) {
-      return subset_addrs.Contains(addr);
-    }, max_tries);
+    return (*factory_)(urng_,
+                       [&subset_addrs](types::Addr addr) {
+                         return subset_addrs.Contains(addr);
+                       },
+                       max_tries);
   }
 
   typename Operation::Threads threads() {
-    return ExtractThreads(this->GetPtr());
+    return ExtractThreads(this->get_ptr());
   }
 
  private:

@@ -35,6 +35,7 @@
 #define MC2LIB_CODEGEN_OPS_X86_64_HPP_
 
 #include <cstdint>
+#include <stdexcept>
 
 #include "strong.hpp"
 
@@ -113,7 +114,7 @@ inline std::size_t Backend_X86_64::Read(types::Addr addr, types::InstPtr start,
         break;
 
       default:
-        assert(false);
+        throw std::logic_error("Not supported");
     }
   } else {
     switch (sizeof(types::WriteID)) {
@@ -139,7 +140,7 @@ inline std::size_t Backend_X86_64::Read(types::Addr addr, types::InstPtr start,
         break;
 
       default:
-        assert(false);
+        throw std::logic_error("Not supported");
     }
 
     *reinterpret_cast<std::uint64_t *>(cnext) =
@@ -186,7 +187,7 @@ inline std::size_t Backend_X86_64::ReadAddrDp(types::Addr addr,
         break;
 
       default:
-        assert(false);
+        throw std::logic_error("Not supported");
     }
   } else {
     // ASM @03> movabs addr, %rdx ;
@@ -225,7 +226,7 @@ inline std::size_t Backend_X86_64::ReadAddrDp(types::Addr addr,
         break;
 
       default:
-        assert(false);
+        throw std::logic_error("Not supported");
     }
   }
 
@@ -266,7 +267,7 @@ inline std::size_t Backend_X86_64::Write(types::Addr addr,
         break;
 
       default:
-        assert(false);
+        throw std::logic_error("Not supported");
     }
   } else {
     switch (sizeof(types::WriteID)) {
@@ -318,7 +319,7 @@ inline std::size_t Backend_X86_64::Write(types::Addr addr,
         break;
 
       default:
-        assert(false);
+        throw std::logic_error("Not supported");
     }
   }
 
@@ -361,7 +362,7 @@ inline std::size_t Backend_X86_64::ReadModifyWrite(types::Addr addr,
       break;
 
     default:
-      assert(false);
+      throw std::logic_error("Not supported");
   }
 
   if (addr <= static_cast<types::Addr>(0xffffffff)) {
@@ -386,7 +387,7 @@ inline std::size_t Backend_X86_64::ReadModifyWrite(types::Addr addr,
         break;
 
       default:
-        assert(false);
+        throw std::logic_error("Not supported");
     }
   } else {
     switch (sizeof(types::WriteID)) {
@@ -432,7 +433,7 @@ inline std::size_t Backend_X86_64::ReadModifyWrite(types::Addr addr,
         break;
 
       default:
-        assert(false);
+        throw std::logic_error("Not supported");
     }
   }
 

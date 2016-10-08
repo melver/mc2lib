@@ -61,7 +61,7 @@ class CrossoverMutate {
       URNG& urng, const RandInstTest& test1, const RandInstTest& test2,
       float mutation_rate,
       typename simplega::GenePool<RandInstTest>::Population* container) {
-    assert(test1.Get().size() == test2.Get().size());
+    assert(test1.get().size() == test2.get().size());
 
     // Probability with which we unconditionally select a particular gene. We
     // don't always just want to pick fitaddr operations, as surrounding
@@ -86,15 +86,15 @@ class CrossoverMutate {
     std::bernoulli_distribution new_from_fitaddrs(P_BFA_);
     const auto all_fitaddrs = test1.fitaddrs() | test2.fitaddrs();
 
-    auto child = test1.Get();
+    auto child = test1.get();
     std::size_t mutations = 0;
 
     for (std::size_t i = 0; i < child.size(); ++i) {
       bool select1 = false;
       bool select2 = false;
 
-      auto mem_op1 = dynamic_cast<MemOperation*>(test1.Get()[i].get());
-      auto mem_op2 = dynamic_cast<MemOperation*>(test2.Get()[i].get());
+      auto mem_op1 = dynamic_cast<MemOperation*>(test1.get()[i].get());
+      auto mem_op2 = dynamic_cast<MemOperation*>(test2.get()[i].get());
 
       // Decide validity of genes
       if (mem_op1 != nullptr) {
@@ -114,10 +114,10 @@ class CrossoverMutate {
       // Pick gene
       if (select1 && select2) {
         if (prefer_test2) {
-          child[i] = test2.Get()[i];
+          child[i] = test2.get()[i];
         }
       } else if (!select1 && select2) {
-        child[i] = test2.Get()[i];
+        child[i] = test2.get()[i];
       } else if (!select1 && !select2) {
         ++mutations;
 
@@ -163,7 +163,7 @@ class CrossoverMutate {
     std::size_t mem_ops = 0;
     std::size_t fitaddr_ops = 0;
 
-    for (const auto& op : rit.Get()) {
+    for (const auto& op : rit.get()) {
       auto mem_op = dynamic_cast<MemOperation*>(op.get());
       if (mem_op != nullptr) {
         ++mem_ops;

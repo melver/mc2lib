@@ -102,7 +102,7 @@ TEST(SimpleGA, Add24) {
 
   auto gene = pool.SelectBest();
   float sum = 0.0f;
-  for (const auto& f : gene.Get()) {
+  for (const auto& f : gene.get()) {
     sum += f;
   }
 

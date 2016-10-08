@@ -24,7 +24,7 @@ TEST(CodeGen, ARMv7_Short) {
   auto threads = [&rit]() {
     auto result = rit.threads();
     EXPECT_EQ(result.size(), 2);
-    EXPECT_EQ(threads_size(result), rit.Get().size());
+    EXPECT_EQ(threads_size(result), rit.get().size());
     return result;
   };
 

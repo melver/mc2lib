@@ -16,7 +16,8 @@ TEST(McVerSi, CrossoverMutate) {
   codegen::strong::RandomFactory factory(0, 2, 0, 10);
 
   typedef codegen::RandInstTest<std::default_random_engine,
-                                codegen::strong::RandomFactory> RandInstTest;
+                                codegen::strong::RandomFactory>
+      RandInstTest;
 
   simplega::GenePool<RandInstTest>::Population initial_population;
 

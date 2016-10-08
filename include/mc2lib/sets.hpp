@@ -96,7 +96,7 @@ class Set {
    *
    * @return Reference to underlying container.
    */
-  const Container& Get() const { return set_; }
+  const Container& get() const { return set_; }
 
   bool operator==(const Set& rhs) const { return set_ == rhs.set_; }
 
@@ -188,7 +188,7 @@ class Set {
       // Cannot use set_.erase with iterator, as rhs may contain elements
       // that do not exist in this set. In such a case, the erase
       // implementation of current GCC segfaults.
-      for (const auto& e : rhs.Get()) {
+      for (const auto& e : rhs.get()) {
         Erase(e);
       }
     }
@@ -288,7 +288,7 @@ template <class Ts>
 inline Set<Ts> operator&(const Set<Ts>& lhs, const Set<Ts>& rhs) {
   Set<Ts> res;
 
-  for (const auto& e : rhs.Get()) {
+  for (const auto& e : rhs.get()) {
     if (lhs.Contains(e)) {
       res.Insert(e);
     }
@@ -349,9 +349,10 @@ class Relation {
   explicit Relation(Container r) : props_(kNone), rel_(std::move(r)) {}
 
   /**
-   * Avoid accessing rel_ directly! Uses of Raw() should be justified.
+   * Avoid accessing underlying container directly if possible! Uses of get()
+   * should be justified.
    */
-  const Container& Raw() const { return rel_; }
+  const Container& get() const { return rel_; }
 
   Properties props() const { return props_; }
 
@@ -435,7 +436,7 @@ class Relation {
 
     if (props()) {
       const auto dom = Domain();
-      for (const auto& e : dom.Get()) {
+      for (const auto& e : dom.get()) {
         total += Reachable(e).size();
       }
     } else {
@@ -456,9 +457,9 @@ class Relation {
   Func for_each(Func func) const {
     const auto dom = Domain();
 
-    for (const auto& e1 : dom.Get()) {
+    for (const auto& e1 : dom.get()) {
       const auto reach = Reachable(e1);
-      for (const auto& e2 : reach.Get()) {
+      for (const auto& e2 : reach.get()) {
         func(e1, e2);
       }
     }
@@ -540,11 +541,11 @@ class Relation {
 
     if (rhs.props()) {
       const auto rhs_domain = rhs.Domain();
-      for (const auto& e : rhs_domain.Get()) {
+      for (const auto& e : rhs_domain.get()) {
         rel_[e] |= rhs.Reachable(e);
       }
     } else {
-      for (const auto& tuples : rhs.Raw()) {
+      for (const auto& tuples : rhs.get()) {
         rel_[tuples.first] |= tuples.second;
       }
     }
@@ -560,11 +561,11 @@ class Relation {
 
     if (rhs.props()) {
       const auto rhs_domain = rhs.Domain();
-      for (const auto& e : rhs_domain.Get()) {
+      for (const auto& e : rhs_domain.get()) {
         Erase(e, rhs.Reachable(e));
       }
     } else {
-      for (const auto& tuples : rhs.Raw()) {
+      for (const auto& tuples : rhs.get()) {
         Erase(tuples.first, tuples.second);
       }
     }
@@ -695,10 +696,10 @@ class Relation {
     }
 
     for (const auto& tuples1 : rel_) {
-      for (const auto& e1 : tuples1.second.Get()) {
+      for (const auto& e1 : tuples1.second.get()) {
         const auto tuples2 = rel_.find(e1);
         if (tuples2 != rel_.end()) {
-          for (const auto& e2 : tuples2->second.Get()) {
+          for (const auto& e2 : tuples2->second.get()) {
             if (!R(tuples1.first, e2)) {
               return false;
             }
@@ -714,8 +715,8 @@ class Relation {
    * ∀(x,y) ∈ on×on, x→y ∨ y→x
    */
   bool TotalOn(const Set<Ts>& on) const {
-    for (const auto& e1 : on.Get()) {
-      for (const auto& e2 : on.Get()) {
+    for (const auto& e1 : on.get()) {
+      for (const auto& e2 : on.get()) {
         if (!R(e1, e2) && !R(e2, e1)) {
           return false;
         }
@@ -729,8 +730,8 @@ class Relation {
    * ∀(x,y) ∈ on×on, x→y ∨ y→x ∨ x=y
    */
   bool ConnexOn(const Set<Ts>& on) const {
-    for (const auto& e1 : on.Get()) {
-      for (const auto& e2 : on.Get()) {
+    for (const auto& e1 : on.get()) {
+      for (const auto& e2 : on.get()) {
         if (e1 != e2 && !R(e1, e2) && !R(e2, e1)) {
           return false;
         }
@@ -898,7 +899,7 @@ class Relation {
       const Set<Ts>& next = rel_.find(*start)->second;
       start = nullptr;
 
-      for (const auto& e : next.Get()) {
+      for (const auto& e : next.get()) {
         const auto se = visiting->find(e);
         if (se != visiting->end() && se->second) {
           out->push_back(e);
@@ -1036,9 +1037,9 @@ class Relation {
      * to e2.
      */
     bool DfsRec(const Element& e1, const Element& e2) const {
-      const auto tuples = src_->Raw().find(e1);
+      const auto tuples = src_->get().find(e1);
 
-      if (tuples == src_->Raw().end()) {
+      if (tuples == src_->get().end()) {
         return false;
       }
 
@@ -1049,7 +1050,7 @@ class Relation {
       bool result = false;
       visited_->Insert(e1);
 
-      for (const auto& e : tuples->second.Get()) {
+      for (const auto& e : tuples->second.get()) {
         if (e == e2) {
           if (mode_ == SearchMode::kRelatedVisitAll) {
             result = true;
@@ -1095,16 +1096,16 @@ class Relation {
       // assert(mode_ == SearchMode::kFindCycle);
       // assert(visiting_ != nullptr);
 
-      const auto tuples = src_->Raw().find(start);
+      const auto tuples = src_->get().find(start);
 
-      if (tuples == src_->Raw().end()) {
+      if (tuples == src_->get().end()) {
         return false;
       }
 
       (*visiting_)[start] = true;
       visited_->Insert(start);
 
-      for (const auto& e : tuples->second.Get()) {
+      for (const auto& e : tuples->second.get()) {
         if (!visited_->Contains(e)) {
           if (DfsRecFindCycle(e)) {
             return true;
@@ -1139,8 +1140,8 @@ template <class Ts>
 inline Relation<Ts> operator*(const Set<Ts>& lhs, const Set<Ts>& rhs) {
   Relation<Ts> res;
 
-  for (const auto& e1 : lhs.Get()) {
-    for (const auto& e2 : rhs.Get()) {
+  for (const auto& e1 : lhs.get()) {
+    for (const auto& e2 : rhs.get()) {
       res.Insert(e1, e2);
     }
   }
@@ -1204,7 +1205,7 @@ inline Relation<Ts> operator&(const Relation<Ts>& lhs,
   Relation<Ts> res;
 
   const auto lhs_domain = lhs.Domain();
-  for (const auto& e : lhs_domain.Get()) {
+  for (const auto& e : lhs_domain.get()) {
     Set<Ts> intersect = lhs.Reachable(e) & rhs.Reachable(e);
     // insert checks if empty or not
     res.Insert(e, std::move(intersect));
@@ -1363,8 +1364,8 @@ class RelationSeq : public RelationOp<Ts> {
     const auto potential_domain = this->rels_.front().Domain();
     const auto potential_range = this->rels_.back().Range();
 
-    for (const auto& e1 : potential_domain.Get()) {
-      for (const auto& e2 : potential_range.Get()) {
+    for (const auto& e1 : potential_domain.get()) {
+      for (const auto& e2 : potential_range.get()) {
         if (R(e1, e2)) {
           er.Insert(e1, e2);
         }
@@ -1397,7 +1398,7 @@ class RelationSeq : public RelationOp<Ts> {
       std::size_t path_size = 0;
 
       const Set<Ts> reach = rel.Reachable(e1);
-      for (const auto& e : reach.Get()) {
+      for (const auto& e : reach.get()) {
         if (path != nullptr) {
           path_size = path->size();
           rel.R(e1, e, path);  // true
@@ -1434,7 +1435,7 @@ class RelationSeq : public RelationOp<Ts> {
     }
 
     const auto domain = this->rels_.front().Domain();
-    for (const auto& e : domain.Get()) {
+    for (const auto& e : domain.get()) {
       if (R(e, e, cyclic)) {
         return false;
       }
